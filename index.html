@@ -199,6 +199,9 @@
   .estado-PENDIENTE { background: var(--amarillo-bg); color: #F57F17; }
   .estado-LO_PENSARA { background: #E0F7FA; color: #00838F; }
   .estado-OTROS { background: var(--gris-claro); color: var(--gris); }
+  #inp-buscar-nombre { transition: all 0.2s; }
+  #inp-buscar-nombre::placeholder { color: var(--texto-sec); }
+  #inp-buscar-nombre:focus { border-color: var(--azul) !important; box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.1); }
 </style>
 </head>
 <body>
@@ -289,6 +292,7 @@
     <div class="panel-right">
       <div class="panel-right-header" id="right-header" style="display:none">
         <span class="estado-badge" id="badge-estado"></span>
+        <input type="text" id="inp-buscar-nombre" placeholder="BUSCAR NOMBRE" style="margin-left:auto;padding:8px 12px;border:1.5px solid var(--borde);border-radius:var(--radio);font-size:13px;outline:none;background:var(--blanco);color:var(--texto);width:220px" oninput="buscarPorNombre(this.value)">
         <div class="nav-registros">
           <span id="nav-label">Registro: — de —</span>
           <button class="btn-nav" id="btn-prev" onclick="navRegistro(-1)">‹</button>
@@ -497,6 +501,12 @@ let filtroCol = null;
 let registrosFiltrados = [];
 let idxActual = 0;
 
+// Variables para búsqueda por nombre
+let busquedaActiva = false;
+let resultadosBusqueda = [];
+let idxBusqueda = 0;
+let badgeBase = ''; // Almacenar el badge sin búsqueda
+
 // ============================================================
 // LOGIN / LOGOUT
 // ============================================================
@@ -519,6 +529,8 @@ function doLogout() {
   currentUser = null;
   creditos = [];
   filtroEstado = null;
+  busquedaActiva = false;
+  resultadosBusqueda = [];
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').classList.add('visible');
   document.getElementById('login-user').value = '';
@@ -545,11 +557,77 @@ function filtrarPorEjecutivo(val) {
   filtroEjecutivo = val;
   filtroEstado = null;
   idxActual = 0;
+  busquedaActiva = false;
+  resultadosBusqueda = [];
+  document.getElementById('inp-buscar-nombre').value = '';
+  document.getElementById('resultado-busqueda').style.display = 'none';
   document.getElementById('panel-ejecutivo').textContent = val || 'Todos los ejecutivos';
   renderResumen();
   document.getElementById('right-header').style.display = 'none';
   document.getElementById('btn-nueva-gestion').disabled = true;
   document.getElementById('panel-content').innerHTML = '<div class="empty-state"><div class="icon-big">📊</div><p>Seleccione un estado en la tabla para ver los registros</p></div>';
+}
+
+function buscarPorNombre(termino) {
+  termino = termino.trim().toLowerCase();
+  
+  // Si no hay búsqueda, mostrar el listado normal del estado filtrado
+  if (!termino) {
+    busquedaActiva = false;
+    resultadosBusqueda = [];
+    idxBusqueda = 0;
+    renderPanelDerecho();
+    return;
+  }
+
+  // Si no hay estado seleccionado, no buscar
+  if (!filtroEstado) {
+    document.getElementById('inp-buscar-nombre').value = '';
+    return;
+  }
+
+  // Buscar dentro de los registros filtrados por estado
+  resultadosBusqueda = registrosFiltrados.filter(c => {
+    const nombre = (c.nombre || '').toLowerCase();
+    return nombre.includes(termino);
+  });
+
+  busquedaActiva = true;
+  idxBusqueda = 0;
+
+  if (resultadosBusqueda.length === 0) {
+    document.getElementById('panel-content').innerHTML = '<div class="empty-state"><div class="icon-big">🔍</div><p>No hay clientes en este estado que coincidan con la búsqueda</p></div>';
+    document.getElementById('nav-label').textContent = `Búsqueda: sin resultados`;
+    document.getElementById('btn-prev').disabled = true;
+    document.getElementById('btn-next').disabled = true;
+    return;
+  }
+
+  mostrarFichaBusqueda();
+}
+
+function mostrarFichaBusqueda() {
+  if (!busquedaActiva || resultadosBusqueda.length === 0) return;
+
+  const credito = resultadosBusqueda[idxBusqueda];
+  const btnNG = document.getElementById('btn-nueva-gestion');
+
+  btnNG.disabled = false;
+
+  const badge = document.getElementById('badge-estado');
+  badge.textContent = badgeBase;
+
+  document.getElementById('nav-label').textContent = `Búsqueda: ${idxBusqueda + 1} de ${resultadosBusqueda.length}`;
+  document.getElementById('btn-prev').disabled = idxBusqueda === 0;
+  document.getElementById('btn-next').disabled = idxBusqueda === resultadosBusqueda.length - 1;
+
+  renderFicha(credito);
+}
+
+function navRegistroBusqueda(dir) {
+  if (!busquedaActiva) return;
+  idxBusqueda = Math.max(0, Math.min(resultadosBusqueda.length - 1, idxBusqueda + dir));
+  mostrarFichaBusqueda();
 }
 
 // ============================================================
@@ -787,6 +865,11 @@ function renderResumen() {
 }
 
 function selFiltro(estado, col) {
+  busquedaActiva = false;
+  resultadosBusqueda = [];
+  idxBusqueda = 0;
+  document.getElementById('inp-buscar-nombre').value = '';
+  
   filtroEstado = estado; filtroCol = col; idxActual = 0;
   renderResumen(); aplicarFiltro();
 }
@@ -821,10 +904,11 @@ function renderPanelDerecho() {
 
   header.style.display = 'flex'; btnNG.disabled = false;
   const colLabel = filtroCol==='sinSeg'?'SIN SEGUIMIENTO':filtroCol==='vencido'?'SEG. VENCIDO':filtroCol==='alDia'?'SEG. AL DÍA':'';
-  const badgeLabel = colLabel ? `${filtroEstado} — ${colLabel}` : filtroEstado;
+  badgeBase = colLabel ? `${filtroEstado} — ${colLabel}` : filtroEstado;
   const badge = document.getElementById('badge-estado');
-  badge.textContent = badgeLabel;
+  badge.textContent = badgeBase;
   badge.className = `estado-badge estado-${filtroEstado.replace(/\s/g,'_').replace(/Á/g,'A').replace(/á/g,'a').replace(/É/g,'E').replace(/é/g,'e')}`;
+  
   document.getElementById('nav-label').textContent = `Registro: ${idxActual+1} de ${registrosFiltrados.length}`;
   document.getElementById('btn-prev').disabled = idxActual===0;
   document.getElementById('btn-next').disabled = idxActual===registrosFiltrados.length-1;
@@ -832,8 +916,12 @@ function renderPanelDerecho() {
 }
 
 function navRegistro(dir) {
-  idxActual = Math.max(0, Math.min(registrosFiltrados.length-1, idxActual+dir));
-  renderPanelDerecho();
+  if (busquedaActiva) {
+    navRegistroBusqueda(dir);
+  } else {
+    idxActual = Math.max(0, Math.min(registrosFiltrados.length-1, idxActual+dir));
+    renderPanelDerecho();
+  }
 }
 
 function fmt(n) { if (!n||isNaN(n)) return '-'; return '$'+Number(n).toLocaleString('es-CL'); }
