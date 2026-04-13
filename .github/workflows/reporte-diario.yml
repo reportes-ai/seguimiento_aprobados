@@ -27,4 +27,4 @@ jobs:
           GMAIL_USER: reportes@autofacilchile.cl
           GMAIL_PASSWORD: ${{ secrets.GMAIL_PASSWORD }}
           EMAIL_TO: eduardo.abad@autofacilchile.cl,patricio.escobar@autofacilchile.cl
-        run: node reporte-diario.js
+        run: node .github/workflows/scripts/reporte-diario.jss
