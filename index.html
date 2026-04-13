@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seguimiento de Créditos v2.1</title>
+<title>Seguimiento de Créditos v2.2</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
@@ -233,7 +233,7 @@
 <!-- APP -->
 <div id="app">
   <header>
-    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v2.1</small></h1>
+    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v2.2</small></h1>
     <div class="header-right">
       <span id="header-ejecutivo"></span>
       <button class="btn-sm" id="btn-informe" style="display:none;background:rgba(255,255,255,0.28);font-weight:600" onclick="abrirInforme()">📊 Informe Consolidado</button>
@@ -1587,6 +1587,16 @@ function abrirModalEliminar() {
   const hoy = new Date();
   const fmtISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
+  const parseFecha = fi => {
+    if (!fi) return null;
+    const s = String(fi).trim();
+    const p = s.split('-');
+    if (p.length === 3 && p[0].length === 4) return new Date(`${p[0]}-${p[1]}-${p[2]}T00:00:00`);
+    if (p.length === 3 && p[0].length === 2) return new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
+    const d = new Date(s + ' ' + hoy.getFullYear());
+    return isNaN(d) ? null : d;
+  };
+
   // HASTA: último día hábil del mes anterior
   const hasta = new Date(hoy.getFullYear(), hoy.getMonth(), 0);
   while (hasta.getDay() === 0) hasta.setDate(hasta.getDate() - 1);
@@ -1597,14 +1607,8 @@ function abrirModalEliminar() {
   if (creditos && creditos.length > 0) {
     let masAntigua = null;
     creditos.forEach(c => {
-      const fi = c.fecha_ingreso || c.fecha_curse;
-      if (!fi) return;
-      const p = fi.split('-');
-      if (p.length !== 3) return;
-      const d = p[0].length === 4
-        ? new Date(`${p[0]}-${p[1]}-${p[2]}T00:00:00`)
-        : new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
-      if (!isNaN(d) && (!masAntigua || d < masAntigua)) masAntigua = d;
+      const d = parseFecha(c.fecha_ingreso || c.fecha_curse);
+      if (d && (!masAntigua || d < masAntigua)) masAntigua = d;
     });
     if (masAntigua) desde = masAntigua;
   }
@@ -1626,46 +1630,48 @@ async function confirmarEliminar() {
   if (!desde || !hasta) { alert('Seleccione ambas fechas'); return; }
   if (desde > hasta) { alert('La fecha "desde" no puede ser mayor a "hasta"'); return; }
 
-  // Filtrar créditos por fecha_ingreso (input type=date entrega yyyy-mm-dd)
   const desdeDate = new Date(desde + 'T00:00:00');
   const hastaDate = new Date(hasta + 'T23:59:59');
 
+  // Parser de fecha robusto: soporta "Mon Mar 09", "dd-mm-yyyy", "yyyy-mm-dd"
+  const parseFecha = fi => {
+    if (!fi) return null;
+    const s = String(fi).trim();
+    const p = s.split('-');
+    if (p.length === 3 && p[0].length === 4) return new Date(`${p[0]}-${p[1]}-${p[2]}T00:00:00`);
+    if (p.length === 3 && p[0].length === 2) return new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
+    // Formato "Mon Mar 09" — asumir año actual
+    const d = new Date(s + ' ' + new Date().getFullYear());
+    return isNaN(d) ? null : d;
+  };
+
   const creditosAEliminar = creditos.filter(c => {
-    const fi = c.fecha_ingreso || c.fecha_curse;
-    if (!fi) return false;
-    const p = fi.split('-');
-    if (p.length !== 3) return false;
-    const d = p[0].length === 4
-      ? new Date(`${p[0]}-${p[1]}-${p[2]}T00:00:00`)
-      : new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
-    return !isNaN(d) && d >= desdeDate && d <= hastaDate;
+    const d = parseFecha(c.fecha_ingreso || c.fecha_curse);
+    return d && d >= desdeDate && d <= hastaDate;
   });
 
   if (creditosAEliminar.length === 0) {
-    alert(`⚠️ No se encontraron registros entre ${desde} y ${hasta}.\n\nEjemplo fecha_ingreso en BD: ${creditos[0]?.fecha_ingreso || 'sin datos'}`);
+    alert(`⚠️ No se encontraron registros entre ${desde} y ${hasta}.\n\nEjemplo fecha_ingreso en BD: "${creditos[0]?.fecha_ingreso || 'sin datos'}"`);
     return;
   }
 
-  const confirmacion = confirm(`¿Está seguro?\n\nSe eliminarán ${creditosAEliminar.length} créditos (y sus gestiones) entre ${desde} y ${hasta}.\n\nEsta acción NO se puede deshacer.`);
-  if (!confirmacion) return;
+  const ok = confirm(`¿Está seguro?\n\nSe eliminarán ${creditosAEliminar.length} créditos (y sus gestiones) entre ${desde} y ${hasta}.\n\nEsta acción NO se puede deshacer.`);
+  if (!ok) return;
 
   try {
     loading(true, `Eliminando ${creditosAEliminar.length} registros...`);
-
     const ids = creditosAEliminar.map(c => c.id);
 
     for (let i = 0; i < ids.length; i += 100) {
       const batch = ids.slice(i, i + 100);
       const inList = `(${batch.join(',')})`;
 
-      // Primero gestiones
       const resGest = await fetch(`${SUPABASE_URL}/rest/v1/gestiones?credito_id=in.${inList}`, {
         method: 'DELETE',
         headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
       });
       if (!resGest.ok) throw new Error('Gestiones: ' + await resGest.text());
 
-      // Luego créditos
       const resCred = await fetch(`${SUPABASE_URL}/rest/v1/creditos?id=in.${inList}`, {
         method: 'DELETE',
         headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
@@ -1677,7 +1683,6 @@ async function confirmarEliminar() {
     document.getElementById('del-resultado').style.color = 'var(--verde)';
     document.getElementById('del-resultado').textContent = `✅ Se eliminaron ${creditosAEliminar.length} registros correctamente`;
     document.getElementById('del-resultado').style.display = 'block';
-
     setTimeout(() => { cerrarModalEliminar(); recargarDatos(); }, 2000);
 
   } catch(err) {
