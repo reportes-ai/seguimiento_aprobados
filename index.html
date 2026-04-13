@@ -1682,20 +1682,40 @@ async function confirmarEliminar() {
       return;
     }
     
-    // Eliminar créditos (esto eliminará en cascada las gestiones)
     const ids = creditosAEliminar.map(c => c.id);
     
-    // Supabase RLS permite eliminar con filtros
+    // Eliminar en lotes de 100
     for (let i = 0; i < ids.length; i += 100) {
       const batch = ids.slice(i, i + 100);
-      const inList = batch.map(id => `id.eq.${id}`).join(',or.');
-      await fetch(`${SUPABASE_URL}/rest/v1/creditos?${inList}`, {
+      const inList = `(${batch.join(',')})`;
+      
+      // Primero eliminar gestiones asociadas
+      const resGest = await fetch(`${SUPABASE_URL}/rest/v1/gestiones?credito_id=in.${inList}`, {
         method: 'DELETE',
         headers: {
           'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Prefer': 'return=minimal'
         }
       });
+      if (!resGest.ok) {
+        const errText = await resGest.text();
+        throw new Error('Error eliminando gestiones: ' + errText);
+      }
+      
+      // Luego eliminar créditos
+      const resCred = await fetch(`${SUPABASE_URL}/rest/v1/creditos?id=in.${inList}`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Prefer': 'return=minimal'
+        }
+      });
+      if (!resCred.ok) {
+        const errText = await resCred.text();
+        throw new Error('Error eliminando créditos: ' + errText);
+      }
     }
     
     loading(false);
