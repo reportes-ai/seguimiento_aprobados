@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seguimiento de Créditos</title>
+<title>Seguimiento de Créditos v2.1</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
@@ -233,7 +233,7 @@
 <!-- APP -->
 <div id="app">
   <header>
-    <h1>📋 Seguimiento de Créditos Aprobados</h1>
+    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v2.1</small></h1>
     <div class="header-right">
       <span id="header-ejecutivo"></span>
       <button class="btn-sm" id="btn-informe" style="display:none;background:rgba(255,255,255,0.28);font-weight:600" onclick="abrirInforme()">📊 Informe Consolidado</button>
@@ -1626,7 +1626,7 @@ async function confirmarEliminar() {
   if (!desde || !hasta) { alert('Seleccione ambas fechas'); return; }
   if (desde > hasta) { alert('La fecha "desde" no puede ser mayor a "hasta"'); return; }
 
-  // Filtrar créditos por fecha_ingreso en el rango (input type=date entrega yyyy-mm-dd)
+  // Filtrar créditos por fecha_ingreso (input type=date entrega yyyy-mm-dd)
   const desdeDate = new Date(desde + 'T00:00:00');
   const hastaDate = new Date(hasta + 'T23:59:59');
 
@@ -1635,7 +1635,6 @@ async function confirmarEliminar() {
     if (!fi) return false;
     const p = fi.split('-');
     if (p.length !== 3) return false;
-    // Soporta dd-mm-yyyy y yyyy-mm-dd
     const d = p[0].length === 4
       ? new Date(`${p[0]}-${p[1]}-${p[2]}T00:00:00`)
       : new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
@@ -1643,7 +1642,7 @@ async function confirmarEliminar() {
   });
 
   if (creditosAEliminar.length === 0) {
-    alert(`⚠️ No se encontraron registros entre ${desde} y ${hasta}.\n\nVerifique las fechas.\n\nEjemplo fecha_ingreso en BD: ${creditos[0]?.fecha_ingreso || 'sin datos'}`);
+    alert(`⚠️ No se encontraron registros entre ${desde} y ${hasta}.\n\nEjemplo fecha_ingreso en BD: ${creditos[0]?.fecha_ingreso || 'sin datos'}`);
     return;
   }
 
