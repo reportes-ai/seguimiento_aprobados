@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seguimiento de Créditos v2.2</title>
+<title>Seguimiento de Créditos v2.3</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
@@ -233,7 +233,7 @@
 <!-- APP -->
 <div id="app">
   <header>
-    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v2.2</small></h1>
+    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v2.3</small></h1>
     <div class="header-right">
       <span id="header-ejecutivo"></span>
       <button class="btn-sm" id="btn-informe" style="display:none;background:rgba(255,255,255,0.28);font-weight:600" onclick="abrirInforme()">📊 Informe Consolidado</button>
@@ -251,7 +251,7 @@
       </div>
 
       <div id="filtro-ejecutivo-wrap" style="display:none">
-        <select class="sel-ejecutivo" id="sel-ejecutivo-gerente" onchange="filtrarPorEjecutivo(this.value)">
+        <select class="sel-ejecutivo" id="sel-ejecutivo-gerente" onchange="filtrarPorEjecutivo(this.value)" oninput="filtrarPorEjecutivo(this.value)">
           <option value="">Todos los ejecutivos</option>
         </select>
       </div>
