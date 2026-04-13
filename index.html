@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seguimiento de Créditos v2.7</title>
+<title>Seguimiento de Créditos v2.8</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
@@ -233,7 +233,7 @@
 <!-- APP -->
 <div id="app">
   <header>
-    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v2.7</small></h1>
+    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v2.8</small></h1>
     <div class="header-right">
       <span id="header-ejecutivo"></span>
       <button class="btn-sm" id="btn-informe" style="display:none;background:rgba(255,255,255,0.28);font-weight:600" onclick="abrirInforme()">📊 Informe Consolidado</button>
@@ -1355,9 +1355,9 @@ document.getElementById('informe-overlay').addEventListener('click', function(e)
 
 
 function abrirInforme() {
-  const fmtISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const fmtDDMMYYYY = d => `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
 
-  const parseFecha = fi => {
+  const parseFechaInf = fi => {
     if (!fi) return null;
     const s = String(fi).trim();
     const p = s.split('-');
@@ -1369,15 +1369,15 @@ function abrirInforme() {
 
   let masAntigua = null, masNueva = null;
   creditos.forEach(c => {
-    const d = parseFecha(c.fecha_ingreso || c.fecha_curse);
+    const d = parseFechaInf(c.fecha_ingreso || c.fecha_curse);
     if (!d) return;
     if (!masAntigua || d < masAntigua) masAntigua = d;
     if (!masNueva || d > masNueva) masNueva = d;
   });
 
   const hoy = new Date();
-  document.getElementById('inf-fecha-desde').value = fmtISO(masAntigua || hoy);
-  document.getElementById('inf-fecha-hasta').value = fmtISO(masNueva || hoy);
+  document.getElementById('inf-fecha-desde').value = fmtDDMMYYYY(masAntigua || hoy);
+  document.getElementById('inf-fecha-hasta').value = fmtDDMMYYYY(masNueva || hoy);
   document.getElementById('informe-contenido').innerHTML = '<div style="text-align:center;color:var(--texto-sec);padding:40px;font-size:14px">Seleccione el rango de fechas y presione Generar</div>';
   document.getElementById('btn-exportar-excel').style.display = 'none';
   document.getElementById('modal-informe').classList.add('visible');
