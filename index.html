@@ -1584,18 +1584,16 @@ document.getElementById('modal-informe').addEventListener('click', function(e) {
 // ELIMINAR REGISTROS POR RANGO DE FECHAS
 // ============================================================
 function abrirModalEliminar() {
-  // CORREGIDO: usa fecha_ingreso, HASTA = último día hábil mes anterior
-  
   const hoy = new Date();
   const fmtISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
-  // HASTA: último día hábil del mes anterior (abril → 31 marzo, retroceder si finde)
+  // HASTA: último día hábil del mes anterior
   const hasta = new Date(hoy.getFullYear(), hoy.getMonth(), 0);
-  while (hasta.getDay() === 0) hasta.setDate(hasta.getDate() - 1); // domingo
-  while (hasta.getDay() === 6) hasta.setDate(hasta.getDate() - 1); // sábado
+  while (hasta.getDay() === 0) hasta.setDate(hasta.getDate() - 1);
+  while (hasta.getDay() === 6) hasta.setDate(hasta.getDate() - 1);
 
   // DESDE: fecha_ingreso más antigua en la BD
-  let desde = new Date(hoy.getFullYear(), 0, 1); // fallback 1 ene año actual
+  let desde = new Date(hoy.getFullYear(), 0, 1);
   if (creditos && creditos.length > 0) {
     let masAntigua = null;
     creditos.forEach(c => {
@@ -1604,8 +1602,8 @@ function abrirModalEliminar() {
       const p = fi.split('-');
       if (p.length !== 3) return;
       const d = p[0].length === 4
-        ? new Date(`${p[0]}-${p[1]}-${p[2]}`)
-        : new Date(`${p[2]}-${p[1]}-${p[0]}`);
+        ? new Date(`${p[0]}-${p[1]}-${p[2]}T00:00:00`)
+        : new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
       if (!isNaN(d) && (!masAntigua || d < masAntigua)) masAntigua = d;
     });
     if (masAntigua) desde = masAntigua;
@@ -1624,78 +1622,69 @@ function cerrarModalEliminar() {
 async function confirmarEliminar() {
   const desde = document.getElementById('del-fecha-desde').value;
   const hasta = document.getElementById('del-fecha-hasta').value;
-  
-  if (!desde || !hasta) {
-    alert('Seleccione ambas fechas');
-    return;
-  }
-  
-  if (desde > hasta) {
-    alert('La fecha "desde" no puede ser mayor a "hasta"');
-    return;
-  }
-  
-  const confirmacion = confirm(`¿Está seguro que desea eliminar TODOS los registros entre ${desde} y ${hasta}?\n\nEsta acción NO se puede deshacer.`);
-  if (!confirmacion) return;
-  
-  try {
-    loading(true, 'Eliminando registros...');
-    
-    // Filtrar créditos por fecha_ingreso en el rango (input type=date → yyyy-mm-dd)
-    const desdeDate = new Date(desde + 'T00:00:00');
-    const hastaDate = new Date(hasta + 'T23:59:59');
 
-    const creditosAEliminar = creditos.filter(c => {
-      const fi = c.fecha_ingreso || c.fecha_curse;
-      if (!fi) return false;
-      const p = fi.split('-');
-      if (p.length !== 3) return false;
-      const d = p[0].length === 4
-        ? new Date(`${p[0]}-${p[1]}-${p[2]}T00:00:00`)
-        : new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
-      return !isNaN(d) && d >= desdeDate && d <= hastaDate;
-    });
-    
-    if (creditosAEliminar.length === 0) {
-      loading(false);
-      document.getElementById('del-resultado').textContent = '⚠️ No hay registros en el rango seleccionado';
-      document.getElementById('del-resultado').style.display = 'block';
-      return;
-    }
-    
+  if (!desde || !hasta) { alert('Seleccione ambas fechas'); return; }
+  if (desde > hasta) { alert('La fecha "desde" no puede ser mayor a "hasta"'); return; }
+
+  // Filtrar créditos por fecha_ingreso en el rango (input type=date entrega yyyy-mm-dd)
+  const desdeDate = new Date(desde + 'T00:00:00');
+  const hastaDate = new Date(hasta + 'T23:59:59');
+
+  const creditosAEliminar = creditos.filter(c => {
+    const fi = c.fecha_ingreso || c.fecha_curse;
+    if (!fi) return false;
+    const p = fi.split('-');
+    if (p.length !== 3) return false;
+    // Soporta dd-mm-yyyy y yyyy-mm-dd
+    const d = p[0].length === 4
+      ? new Date(`${p[0]}-${p[1]}-${p[2]}T00:00:00`)
+      : new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
+    return !isNaN(d) && d >= desdeDate && d <= hastaDate;
+  });
+
+  if (creditosAEliminar.length === 0) {
+    alert(`⚠️ No se encontraron registros entre ${desde} y ${hasta}.\n\nVerifique las fechas.\n\nEjemplo fecha_ingreso en BD: ${creditos[0]?.fecha_ingreso || 'sin datos'}`);
+    return;
+  }
+
+  const confirmacion = confirm(`¿Está seguro?\n\nSe eliminarán ${creditosAEliminar.length} créditos (y sus gestiones) entre ${desde} y ${hasta}.\n\nEsta acción NO se puede deshacer.`);
+  if (!confirmacion) return;
+
+  try {
+    loading(true, `Eliminando ${creditosAEliminar.length} registros...`);
+
     const ids = creditosAEliminar.map(c => c.id);
 
-    // Eliminar en lotes de 100: primero gestiones, luego créditos
     for (let i = 0; i < ids.length; i += 100) {
       const batch = ids.slice(i, i + 100);
       const inList = `(${batch.join(',')})`;
 
+      // Primero gestiones
       const resGest = await fetch(`${SUPABASE_URL}/rest/v1/gestiones?credito_id=in.${inList}`, {
         method: 'DELETE',
         headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
       });
-      if (!resGest.ok) throw new Error('Error gestiones: ' + await resGest.text());
+      if (!resGest.ok) throw new Error('Gestiones: ' + await resGest.text());
 
+      // Luego créditos
       const resCred = await fetch(`${SUPABASE_URL}/rest/v1/creditos?id=in.${inList}`, {
         method: 'DELETE',
         headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
       });
-      if (!resCred.ok) throw new Error('Error créditos: ' + await resCred.text());
+      if (!resCred.ok) throw new Error('Créditos: ' + await resCred.text());
     }
-    
+
     loading(false);
+    document.getElementById('del-resultado').style.color = 'var(--verde)';
     document.getElementById('del-resultado').textContent = `✅ Se eliminaron ${creditosAEliminar.length} registros correctamente`;
     document.getElementById('del-resultado').style.display = 'block';
-    
-    setTimeout(() => {
-      cerrarModalEliminar();
-      recargarDatos();
-    }, 1500);
-    
+
+    setTimeout(() => { cerrarModalEliminar(); recargarDatos(); }, 2000);
+
   } catch(err) {
     loading(false);
-    document.getElementById('del-resultado').textContent = `❌ Error: ${err.message}`;
     document.getElementById('del-resultado').style.color = '#C62828';
+    document.getElementById('del-resultado').textContent = `❌ Error: ${err.message}`;
     document.getElementById('del-resultado').style.display = 'block';
   }
 }
