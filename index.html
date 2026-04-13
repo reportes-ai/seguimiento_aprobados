@@ -45,9 +45,9 @@
   /* LOGIN */
   #login-screen {
     position: fixed; inset: 0; background: linear-gradient(135deg, #0D47A1 0%, #1565C0 60%, #1976D2 100%);
-    display: flex; align-items: center; justify-content: center; z-index: 1000;
+    display: none; align-items: center; justify-content: center; z-index: 1000;
   }
-  #login-screen.hidden { display: none; }
+  #login-screen.visible { display: flex; }
   .login-card {
     background: var(--blanco); border-radius: 16px; padding: 40px 36px;
     width: 360px; box-shadow: 0 8px 40px rgba(0,0,0,0.25);
@@ -199,6 +199,9 @@
   .estado-PENDIENTE { background: var(--amarillo-bg); color: #F57F17; }
   .estado-LO_PENSARA { background: #E0F7FA; color: #00838F; }
   .estado-OTROS { background: var(--gris-claro); color: var(--gris); }
+  #inp-buscar-nombre { transition: all 0.2s; }
+  #inp-buscar-nombre::placeholder { color: var(--texto-sec); }
+  #inp-buscar-nombre:focus { border-color: var(--azul) !important; box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.1); }
 </style>
 </head>
 <body>
@@ -233,7 +236,8 @@
     <h1>📋 Seguimiento de Créditos Aprobados</h1>
     <div class="header-right">
       <span id="header-ejecutivo"></span>
-      <button class="btn-sm" id="btn-eliminar" style="display:none;background:rgba(198,40,40,0.35);border-color:rgba(255,255,255,0.5)" onclick="abrirModalEliminar()">🗑️ Eliminar Registros</button>
+      <button class="btn-sm" id="btn-informe" style="display:none;background:rgba(255,255,255,0.28);font-weight:600" onclick="abrirInforme()">📊 Informe Consolidado</button>
+      <button class="btn-sm" id="btn-eliminar" style="display:none;background:rgba(220,53,69,0.28);font-weight:600;border-color:rgba(220,53,69,0.5);color:#fff" onclick="abrirModalEliminar()" title="Eliminar registros por rango de fechas">🗑️ Eliminar Registros</button>
       <button class="btn-sm" onclick="recargarDatos()" title="Actualizar datos desde el servidor">🔄 Actualizar</button>
       <button class="btn-sm" onclick="doLogout()">Cerrar sesión</button>
     </div>
@@ -289,6 +293,7 @@
     <div class="panel-right">
       <div class="panel-right-header" id="right-header" style="display:none">
         <span class="estado-badge" id="badge-estado"></span>
+        <input type="text" id="inp-buscar-nombre" placeholder="BUSCAR NOMBRE" style="margin-left:auto;padding:8px 12px;border:1.5px solid var(--borde);border-radius:var(--radio);font-size:13px;outline:none;background:var(--blanco);color:var(--texto);width:220px" oninput="buscarPorNombre(this.value)">
         <div class="nav-registros">
           <span id="nav-label">Registro: — de —</span>
           <button class="btn-nav" id="btn-prev" onclick="navRegistro(-1)">‹</button>
@@ -305,34 +310,147 @@
   </div>
 </div>
 
-<!-- MODAL ELIMINAR REGISTROS -->
-<div class="modal-overlay" id="modal-eliminar">
-  <div class="modal" style="width:480px">
-    <div class="modal-header" style="background:#C62828">
+<!-- MODAL INFORME CONSOLIDADO -->
+<div class="modal-overlay" id="informe-overlay">
+  <div class="modal" style="width:780px;max-width:96vw">
+    <div class="modal-header" style="justify-content:space-between">
+      <h3>📊 INFORME CONSOLIDADO</h3>
+      <button onclick="cerrarInforme()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div class="modal-body" style="padding:16px 20px">
+      <div style="display:flex;gap:16px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap">
+        <div class="form-group" style="flex:1;min-width:140px">
+          <label>Desde</label>
+          <input type="text" id="inf-fecha-desde">
+        </div>
+        <div class="form-group" style="flex:1;min-width:140px">
+          <label>Hasta</label>
+          <input type="text" id="inf-fecha-hasta">
+        </div>
+        <button onclick="generarInforme()" style="padding:9px 20px;background:var(--azul);color:#fff;border:none;border-radius:var(--radio);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">🔍 Generar</button>
+        <button id="btn-exportar-excel" onclick="exportarExcel()" style="display:none;padding:9px 20px;background:var(--verde);color:#fff;border:none;border-radius:var(--radio);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">⬇️ Exportar Excel</button>
+      </div>
+      <div id="informe-resultado"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NUEVA GESTIÓN -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
       <div>
-        <h3>🗑️ ELIMINAR REGISTROS</h3>
-        <div class="modal-fecha-hora">Solo gerentes — acción irreversible</div>
+        <h3>NUEVA GESTIÓN SEGUIMIENTO</h3>
+        <div class="modal-fecha-hora" id="modal-fecha-hora"></div>
       </div>
     </div>
     <div class="modal-body">
-      <div style="background:#FFEBEE;border:1px solid #EF9A9A;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#B71C1C">
-        ⚠️ Esta acción eliminará permanentemente todos los créditos y sus gestiones en el rango seleccionado. No se puede deshacer.
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nuevo Estado</label>
+          <select id="sel-estado" onchange="actualizarMotivos()">
+            <option value="">-- Seleccione --</option>
+            <option>DESISTIDO</option><option>POSPUESTO</option>
+            <option>PENDIENTE</option><option>LO PENSARÁ</option><option>OTROS</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Motivo Estado</label>
+          <select id="sel-motivo"><option value="">-- Seleccione estado primero --</option></select>
+        </div>
       </div>
-      <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Seguimiento</label>
+          <select id="sel-seguimiento" onchange="actualizarContacto()">
+            <option value="">-- Seleccione --</option>
+            <option>LLAMAR</option><option>WHATSAPP</option>
+            <option>EMAIL</option><option>VISITA</option><option>SIN CONTACTO</option>
+          </select>
+        </div>
+        <div class="form-group" id="contacto-group">
+          <label id="contacto-label">Contacto</label>
+          <input type="text" id="inp-contacto" placeholder="+56 9 XXXX XXXX">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Fecha Seguimiento</label>
+          <input type="date" id="inp-fecha-seg">
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label>Comentario</label>
+        <textarea id="inp-comentario" placeholder="Ingrese observaciones de la gestión..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancelar" onclick="cerrarModal()">CANCELAR</button>
+      <button class="btn-grabar" id="btn-grabar" onclick="grabarGestion()">GRABAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL INFORME CONSOLIDADO -->
+<div class="modal-overlay" id="modal-informe">
+  <div class="modal" style="width:900px;max-width:97vw">
+    <div class="modal-header">
+      <div>
+        <h3>📊 INFORME CONSOLIDADO</h3>
+        <div class="modal-fecha-hora" id="informe-subtitulo">Resumen por ejecutivo y estado</div>
+      </div>
+    </div>
+    <div class="modal-body" style="padding:16px 20px">
+      <div style="display:flex;gap:16px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap">
         <div style="display:flex;flex-direction:column;gap:4px">
-          <label style="font-size:11px;font-weight:700;color:var(--texto-sec);text-transform:uppercase;letter-spacing:0.4px">Desde (dd-mm-yyyy)</label>
-          <input type="text" id="elim-desde" maxlength="10" autocomplete="off" style="padding:8px 11px;border:1.5px solid var(--borde);border-radius:var(--radio);font-size:13px;outline:none;width:130px">
+          <label style="font-size:11px;font-weight:700;color:var(--texto-sec);text-transform:uppercase;letter-spacing:0.4px">Desde</label>
+          <input type="text" id="inf-fecha-desde" placeholder="dd-mm-yyyy" maxlength="10" autocomplete="off" style="padding:7px 10px;border:1.5px solid var(--borde);border-radius:var(--radio);font-size:13px;outline:none;width:120px;ime-mode:disabled">
         </div>
         <div style="display:flex;flex-direction:column;gap:4px">
-          <label style="font-size:11px;font-weight:700;color:var(--texto-sec);text-transform:uppercase;letter-spacing:0.4px">Hasta (dd-mm-yyyy)</label>
-          <input type="text" id="elim-hasta" maxlength="10" autocomplete="off" style="padding:8px 11px;border:1.5px solid var(--borde);border-radius:var(--radio);font-size:13px;outline:none;width:130px">
+          <label style="font-size:11px;font-weight:700;color:var(--texto-sec);text-transform:uppercase;letter-spacing:0.4px">Hasta</label>
+          <input type="text" id="inf-fecha-hasta" placeholder="dd-mm-yyyy" maxlength="10" autocomplete="off" style="padding:7px 10px;border:1.5px solid var(--borde);border-radius:var(--radio);font-size:13px;outline:none;width:120px;ime-mode:disabled">
+        </div>
+        <button onclick="generarInforme()" style="padding:8px 20px;background:var(--azul);color:#fff;border:none;border-radius:var(--radio);font-size:13px;font-weight:600;cursor:pointer;height:36px">🔍 Generar</button>
+        <button id="btn-exportar-excel" onclick="exportarExcel()" style="padding:8px 20px;background:var(--verde);color:#fff;border:none;border-radius:var(--radio);font-size:13px;font-weight:600;cursor:pointer;height:36px;display:none">⬇️ Exportar Excel</button>
+      </div>
+      <div id="informe-contenido" style="overflow-x:auto;overflow-y:auto;max-height:55vh">
+        <div style="text-align:center;color:var(--texto-sec);padding:40px;font-size:14px">Seleccione el rango de fechas y presione Generar</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancelar" onclick="cerrarInforme()">CERRAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ELIMINAR REGISTROS -->
+<div class="modal-overlay" id="modal-eliminar">
+  <div class="modal" style="width:500px">
+    <div class="modal-header" style="background:#C62828">
+      <div>
+        <h3>🗑️ ELIMINAR REGISTROS</h3>
+        <div class="modal-fecha-hora">Seleccione rango de fechas</div>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Desde</label>
+          <input type="date" id="del-fecha-desde">
+        </div>
+        <div class="form-group">
+          <label>Hasta</label>
+          <input type="date" id="del-fecha-hasta">
         </div>
       </div>
-      <div id="elim-preview" style="margin-top:14px;font-size:13px;color:var(--texto-sec);min-height:24px"></div>
+      <div style="background:#FFEBEE;border:1.5px solid #C62828;border-radius:var(--radio);padding:12px;margin-bottom:16px;color:#C62828;font-size:12px">
+        <strong>⚠️ Advertencia:</strong> Esta acción eliminará TODOS los registros en el rango seleccionado. No se puede deshacer.
+      </div>
+      <div id="del-resultado" style="font-size:12px;color:var(--texto-sec);margin-bottom:12px;display:none"></div>
     </div>
     <div class="modal-footer">
       <button class="btn-cancelar" onclick="cerrarModalEliminar()">CANCELAR</button>
-      <button id="btn-confirmar-eliminar" style="background:#C62828;color:#fff;border:none;padding:10px 28px;border-radius:var(--radio);font-size:14px;font-weight:600;cursor:pointer" onclick="confirmarEliminar()">ELIMINAR</button>
+      <button class="btn-grabar" style="background:#C62828" onclick="confirmarEliminar()">ELIMINAR</button>
     </div>
   </div>
 </div>
@@ -350,7 +468,7 @@ function guardarConfig() {}
 function initConfig() {
   SUPABASE_URL = 'https://wvjzzefvimaegrphixdq.supabase.co';
   SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2anp6ZWZ2aW1hZWdycGhpeGRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTE1NDksImV4cCI6MjA5MDQ2NzU0OX0.aB7emuk7Ypj5vPhht7vpkFuLuhkwSjN_dc3_jh-udLk';
-  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('login-screen').classList.add('visible');
 }
 
 // ============================================================
@@ -373,15 +491,6 @@ async function sbInsert(table, data) {
       'Content-Type': 'application/json', 'Prefer': 'resolution=ignore-duplicates,return=representation'
     },
     body: JSON.stringify(body)
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
-
-async function sbDelete(table, params = '') {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, {
-    method: 'DELETE',
-    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=representation' }
   });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
@@ -425,6 +534,12 @@ let filtroCol = null;
 let registrosFiltrados = [];
 let idxActual = 0;
 
+// Variables para búsqueda por nombre
+let busquedaActiva = false;
+let resultadosBusqueda = [];
+let idxBusqueda = 0;
+let badgeBase = ''; // Almacenar el badge sin búsqueda
+
 // ============================================================
 // LOGIN / LOGOUT
 // ============================================================
@@ -435,7 +550,7 @@ function doLogin() {
   if (!usr) { document.getElementById('login-error').style.display = 'block'; return; }
   document.getElementById('login-error').style.display = 'none';
   currentUser = usr;
-  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('login-screen').classList.remove('visible');
   document.getElementById('app').style.display = 'block';
   initApp();
 }
@@ -447,8 +562,10 @@ function doLogout() {
   currentUser = null;
   creditos = [];
   filtroEstado = null;
+  busquedaActiva = false;
+  resultadosBusqueda = [];
   document.getElementById('app').style.display = 'none';
-  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('login-screen').classList.add('visible');
   document.getElementById('login-user').value = '';
   document.getElementById('login-pass').value = '';
 }
@@ -463,8 +580,9 @@ async function initApp() {
   document.getElementById('panel-ejecutivo').textContent = nombre;
   document.getElementById('panel-fecha').textContent = new Date().toLocaleDateString('es-CL', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
   document.getElementById('upload-section').style.display = currentUser.perfil === 'gerente' ? 'block' : 'none';
-  document.getElementById('filtro-ejecutivo-wrap').style.display = currentUser.perfil === 'gerente' ? 'block' : 'none';
+  document.getElementById('btn-informe').style.display = currentUser.perfil === 'gerente' ? 'inline-block' : 'none';
   document.getElementById('btn-eliminar').style.display = currentUser.perfil === 'gerente' ? 'inline-block' : 'none';
+  document.getElementById('filtro-ejecutivo-wrap').style.display = currentUser.perfil === 'gerente' ? 'block' : 'none';
   await recargarDatos();
 }
 
@@ -472,11 +590,77 @@ function filtrarPorEjecutivo(val) {
   filtroEjecutivo = val;
   filtroEstado = null;
   idxActual = 0;
+  busquedaActiva = false;
+  resultadosBusqueda = [];
+  document.getElementById('inp-buscar-nombre').value = '';
+  document.getElementById('resultado-busqueda').style.display = 'none';
   document.getElementById('panel-ejecutivo').textContent = val || 'Todos los ejecutivos';
   renderResumen();
   document.getElementById('right-header').style.display = 'none';
   document.getElementById('btn-nueva-gestion').disabled = true;
   document.getElementById('panel-content').innerHTML = '<div class="empty-state"><div class="icon-big">📊</div><p>Seleccione un estado en la tabla para ver los registros</p></div>';
+}
+
+function buscarPorNombre(termino) {
+  termino = termino.trim().toLowerCase();
+  
+  // Si no hay búsqueda, mostrar el listado normal del estado filtrado
+  if (!termino) {
+    busquedaActiva = false;
+    resultadosBusqueda = [];
+    idxBusqueda = 0;
+    renderPanelDerecho();
+    return;
+  }
+
+  // Si no hay estado seleccionado, no buscar
+  if (!filtroEstado) {
+    document.getElementById('inp-buscar-nombre').value = '';
+    return;
+  }
+
+  // Buscar dentro de los registros filtrados por estado
+  resultadosBusqueda = registrosFiltrados.filter(c => {
+    const nombre = (c.nombre || '').toLowerCase();
+    return nombre.includes(termino);
+  });
+
+  busquedaActiva = true;
+  idxBusqueda = 0;
+
+  if (resultadosBusqueda.length === 0) {
+    document.getElementById('panel-content').innerHTML = '<div class="empty-state"><div class="icon-big">🔍</div><p>No hay clientes en este estado que coincidan con la búsqueda</p></div>';
+    document.getElementById('nav-label').textContent = `Búsqueda: sin resultados`;
+    document.getElementById('btn-prev').disabled = true;
+    document.getElementById('btn-next').disabled = true;
+    return;
+  }
+
+  mostrarFichaBusqueda();
+}
+
+function mostrarFichaBusqueda() {
+  if (!busquedaActiva || resultadosBusqueda.length === 0) return;
+
+  const credito = resultadosBusqueda[idxBusqueda];
+  const btnNG = document.getElementById('btn-nueva-gestion');
+
+  btnNG.disabled = false;
+
+  const badge = document.getElementById('badge-estado');
+  badge.textContent = badgeBase;
+
+  document.getElementById('nav-label').textContent = `Búsqueda: ${idxBusqueda + 1} de ${resultadosBusqueda.length}`;
+  document.getElementById('btn-prev').disabled = idxBusqueda === 0;
+  document.getElementById('btn-next').disabled = idxBusqueda === resultadosBusqueda.length - 1;
+
+  renderFicha(credito);
+}
+
+function navRegistroBusqueda(dir) {
+  if (!busquedaActiva) return;
+  idxBusqueda = Math.max(0, Math.min(resultadosBusqueda.length - 1, idxBusqueda + dir));
+  mostrarFichaBusqueda();
 }
 
 // ============================================================
@@ -542,24 +726,14 @@ async function recargarDatos() {
 function fmtFechaExcel(v) {
   if (!v) return '';
   try {
-    const s = String(v).trim();
-    // Formato: "01-04-26 12:15" -> dd=s[0..1], mm=s[3..4], yy=s[6..7]
-    if (s.length >= 8 && s[2] === '-') {
-      const dd = s.substring(0,2);
-      const mm = s.substring(3,5);
-      const yy = s.substring(6,8);
-      const yyyy = '20' + yy;
-      return dd + '-' + mm + '-' + yyyy;
-    }
-    // Fallback: intentar con Date
     const d = new Date(v);
     if (!isNaN(d)) {
       const dd = String(d.getDate()).padStart(2,'0');
       const mm = String(d.getMonth()+1).padStart(2,'0');
       const yyyy = d.getFullYear() < 2000 ? d.getFullYear() + 100 : d.getFullYear();
-      return dd + '-' + mm + '-' + yyyy;
+      return `${dd}-${mm}-${yyyy}`;
     }
-    return s.substring(0,10);
+    return String(v).substring(0,10);
   } catch { return String(v).substring(0,10); }
 }
 
@@ -724,6 +898,11 @@ function renderResumen() {
 }
 
 function selFiltro(estado, col) {
+  busquedaActiva = false;
+  resultadosBusqueda = [];
+  idxBusqueda = 0;
+  document.getElementById('inp-buscar-nombre').value = '';
+  
   filtroEstado = estado; filtroCol = col; idxActual = 0;
   renderResumen(); aplicarFiltro();
 }
@@ -758,10 +937,11 @@ function renderPanelDerecho() {
 
   header.style.display = 'flex'; btnNG.disabled = false;
   const colLabel = filtroCol==='sinSeg'?'SIN SEGUIMIENTO':filtroCol==='vencido'?'SEG. VENCIDO':filtroCol==='alDia'?'SEG. AL DÍA':'';
-  const badgeLabel = colLabel ? `${filtroEstado} — ${colLabel}` : filtroEstado;
+  badgeBase = colLabel ? `${filtroEstado} — ${colLabel}` : filtroEstado;
   const badge = document.getElementById('badge-estado');
-  badge.textContent = badgeLabel;
+  badge.textContent = badgeBase;
   badge.className = `estado-badge estado-${filtroEstado.replace(/\s/g,'_').replace(/Á/g,'A').replace(/á/g,'a').replace(/É/g,'E').replace(/é/g,'e')}`;
+  
   document.getElementById('nav-label').textContent = `Registro: ${idxActual+1} de ${registrosFiltrados.length}`;
   document.getElementById('btn-prev').disabled = idxActual===0;
   document.getElementById('btn-next').disabled = idxActual===registrosFiltrados.length-1;
@@ -769,8 +949,12 @@ function renderPanelDerecho() {
 }
 
 function navRegistro(dir) {
-  idxActual = Math.max(0, Math.min(registrosFiltrados.length-1, idxActual+dir));
-  renderPanelDerecho();
+  if (busquedaActiva) {
+    navRegistroBusqueda(dir);
+  } else {
+    idxActual = Math.max(0, Math.min(registrosFiltrados.length-1, idxActual+dir));
+    renderPanelDerecho();
+  }
 }
 
 function fmt(n) { if (!n||isNaN(n)) return '-'; return '$'+Number(n).toLocaleString('es-CL'); }
@@ -956,68 +1140,500 @@ async function grabarGestion() {
 document.getElementById('modal-overlay').addEventListener('click', function(e) { if(e.target===this) cerrarModal(); });
 
 // ============================================================
-// ELIMINAR REGISTROS
+// INFORME CONSOLIDADO
 // ============================================================
-function toISO(v) {
-  const clean = v.trim().replace(/[\/\.]/g, '-');
-  const p = clean.split('-');
-  if (p.length !== 3) return clean;
-  if (p[0].length === 4) return clean;
-  return p[2] + '-' + p[1] + '-' + p[0];
+let informeData = [];
+
+function abrirInforme() {
+  // Defaults: primer día del mes hasta hoy
+  const hoy = new Date();
+  const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  // toISOString usa UTC y puede dar fecha incorrecta en Chile (-3/-4 UTC)
+  // Construir fecha local directamente
+  const yyyy = hoy.getFullYear();
+  const mm = String(hoy.getMonth()+1).padStart(2,'0');
+  const dd = String(hoy.getDate()).padStart(2,'0');
+  // Usar setTimeout para asegurar que el DOM esté listo
+  setTimeout(() => {
+    const el1 = document.getElementById('inf-fecha-desde');
+    const el2 = document.getElementById('inf-fecha-hasta');
+    el1.value = '';
+    el2.value = '';
+    el1.setAttribute('value', '01-' + mm + '-' + yyyy);
+    el2.setAttribute('value', dd + '-' + mm + '-' + yyyy);
+    el1.value = '01-' + mm + '-' + yyyy;
+    el2.value = dd + '-' + mm + '-' + yyyy;
+    console.log('Fechas seteadas:', el1.value, el2.value);
+  }, 100);
+  document.getElementById('informe-resultado').innerHTML = '<p style="color:var(--texto-sec);text-align:center;padding:20px">Presione Generar para crear el informe</p>';
+  document.getElementById('btn-exportar-excel').style.display = 'none';
+  informeData = [];
+  document.getElementById('informe-overlay').classList.add('visible');
 }
 
-async function abrirModalEliminar() {
-  // Calcular fechas por defecto
-  const hoy = new Date();
-  // "Hasta": último día del mes anterior al mes pasado (2 meses atrás)
-  const hasta = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 0); // último día de hace 2 meses
-  const hastaDD = String(hasta.getDate()).padStart(2,'0');
-  const hastaMM = String(hasta.getMonth()+1).padStart(2,'0');
-  const hastaYYYY = hasta.getFullYear();
+function cerrarInforme() {
+  document.getElementById('informe-overlay').classList.remove('visible');
+}
 
-  // "Desde": mes más antiguo en la base de datos
-  let desdeStr = '01-01-2026';
-  if (creditos.length > 0) {
-    const fechas = creditos
-      .filter(c => c.fecha_ingreso)
-      .map(c => {
-        const p = c.fecha_ingreso.substring(0,10).split('-');
-        return p.length === 3 && p[0].length === 2 ? p[2]+'-'+p[1]+'-'+p[0] : c.fecha_ingreso;
-      })
-      .sort();
-    if (fechas.length > 0) {
-      const min = fechas[0];
-      const pm = min.split('-');
-      desdeStr = pm[2]+'-'+pm[1]+'-'+pm[0];
+function generarInforme() {
+  const desde = document.getElementById('inf-fecha-desde').value;
+  const hasta = document.getElementById('inf-fecha-hasta').value;
+  if (!desde || !hasta) { alert('Seleccione rango de fechas'); return; }
+
+  const desdeDate = new Date(desde + 'T00:00:00');
+  const hastaDate = new Date(hasta + 'T23:59:59');
+
+  // Filtrar créditos por fecha_ingreso dentro del rango
+  const creditosFiltrados = creditos.filter(c => {
+    if (!c.fecha_ingreso) return false;
+    // fecha_ingreso formato dd-mm-yyyy
+    const partes = c.fecha_ingreso.split('-');
+    if (partes.length < 3) return false;
+    const d = new Date(`${partes[2]}-${partes[1]}-${partes[0]}T00:00:00`);
+    return d >= desdeDate && d <= hastaDate;
+  });
+
+  if (creditosFiltrados.length === 0) {
+    document.getElementById('informe-resultado').innerHTML = '<p style="color:var(--rojo);text-align:center;padding:20px">No hay créditos en el rango de fechas seleccionado</p>';
+    document.getElementById('btn-exportar-excel').style.display = 'none';
+    return;
+  }
+
+  // Agrupar por ejecutivo y estado
+  const resumen = {};
+  creditosFiltrados.forEach(c => {
+    const ejec = c.ejecutivo || 'Sin ejecutivo';
+    const estado = getEstadoComercial(c);
+    if (!resumen[ejec]) resumen[ejec] = {};
+    if (!resumen[ejec][estado]) resumen[ejec][estado] = { cantidad: 0, monto: 0 };
+    resumen[ejec][estado].cantidad++;
+    resumen[ejec][estado].monto += Number(c.monto_pagare) || 0;
+  });
+
+  // Construir tabla
+  const estados = ['APROBADOS','ABIERTOS','DESISTIDO','POSPUESTO','PENDIENTE','LO PENSARÁ','OTROS'];
+  const ejecutivos = Object.keys(resumen).sort();
+  informeData = { resumen, ejecutivos, estados, desde, hasta, total: creditosFiltrados.length };
+
+  let html = `<div style="font-size:11px;color:var(--texto-sec);margin-bottom:8px">
+    Período: <strong>${desde}</strong> al <strong>${hasta}</strong> — 
+    Total créditos: <strong>${creditosFiltrados.length}</strong>
+  </div>`;
+
+  html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
+  
+  // Header
+  html += '<thead><tr>';
+  html += '<th style="background:var(--azul);color:#fff;padding:7px 10px;text-align:left;position:sticky;top:0;white-space:nowrap">Ejecutivo</th>';
+  estados.forEach(e => {
+    html += `<th colspan="2" style="background:var(--azul);color:#fff;padding:7px 6px;text-align:center;position:sticky;top:0;white-space:nowrap;border-left:1px solid rgba(255,255,255,0.2)">${e}</th>`;
+  });
+  html += '<th colspan="2" style="background:#0D47A1;color:#fff;padding:7px 6px;text-align:center;position:sticky;top:0;white-space:nowrap;border-left:1px solid rgba(255,255,255,0.2)">TOTAL</th>';
+  html += '</tr>';
+  
+  // Subheader
+  html += '<tr>';
+  html += '<th style="background:#E8EAF6;padding:4px 10px;font-size:10px;text-align:left"></th>';
+  estados.forEach(() => {
+    html += '<th style="background:#E8EAF6;padding:4px 5px;font-size:10px;text-align:center;border-left:1px solid #CFD8DC">N°</th>';
+    html += '<th style="background:#E8EAF6;padding:4px 5px;font-size:10px;text-align:right">Monto</th>';
+  });
+  html += '<th style="background:#C5CAE9;padding:4px 5px;font-size:10px;text-align:center;border-left:1px solid #CFD8DC">N°</th>';
+  html += '<th style="background:#C5CAE9;padding:4px 5px;font-size:10px;text-align:right">Monto</th>';
+  html += '</tr></thead><tbody>';
+
+  // Totales generales
+  const totalesGen = {};
+  estados.forEach(e => totalesGen[e] = { cantidad: 0, monto: 0 });
+
+  ejecutivos.forEach((ejec, idx) => {
+    const bg = idx % 2 === 0 ? '#fff' : '#F8F9FB';
+    html += `<tr style="background:${bg}">`;
+    html += `<td style="padding:6px 10px;font-weight:600;white-space:nowrap;border-bottom:1px solid #ECEFF1">${ejec}</td>`;
+    let totalEjec = { cantidad: 0, monto: 0 };
+    estados.forEach(e => {
+      const d = resumen[ejec][e] || { cantidad: 0, monto: 0 };
+      totalesGen[e].cantidad += d.cantidad;
+      totalesGen[e].monto += d.monto;
+      totalEjec.cantidad += d.cantidad;
+      totalEjec.monto += d.monto;
+      const cantStyle = d.cantidad > 0 ? 'font-weight:600;color:var(--azul)' : 'color:#ccc';
+      html += `<td style="padding:6px 5px;text-align:center;border-left:1px solid #ECEFF1;border-bottom:1px solid #ECEFF1;${cantStyle}">${d.cantidad || '-'}</td>`;
+      html += `<td style="padding:6px 5px;text-align:right;border-bottom:1px solid #ECEFF1;font-size:11px;color:var(--verde)">${d.monto > 0 ? '$'+d.monto.toLocaleString('es-CL') : ''}</td>`;
+    });
+    html += `<td style="padding:6px 5px;text-align:center;font-weight:700;border-left:1px solid #CFD8DC;border-bottom:1px solid #ECEFF1;color:var(--azul)">${totalEjec.cantidad}</td>`;
+    html += `<td style="padding:6px 5px;text-align:right;font-weight:700;border-bottom:1px solid #ECEFF1;font-size:11px;color:var(--verde)">$${totalEjec.monto.toLocaleString('es-CL')}</td>`;
+    html += '</tr>';
+  });
+
+  // Fila totales
+  let totalGenCant = 0, totalGenMonto = 0;
+  html += '<tr style="background:#EEF2FF;font-weight:700">';
+  html += '<td style="padding:7px 10px;border-top:2px solid var(--azul)">TOTAL</td>';
+  estados.forEach(e => {
+    totalGenCant += totalesGen[e].cantidad;
+    totalGenMonto += totalesGen[e].monto;
+    html += `<td style="padding:7px 5px;text-align:center;border-left:1px solid #CFD8DC;border-top:2px solid var(--azul);color:var(--azul)">${totalesGen[e].cantidad||'-'}</td>`;
+    html += `<td style="padding:7px 5px;text-align:right;border-top:2px solid var(--azul);font-size:11px;color:var(--verde)">${totalesGen[e].monto>0?'$'+totalesGen[e].monto.toLocaleString('es-CL'):''}</td>`;
+  });
+  html += `<td style="padding:7px 5px;text-align:center;border-left:1px solid #CFD8DC;border-top:2px solid var(--azul);color:var(--azul)">${totalGenCant}</td>`;
+  html += `<td style="padding:7px 5px;text-align:right;border-top:2px solid var(--azul);font-size:11px;color:var(--verde)">$${totalGenMonto.toLocaleString('es-CL')}</td>`;
+  html += '</tr></tbody></table></div>';
+
+  document.getElementById('informe-resultado').innerHTML = html;
+  document.getElementById('btn-exportar-excel').style.display = 'inline-block';
+}
+
+function exportarExcel() {
+  if (!informeData || !informeData.ejecutivos) return;
+  const { resumen, ejecutivos, estados, desde, hasta } = informeData;
+
+  // Build CSV
+  let csv = `\uFEFFINFORME CONSOLIDADO AutoFácil\n`;
+  csv += `Período:,${desde},al,${hasta}\n\n`;
+
+  // Header row
+  let header = 'Ejecutivo';
+  estados.forEach(e => { header += `,${e} N°,${e} Monto`; });
+  header += ',TOTAL N°,TOTAL Monto\n';
+  csv += header;
+
+  const totalesGen = {};
+  estados.forEach(e => totalesGen[e] = { cantidad: 0, monto: 0 });
+
+  ejecutivos.forEach(ejec => {
+    let row = `"${ejec}"`;
+    let totalCant = 0, totalMonto = 0;
+    estados.forEach(e => {
+      const d = resumen[ejec][e] || { cantidad: 0, monto: 0 };
+      totalesGen[e].cantidad += d.cantidad;
+      totalesGen[e].monto += d.monto;
+      totalCant += d.cantidad;
+      totalMonto += d.monto;
+      row += `,${d.cantidad},${d.monto}`;
+    });
+    row += `,${totalCant},${totalMonto}\n`;
+    csv += row;
+  });
+
+  // Totals row
+  let totalRow = 'TOTAL';
+  let gtCant = 0, gtMonto = 0;
+  estados.forEach(e => {
+    gtCant += totalesGen[e].cantidad;
+    gtMonto += totalesGen[e].monto;
+    totalRow += `,${totalesGen[e].cantidad},${totalesGen[e].monto}`;
+  });
+  totalRow += `,${gtCant},${gtMonto}\n`;
+  csv += totalRow;
+
+  // Download
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Informe_Creditos_${desde}_${hasta}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById('informe-overlay').addEventListener('click', function(e) {
+  if (e.target === this) cerrarInforme();
+});
+
+// ============================================================
+// INFORME CONSOLIDADO
+// ============================================================
+
+
+function abrirInforme() {
+  const hoy = new Date();
+  const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  // Formatear como yyyy-mm-dd ajustando zona horaria local
+  // input type=date requiere yyyy-mm-dd estrictamente
+  const fmtISO = d => {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    return yyyy + '-' + mm + '-' + dd;
+  };
+  document.getElementById('inf-fecha-desde').value = fmtISO(primerDia);
+  document.getElementById('inf-fecha-hasta').value = fmtISO(hoy);
+  document.getElementById('informe-contenido').innerHTML = '<div style="text-align:center;color:var(--texto-sec);padding:40px;font-size:14px">Seleccione el rango de fechas y presione Generar</div>';
+  document.getElementById('btn-exportar-excel').style.display = 'none';
+  document.getElementById('modal-informe').classList.add('visible');
+}
+
+function cerrarInforme() {
+  document.getElementById('modal-informe').classList.remove('visible');
+}
+
+function fmtMonto(n) {
+  if (!n || isNaN(n)) return '$0';
+  return '$' + Number(n).toLocaleString('es-CL');
+}
+
+async function generarInforme() {
+  const desdeRaw = document.getElementById('inf-fecha-desde').value;
+  const hastaRaw = document.getElementById('inf-fecha-hasta').value;
+  console.log('RAW desde:', desdeRaw, 'RAW hasta:', hastaRaw);
+  if (!desdeRaw || !hastaRaw) { alert('Seleccione ambas fechas'); return; }
+  // Normalizar a yyyy-mm-dd independiente del formato
+  // Input es dd-mm-yyyy texto, convertir a yyyy-mm-dd para comparar
+  const normFecha = v => {
+    const p = v.trim().split('-');
+    if (p.length !== 3) return v;
+    if (p[0].length === 4) return v; // ya es yyyy-mm-dd
+    return p[2] + '-' + p[1] + '-' + p[0]; // dd-mm-yyyy -> yyyy-mm-dd
+  };
+  const desde = normFecha(desdeRaw);
+  const hasta = normFecha(hastaRaw);
+  console.log('Normalizado desde:', desde, 'hasta:', hasta);
+
+  document.getElementById('informe-contenido').innerHTML = '<div style="text-align:center;padding:40px"><div class="spinner" style="margin:0 auto"></div><p style="margin-top:12px;color:var(--texto-sec)">Generando informe...</p></div>';
+  document.getElementById('btn-exportar-excel').style.display = 'none';
+
+  try {
+    // Filtrar créditos por fecha de ingreso en el rango
+    console.log('Total creditos en memoria:', creditos.length);
+    console.log('filtroEjecutivo:', filtroEjecutivo);
+    console.log('Ejemplo fecha_ingreso:', creditos[0]?.fecha_ingreso);
+    console.log('Rango desde:', desde, 'hasta:', hasta);
+    // Usar todos los creditos sin filtro de ejecutivo para el informe
+    const todosCreditos = creditos;
+    const creditosFiltrados = todosCreditos.filter(c => {
+      if (!c.fecha_ingreso) return false;
+      const fi = c.fecha_ingreso.substring(0, 10);
+      // Convertir dd-mm-yyyy a yyyy-mm-dd para comparar
+      const partes = fi.split('-');
+      let fechaComp = fi;
+      if (partes.length === 3 && partes[0].length === 2) {
+        // formato dd-mm-yyyy → yyyy-mm-dd
+        fechaComp = partes[2] + '-' + partes[1] + '-' + partes[0];
+      }
+      return fechaComp >= desde && fechaComp <= hasta;
+    });
+
+    // Agrupar por ejecutivo y estado
+    const resumen = {};
+    const ESTADOS = ['APROBADOS','ABIERTOS','DESISTIDO','POSPUESTO','PENDIENTE','LO PENSARÁ','OTROS'];
+
+    creditosFiltrados.forEach(c => {
+      const ej = c.ejecutivo || 'SIN EJECUTIVO';
+      const est = getEstadoComercial(c);
+      if (!resumen[ej]) {
+        resumen[ej] = {};
+        ESTADOS.forEach(e => resumen[ej][e] = { count: 0, monto: 0, pagare: 0 });
+      }
+      resumen[ej][est].count++;
+      resumen[ej][est].monto += Number(c.precio) || 0;
+      resumen[ej][est].pagare += Number(c.monto_pagare) || 0;
+    });
+
+    // Guardar para exportar
+    informeData = { resumen, desde, hasta, total: creditosFiltrados.length, ESTADOS };
+
+    if (creditosFiltrados.length === 0) {
+      document.getElementById('informe-contenido').innerHTML = '<div style="text-align:center;color:var(--texto-sec);padding:40px">No hay créditos en el rango de fechas seleccionado</div>';
+      return;
+    }
+
+    // Render tabla
+    const ejecutivos = Object.keys(resumen).sort();
+    let html = `
+      <div style="font-size:12px;color:var(--texto-sec);margin-bottom:10px">
+        Período: <strong>${desde.split('-').reverse().join('-')}</strong> al <strong>${hasta.split('-').reverse().join('-')}</strong>
+        &nbsp;|&nbsp; Total créditos: <strong>${creditosFiltrados.length}</strong>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap">
+        <thead>
+          <tr style="background:#1565C0;color:#fff">
+            <th style="padding:7px 10px;text-align:left;position:sticky;top:0;z-index:2;background:#1565C0">Ejecutivo</th>
+            <th style="padding:7px 10px;text-align:center;position:sticky;top:0;z-index:2;background:#1565C0" colspan="3">APROBADOS</th>
+            <th style="padding:7px 10px;text-align:center;position:sticky;top:0;z-index:2;background:#E65100;border-left:2px solid #fff" colspan="3">ABIERTOS</th>
+            <th style="padding:7px 10px;text-align:center;position:sticky;top:0;z-index:2;background:#C62828;border-left:2px solid #fff" colspan="3">DESISTIDO</th>
+            <th style="padding:7px 10px;text-align:center;position:sticky;top:0;z-index:2;background:#6A1B9A;border-left:2px solid #fff" colspan="3">POSPUESTO</th>
+            <th style="padding:7px 10px;text-align:center;position:sticky;top:0;z-index:2;background:#F57F17;border-left:2px solid #fff" colspan="3">PENDIENTE</th>
+            <th style="padding:7px 10px;text-align:center;position:sticky;top:0;z-index:2;background:#00838F;border-left:2px solid #fff" colspan="3">LO PENSARÁ</th>
+            <th style="padding:7px 10px;text-align:center;position:sticky;top:0;z-index:2;background:#546E7A;border-left:2px solid #fff" colspan="3">OTROS</th>
+            <th style="padding:7px 10px;text-align:center;position:sticky;top:0;z-index:2;background:#2E7D32;border-left:2px solid #fff" colspan="3">TOTAL</th>
+          </tr>
+          <tr style="background:#E8EAF6;font-size:11px">
+            <th style="padding:4px 10px;text-align:left;position:sticky;top:29px;z-index:2;background:#E8EAF6"></th>`;
+
+    ESTADOS.concat(['TOTAL']).forEach(() => {
+      html += `<th style="padding:4px 6px;text-align:center;color:#555;position:sticky;top:29px;z-index:2;background:#E8EAF6">Ops</th>
+               <th style="padding:4px 6px;text-align:right;color:#555;position:sticky;top:29px;z-index:2;background:#E8EAF6">Precio</th>
+               <th style="padding:4px 6px;text-align:right;color:#555;position:sticky;top:29px;z-index:2;background:#E8EAF6">Pagaré</th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    // Totales generales
+    const totGen = {};
+    ESTADOS.forEach(e => totGen[e] = { count:0, monto:0, pagare:0 });
+
+    ejecutivos.forEach((ej, idx) => {
+      const bg = idx % 2 === 0 ? '#fff' : '#F8F9FB';
+      let totEj = { count:0, monto:0, pagare:0 };
+      ESTADOS.forEach(e => {
+        totEj.count += resumen[ej][e].count;
+        totEj.monto += resumen[ej][e].monto;
+        totEj.pagare += resumen[ej][e].pagare;
+        totGen[e].count += resumen[ej][e].count;
+        totGen[e].monto += resumen[ej][e].monto;
+        totGen[e].pagare += resumen[ej][e].pagare;
+      });
+
+      html += `<tr style="background:${bg}">
+        <td style="padding:6px 10px;font-weight:600;font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${ej}">${ej}</td>`;
+      ESTADOS.forEach(e => {
+        const d = resumen[ej][e];
+        html += `<td style="padding:5px 6px;text-align:center;color:${d.count>0?'#1565C0':'#ccc'}">${d.count||'-'}</td>
+                 <td style="padding:5px 6px;text-align:right;font-size:11px;color:${d.monto>0?'#2E7D32':'#ccc'}">${d.monto>0?fmtMonto(d.monto):'-'}</td>
+                 <td style="padding:5px 6px;text-align:right;font-size:11px;color:${d.pagare>0?'#1565C0':'#ccc'}">${d.pagare>0?fmtMonto(d.pagare):'-'}</td>`;
+      });
+      html += `<td style="padding:5px 6px;text-align:center;font-weight:700;color:#2E7D32">${totEj.count||'-'}</td>
+               <td style="padding:5px 6px;text-align:right;font-weight:700;font-size:11px;color:#2E7D32">${totEj.monto>0?fmtMonto(totEj.monto):'-'}</td>
+               <td style="padding:5px 6px;text-align:right;font-weight:700;font-size:11px;color:#1565C0">${totEj.pagare>0?fmtMonto(totEj.pagare):'-'}</td>
+               </tr>`;
+    });
+
+    // Fila totales
+    let totFinalCount=0, totFinalMonto=0, totFinalPagare=0;
+    ESTADOS.forEach(e => { totFinalCount+=totGen[e].count; totFinalMonto+=totGen[e].monto; totFinalPagare+=totGen[e].pagare; });
+    html += `<tr style="background:#1565C0;color:#fff;font-weight:700">
+      <td style="padding:7px 10px">TOTAL GENERAL</td>`;
+    ESTADOS.forEach(e => {
+      html += `<td style="padding:6px 6px;text-align:center">${totGen[e].count||'-'}</td>
+               <td style="padding:6px 6px;text-align:right;font-size:11px">${totGen[e].monto>0?fmtMonto(totGen[e].monto):'-'}</td>
+               <td style="padding:6px 6px;text-align:right;font-size:11px">${totGen[e].pagare>0?fmtMonto(totGen[e].pagare):'-'}</td>`;
+    });
+    html += `<td style="padding:6px 6px;text-align:center">${totFinalCount}</td>
+             <td style="padding:6px 6px;text-align:right;font-size:11px">${fmtMonto(totFinalMonto)}</td>
+             <td style="padding:6px 6px;text-align:right;font-size:11px">${fmtMonto(totFinalPagare)}</td>
+             </tr>`;
+
+    html += '</tbody></table>';
+    document.getElementById('informe-contenido').innerHTML = html;
+    document.getElementById('btn-exportar-excel').style.display = 'inline-block';
+
+  } catch(err) {
+    document.getElementById('informe-contenido').innerHTML = `<div style="color:var(--rojo);padding:20px">Error: ${err.message}</div>`;
+  }
+}
+
+function exportarExcel() {
+  if (!informeData || !informeData.resumen) return;
+  const { resumen, desde, hasta, ESTADOS } = informeData;
+  const ejecutivos = Object.keys(resumen).sort();
+
+  // Construir filas CSV
+  const headers = ['Ejecutivo'];
+  ESTADOS.forEach(e => headers.push(`${e} - Ops`, `${e} - Precio`, `${e} - Pagaré`));
+  headers.push('TOTAL - Ops', 'TOTAL - Precio', 'TOTAL - Pagaré');
+
+  const rows = [headers];
+
+  const totGen = {};
+  ESTADOS.forEach(e => totGen[e] = { count:0, monto:0, pagare:0 });
+
+  ejecutivos.forEach(ej => {
+    const row = [ej];
+    let totEj = { count:0, monto:0, pagare:0 };
+    ESTADOS.forEach(e => {
+      const d = resumen[ej][e];
+      row.push(d.count, d.monto, d.pagare);
+      totEj.count += d.count; totEj.monto += d.monto; totEj.pagare += d.pagare;
+      totGen[e].count += d.count; totGen[e].monto += d.monto; totGen[e].pagare += d.pagare;
+    });
+    row.push(totEj.count, totEj.monto, totEj.pagare);
+    rows.push(row);
+  });
+
+  // Fila totales
+  const totRow = ['TOTAL GENERAL'];
+  let tc=0, tm=0, tp=0;
+  ESTADOS.forEach(e => {
+    totRow.push(totGen[e].count, totGen[e].monto, totGen[e].pagare);
+    tc+=totGen[e].count; tm+=totGen[e].monto; tp+=totGen[e].pagare;
+  });
+  totRow.push(tc, tm, tp);
+  rows.push(totRow);
+
+  // Generar CSV con BOM para Excel
+  const csv = rows.map(r => r.map(v => {
+    const s = String(v);
+    return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g,'""')}"` : s;
+  }).join(';')).join('\n');
+
+  const bom = '﻿';
+  const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Informe_Consolidado_${desde}_${hasta}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById('modal-informe').addEventListener('click', function(e) {
+  if (e.target === this) cerrarInforme();
+});
+
+// ============================================================
+// ELIMINAR REGISTROS POR RANGO DE FECHAS
+// ============================================================
+function abrirModalEliminar() {
+  // Calcular fechas por default
+  // Desde: mes más antiguo de la base
+  // Hasta: último día del mes previo al pasado (si estamos en abril, febrero)
+  
+  const hoy = new Date();
+  const mesActual = hoy.getMonth(); // 0-11
+  const anioActual = hoy.getFullYear();
+  
+  // Hasta: último día del mes previo al pasado
+  // Si estamos en abril (mes 3), previo al pasado es febrero (mes 1)
+  // Si estamos en marzo (mes 2), previo al pasado es enero (mes 0)
+  // Si estamos en enero (mes 0), previo al pasado es noviembre (mes 10 del año anterior)
+  let mesHasta = mesActual - 2;
+  let anioHasta = anioActual;
+  if (mesHasta < 0) {
+    mesHasta += 12;
+    anioHasta -= 1;
+  }
+  // Último día del mes
+  const diaHasta = new Date(anioHasta, mesHasta + 1, 0).getDate();
+  
+  // Desde: mes más antiguo
+  let mesDesde = 0; // enero
+  let anioDesde = anioActual;
+  // Buscar el mes más antiguo en los créditos
+  if (creditos && creditos.length > 0) {
+    let fechaMasAntigua = null;
+    creditos.forEach(c => {
+      if (c.fecha_ingreso) {
+        const partes = c.fecha_ingreso.split('-');
+        if (partes.length === 3) {
+          const d = new Date(`${partes[2]}-${partes[1]}-${partes[0]}`);
+          if (!fechaMasAntigua || d < fechaMasAntigua) {
+            fechaMasAntigua = d;
+          }
+        }
+      }
+    });
+    if (fechaMasAntigua) {
+      mesDesde = fechaMasAntigua.getMonth();
+      anioDesde = fechaMasAntigua.getFullYear();
     }
   }
-
-  document.getElementById('elim-desde').value = desdeStr;
-  document.getElementById('elim-hasta').value = hastaDD+'-'+hastaMM+'-'+hastaYYYY;
-  document.getElementById('elim-preview').textContent = '';
-  document.getElementById('btn-confirmar-eliminar').disabled = false;
-  document.getElementById('btn-confirmar-eliminar').textContent = 'ELIMINAR';
-
-  // Previsualizar cuántos registros se eliminarán
-  await previsualizarEliminar();
+  
+  const fmtISO = (dia, mes, anio) => `${anio}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+  
+  document.getElementById('del-fecha-desde').value = fmtISO(1, mesDesde, anioDesde);
+  document.getElementById('del-fecha-hasta').value = fmtISO(diaHasta, mesHasta, anioHasta);
+  document.getElementById('del-resultado').style.display = 'none';
   document.getElementById('modal-eliminar').classList.add('visible');
-}
-
-async function previsualizarEliminar() {
-  const desde = toISO(document.getElementById('elim-desde').value);
-  const hasta = toISO(document.getElementById('elim-hasta').value);
-  const afectados = creditos.filter(c => {
-    if (!c.fecha_ingreso) return false;
-    const p = c.fecha_ingreso.substring(0,10).split('-');
-    const fi = p.length===3 && p[0].length===2 ? p[2]+'-'+p[1]+'-'+p[0] : c.fecha_ingreso;
-    return fi >= desde && fi <= hasta;
-  });
-  const prev = document.getElementById('elim-preview');
-  if (afectados.length === 0) {
-    prev.innerHTML = '<span style="color:var(--verde)">✅ No hay registros en ese rango.</span>';
-  } else {
-    prev.innerHTML = `<span style="color:#C62828;font-weight:600">Se eliminarán <strong>${afectados.length}</strong> crédito(s) y todas sus gestiones asociadas.</span>`;
-  }
 }
 
 function cerrarModalEliminar() {
@@ -1025,53 +1641,81 @@ function cerrarModalEliminar() {
 }
 
 async function confirmarEliminar() {
-  const desdeVal = document.getElementById('elim-desde').value.trim();
-  const hastaVal = document.getElementById('elim-hasta').value.trim();
-  if (!desdeVal || !hastaVal) { alert('Ingrese ambas fechas'); return; }
-
-  const desde = toISO(desdeVal);
-  const hasta = toISO(hastaVal);
-
-  // Obtener IDs a eliminar
-  const aEliminar = creditos.filter(c => {
-    if (!c.fecha_ingreso) return false;
-    const p = c.fecha_ingreso.substring(0,10).split('-');
-    const fi = p.length===3 && p[0].length===2 ? p[2]+'-'+p[1]+'-'+p[0] : c.fecha_ingreso;
-    return fi >= desde && fi <= hasta;
-  });
-
-  if (aEliminar.length === 0) { alert('No hay registros en ese rango'); return; }
-
-  const ok = confirm(`¿Confirma eliminar ${aEliminar.length} crédito(s) y todas sus gestiones? Esta acción no se puede deshacer.`);
-  if (!ok) return;
-
-  const btn = document.getElementById('btn-confirmar-eliminar');
-  btn.disabled = true; btn.textContent = 'Eliminando...';
-
+  const desde = document.getElementById('del-fecha-desde').value;
+  const hasta = document.getElementById('del-fecha-hasta').value;
+  
+  if (!desde || !hasta) {
+    alert('Seleccione ambas fechas');
+    return;
+  }
+  
+  if (desde > hasta) {
+    alert('La fecha "desde" no puede ser mayor a "hasta"');
+    return;
+  }
+  
+  const confirmacion = confirm(`¿Está seguro que desea eliminar TODOS los registros entre ${desde} y ${hasta}?\n\nEsta acción NO se puede deshacer.`);
+  if (!confirmacion) return;
+  
   try {
-    const ids = aEliminar.map(c => c.id);
-    // Eliminar gestiones primero
-    const inList = '(' + ids.join(',') + ')';
-    await sbDelete('gestiones', `credito_id=in.${inList}`);
-    // Eliminar créditos
-    await sbDelete('creditos', `id=in.${inList}`);
-
-    cerrarModalEliminar();
-    filtroEstado = null;
-    await recargarDatos();
-    alert(`✅ Se eliminaron ${aEliminar.length} crédito(s) correctamente.`);
+    loading(true, 'Eliminando registros...');
+    
+    // Convertir fechas a formato dd-mm-yyyy para comparar
+    const desdeDate = new Date(desde);
+    const hastaDate = new Date(hasta);
+    
+    // Filtrar créditos en el rango
+    const creditosAEliminar = creditos.filter(c => {
+      if (!c.fecha_ingreso) return false;
+      const partes = c.fecha_ingreso.split('-');
+      if (partes.length < 3) return false;
+      const d = new Date(`${partes[2]}-${partes[1]}-${partes[0]}`);
+      return d >= desdeDate && d <= hastaDate;
+    });
+    
+    if (creditosAEliminar.length === 0) {
+      loading(false);
+      document.getElementById('del-resultado').textContent = '✅ No hay registros en el rango seleccionado';
+      document.getElementById('del-resultado').style.display = 'block';
+      return;
+    }
+    
+    // Eliminar créditos (esto eliminará en cascada las gestiones)
+    const ids = creditosAEliminar.map(c => c.id);
+    
+    // Supabase RLS permite eliminar con filtros
+    for (let i = 0; i < ids.length; i += 100) {
+      const batch = ids.slice(i, i + 100);
+      const inList = batch.map(id => `id.eq.${id}`).join(',or.');
+      await fetch(`${SUPABASE_URL}/rest/v1/creditos?${inList}`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`
+        }
+      });
+    }
+    
+    loading(false);
+    document.getElementById('del-resultado').textContent = `✅ Se eliminaron ${creditosAEliminar.length} registros correctamente`;
+    document.getElementById('del-resultado').style.display = 'block';
+    
+    setTimeout(() => {
+      cerrarModalEliminar();
+      recargarDatos();
+    }, 1500);
+    
   } catch(err) {
-    alert('Error al eliminar: ' + err.message);
-    btn.disabled = false; btn.textContent = 'ELIMINAR';
+    loading(false);
+    document.getElementById('del-resultado').textContent = `❌ Error: ${err.message}`;
+    document.getElementById('del-resultado').style.color = '#C62828';
+    document.getElementById('del-resultado').style.display = 'block';
   }
 }
 
 document.getElementById('modal-eliminar').addEventListener('click', function(e) {
   if (e.target === this) cerrarModalEliminar();
 });
-
-document.getElementById('elim-desde').addEventListener('blur', previsualizarEliminar);
-document.getElementById('elim-hasta').addEventListener('blur', previsualizarEliminar);
 
 // ============================================================
 // INICIO
