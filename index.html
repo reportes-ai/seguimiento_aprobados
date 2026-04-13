@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seguimiento de Créditos v3.0</title>
+<title>Seguimiento de Créditos v3.1</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
@@ -233,7 +233,7 @@
 <!-- APP -->
 <div id="app">
   <header>
-    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v3.0</small></h1>
+    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v3.1</small></h1>
     <div class="header-right">
       <span id="header-ejecutivo"></span>
       <button class="btn-sm" id="btn-informe" style="display:none;background:rgba(255,255,255,0.28);font-weight:600" onclick="abrirInforme()">📊 Informe Consolidado</button>
@@ -1153,26 +1153,29 @@ document.getElementById('modal-overlay').addEventListener('click', function(e) {
 let informeData = [];
 
 function abrirInforme() {
-  // Defaults: primer día del mes hasta hoy
   const hoy = new Date();
-  const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-  // toISOString usa UTC y puede dar fecha incorrecta en Chile (-3/-4 UTC)
-  // Construir fecha local directamente
-  const yyyy = hoy.getFullYear();
-  const mm = String(hoy.getMonth()+1).padStart(2,'0');
-  const dd = String(hoy.getDate()).padStart(2,'0');
-  // Usar setTimeout para asegurar que el DOM esté listo
-  setTimeout(() => {
-    const el1 = document.getElementById('inf-fecha-desde');
-    const el2 = document.getElementById('inf-fecha-hasta');
-    el1.value = '';
-    el2.value = '';
-    el1.setAttribute('value', '01-' + mm + '-' + yyyy);
-    el2.setAttribute('value', dd + '-' + mm + '-' + yyyy);
-    el1.value = '01-' + mm + '-' + yyyy;
-    el2.value = dd + '-' + mm + '-' + yyyy;
-    console.log('Fechas seteadas:', el1.value, el2.value);
-  }, 100);
+  const fmtISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+  const parseFecha = fi => {
+    if (!fi) return null;
+    const s = String(fi).trim();
+    const p = s.split('-');
+    if (p.length === 3 && p[0].length === 4) return new Date(`${p[0]}-${p[1]}-${p[2]}T00:00:00`);
+    if (p.length === 3 && p[0].length === 2) return new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
+    const d = new Date(s + ' ' + hoy.getFullYear());
+    return isNaN(d) ? null : d;
+  };
+
+  let masAntigua = null, masNueva = null;
+  creditos.forEach(c => {
+    const d = parseFecha(c.fecha_ingreso || c.fecha_curse);
+    if (!d) return;
+    if (!masAntigua || d < masAntigua) masAntigua = d;
+    if (!masNueva || d > masNueva) masNueva = d;
+  });
+
+  document.getElementById('inf-fecha-desde').value = fmtISO(masAntigua || hoy);
+  document.getElementById('inf-fecha-hasta').value = fmtISO(masNueva || hoy);
   document.getElementById('informe-resultado').innerHTML = '<p style="color:var(--texto-sec);text-align:center;padding:20px">Presione Generar para crear el informe</p>';
   document.getElementById('btn-exportar-excel').style.display = 'none';
   informeData = [];
