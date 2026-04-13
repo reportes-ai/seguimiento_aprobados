@@ -1584,55 +1584,35 @@ document.getElementById('modal-informe').addEventListener('click', function(e) {
 // ELIMINAR REGISTROS POR RANGO DE FECHAS
 // ============================================================
 function abrirModalEliminar() {
-  // Calcular fechas por default
-  // Desde: mes más antiguo de la base
-  // Hasta: último día del mes previo al pasado (si estamos en abril, febrero)
+  // CORREGIDO: usa fecha_ingreso, HASTA = último día hábil mes anterior
   
   const hoy = new Date();
-  const mesActual = hoy.getMonth(); // 0-11
-  const anioActual = hoy.getFullYear();
-  
-  // Hasta: último día del mes previo al pasado
-  // Si estamos en abril (mes 3), previo al pasado es febrero (mes 1)
-  // Si estamos en marzo (mes 2), previo al pasado es enero (mes 0)
-  // Si estamos en enero (mes 0), previo al pasado es noviembre (mes 10 del año anterior)
-  let mesHasta = mesActual - 2;
-  let anioHasta = anioActual;
-  if (mesHasta < 0) {
-    mesHasta += 12;
-    anioHasta -= 1;
-  }
-  // Último día del mes
-  const diaHasta = new Date(anioHasta, mesHasta + 1, 0).getDate();
-  
-  // Desde: mes más antiguo (usando fecha_curse)
-  let mesDesde = 0; // enero
-  let anioDesde = anioActual;
-  // Buscar el mes más antiguo en los créditos por fecha_curse
+  const fmtISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+  // HASTA: último día hábil del mes anterior (abril → 31 marzo, retroceder si finde)
+  const hasta = new Date(hoy.getFullYear(), hoy.getMonth(), 0);
+  while (hasta.getDay() === 0) hasta.setDate(hasta.getDate() - 1); // domingo
+  while (hasta.getDay() === 6) hasta.setDate(hasta.getDate() - 1); // sábado
+
+  // DESDE: fecha_ingreso más antigua en la BD
+  let desde = new Date(hoy.getFullYear(), 0, 1); // fallback 1 ene año actual
   if (creditos && creditos.length > 0) {
-    let fechaMasAntigua = null;
+    let masAntigua = null;
     creditos.forEach(c => {
-      if (c.fecha_curse) {
-        const partes = c.fecha_curse.split('-');
-        if (partes.length === 3) {
-          // fecha_curse formato dd-mm-yyyy
-          const d = new Date(`${partes[2]}-${partes[1]}-${partes[0]}`);
-          if (!fechaMasAntigua || d < fechaMasAntigua) {
-            fechaMasAntigua = d;
-          }
-        }
-      }
+      const fi = c.fecha_ingreso || c.fecha_curse;
+      if (!fi) return;
+      const p = fi.split('-');
+      if (p.length !== 3) return;
+      const d = p[0].length === 4
+        ? new Date(`${p[0]}-${p[1]}-${p[2]}`)
+        : new Date(`${p[2]}-${p[1]}-${p[0]}`);
+      if (!isNaN(d) && (!masAntigua || d < masAntigua)) masAntigua = d;
     });
-    if (fechaMasAntigua) {
-      mesDesde = fechaMasAntigua.getMonth();
-      anioDesde = fechaMasAntigua.getFullYear();
-    }
+    if (masAntigua) desde = masAntigua;
   }
-  
-  const fmtISO = (dia, mes, anio) => `${anio}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-  
-  document.getElementById('del-fecha-desde').value = fmtISO(1, mesDesde, anioDesde);
-  document.getElementById('del-fecha-hasta').value = fmtISO(diaHasta, mesHasta, anioHasta);
+
+  document.getElementById('del-fecha-desde').value = fmtISO(desde);
+  document.getElementById('del-fecha-hasta').value = fmtISO(hasta);
   document.getElementById('del-resultado').style.display = 'none';
   document.getElementById('modal-eliminar').classList.add('visible');
 }
@@ -1661,61 +1641,46 @@ async function confirmarEliminar() {
   try {
     loading(true, 'Eliminando registros...');
     
-    // Convertir fechas a formato dd-mm-yyyy para comparar
-    const desdeDate = new Date(desde);
-    const hastaDate = new Date(hasta);
-    
-    // Filtrar créditos por fecha_curse en el rango
+    // Filtrar créditos por fecha_ingreso en el rango (input type=date → yyyy-mm-dd)
+    const desdeDate = new Date(desde + 'T00:00:00');
+    const hastaDate = new Date(hasta + 'T23:59:59');
+
     const creditosAEliminar = creditos.filter(c => {
-      if (!c.fecha_curse) return false;
-      const partes = c.fecha_curse.split('-');
-      if (partes.length < 3) return false;
-      // fecha_curse formato dd-mm-yyyy
-      const d = new Date(`${partes[2]}-${partes[1]}-${partes[0]}`);
-      return d >= desdeDate && d <= hastaDate;
+      const fi = c.fecha_ingreso || c.fecha_curse;
+      if (!fi) return false;
+      const p = fi.split('-');
+      if (p.length !== 3) return false;
+      const d = p[0].length === 4
+        ? new Date(`${p[0]}-${p[1]}-${p[2]}T00:00:00`)
+        : new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
+      return !isNaN(d) && d >= desdeDate && d <= hastaDate;
     });
     
     if (creditosAEliminar.length === 0) {
       loading(false);
-      document.getElementById('del-resultado').textContent = '✅ No hay registros en el rango seleccionado';
+      document.getElementById('del-resultado').textContent = '⚠️ No hay registros en el rango seleccionado';
       document.getElementById('del-resultado').style.display = 'block';
       return;
     }
     
     const ids = creditosAEliminar.map(c => c.id);
-    
-    // Eliminar en lotes de 100
+
+    // Eliminar en lotes de 100: primero gestiones, luego créditos
     for (let i = 0; i < ids.length; i += 100) {
       const batch = ids.slice(i, i + 100);
       const inList = `(${batch.join(',')})`;
-      
-      // Primero eliminar gestiones asociadas
+
       const resGest = await fetch(`${SUPABASE_URL}/rest/v1/gestiones?credito_id=in.${inList}`, {
         method: 'DELETE',
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'Prefer': 'return=minimal'
-        }
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
       });
-      if (!resGest.ok) {
-        const errText = await resGest.text();
-        throw new Error('Error eliminando gestiones: ' + errText);
-      }
-      
-      // Luego eliminar créditos
+      if (!resGest.ok) throw new Error('Error gestiones: ' + await resGest.text());
+
       const resCred = await fetch(`${SUPABASE_URL}/rest/v1/creditos?id=in.${inList}`, {
         method: 'DELETE',
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'Prefer': 'return=minimal'
-        }
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
       });
-      if (!resCred.ok) {
-        const errText = await resCred.text();
-        throw new Error('Error eliminando créditos: ' + errText);
-      }
+      if (!resCred.ok) throw new Error('Error créditos: ' + await resCred.text());
     }
     
     loading(false);
