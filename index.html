@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seguimiento de Créditos v3.1</title>
+<title>Seguimiento de Créditos v3.2</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
@@ -233,7 +233,7 @@
 <!-- APP -->
 <div id="app">
   <header>
-    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v3.1</small></h1>
+    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v3.2</small></h1>
     <div class="header-right">
       <span id="header-ejecutivo"></span>
       <button class="btn-sm" id="btn-informe" style="display:none;background:rgba(255,255,255,0.28);font-weight:600" onclick="abrirInforme()">📊 Informe Consolidado</button>
@@ -1194,14 +1194,20 @@ function generarInforme() {
   const desdeDate = new Date(desde + 'T00:00:00');
   const hastaDate = new Date(hasta + 'T23:59:59');
 
+  const parseFecha = fi => {
+    if (!fi) return null;
+    const s = String(fi).trim();
+    const p = s.split('-');
+    if (p.length === 3 && p[0].length === 4) return new Date(`${p[0]}-${p[1]}-${p[2]}T00:00:00`);
+    if (p.length === 3 && p[0].length === 2) return new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
+    const d = new Date(s + ' ' + new Date().getFullYear());
+    return isNaN(d) ? null : d;
+  };
+
   // Filtrar créditos por fecha_ingreso dentro del rango
   const creditosFiltrados = creditos.filter(c => {
-    if (!c.fecha_ingreso) return false;
-    // fecha_ingreso formato dd-mm-yyyy
-    const partes = c.fecha_ingreso.split('-');
-    if (partes.length < 3) return false;
-    const d = new Date(`${partes[2]}-${partes[1]}-${partes[0]}T00:00:00`);
-    return d >= desdeDate && d <= hastaDate;
+    const d = parseFecha(c.fecha_ingreso || c.fecha_curse);
+    return d && d >= desdeDate && d <= hastaDate;
   });
 
   if (creditosFiltrados.length === 0) {
