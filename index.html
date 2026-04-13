@@ -1605,16 +1605,17 @@ function abrirModalEliminar() {
   // Último día del mes
   const diaHasta = new Date(anioHasta, mesHasta + 1, 0).getDate();
   
-  // Desde: mes más antiguo
+  // Desde: mes más antiguo (usando fecha_curse)
   let mesDesde = 0; // enero
   let anioDesde = anioActual;
-  // Buscar el mes más antiguo en los créditos
+  // Buscar el mes más antiguo en los créditos por fecha_curse
   if (creditos && creditos.length > 0) {
     let fechaMasAntigua = null;
     creditos.forEach(c => {
-      if (c.fecha_ingreso) {
-        const partes = c.fecha_ingreso.split('-');
+      if (c.fecha_curse) {
+        const partes = c.fecha_curse.split('-');
         if (partes.length === 3) {
+          // fecha_curse formato dd-mm-yyyy
           const d = new Date(`${partes[2]}-${partes[1]}-${partes[0]}`);
           if (!fechaMasAntigua || d < fechaMasAntigua) {
             fechaMasAntigua = d;
@@ -1664,11 +1665,12 @@ async function confirmarEliminar() {
     const desdeDate = new Date(desde);
     const hastaDate = new Date(hasta);
     
-    // Filtrar créditos en el rango
+    // Filtrar créditos por fecha_curse en el rango
     const creditosAEliminar = creditos.filter(c => {
-      if (!c.fecha_ingreso) return false;
-      const partes = c.fecha_ingreso.split('-');
+      if (!c.fecha_curse) return false;
+      const partes = c.fecha_curse.split('-');
       if (partes.length < 3) return false;
+      // fecha_curse formato dd-mm-yyyy
       const d = new Date(`${partes[2]}-${partes[1]}-${partes[0]}`);
       return d >= desdeDate && d <= hastaDate;
     });
