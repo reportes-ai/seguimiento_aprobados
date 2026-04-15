@@ -20,11 +20,20 @@ jobs:
       - name: Instalar dependencias
         run: npm install node-fetch nodemailer
 
-      - name: Generar y enviar reporte
+      - name: Reporte seguimientos vencidos
         env:
           SUPABASE_URL: https://wvjzzefvimaegrphixdq.supabase.co
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           GMAIL_USER: autofacilreportes@gmail.com
           GMAIL_PASSWORD: ${{ secrets.GMAIL_PASSWORD }}
-          EMAIL_TO: grupo.comercial@autofacilchile.cl
+          EMAIL_TO: eduardo.abad@autofacilchile.cl,patricio.escobar@autofacilchile.cl
         run: node .github/workflows/scripts/reporte-diario.js
+
+      - name: Reporte créditos sin seguimiento
+        env:
+          SUPABASE_URL: https://wvjzzefvimaegrphixdq.supabase.co
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          GMAIL_USER: autofacilreportes@gmail.com
+          GMAIL_PASSWORD: ${{ secrets.GMAIL_PASSWORD }}
+          EMAIL_TO: eduardo.abad@autofacilchile.cl,patricio.escobar@autofacilchile.cl
+        run: node .github/workflows/scripts/reporte-sin-seguimiento.js
