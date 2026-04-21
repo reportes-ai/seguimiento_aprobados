@@ -41,7 +41,6 @@ async function main() {
   const inList = `(${ids.join(',')})`;
   const gestiones = await sbGet('gestiones', `credito_id=in.${inList}&order=created_at.asc`);
 
-  // Mapear gestiones por crédito
   const gesMap = {};
   gestiones.forEach(g => {
     if (!gesMap[g.credito_id]) gesMap[g.credito_id] = [];
@@ -50,23 +49,20 @@ async function main() {
 
   const hoy = new Date(); hoy.setHours(0,0,0,0);
 
-  // Filtrar: APROBADOS sin ninguna gestión
   const sinSeguimiento = creditos.filter(c => {
     const gs = gesMap[c.id] || [];
-    // Sin seguimiento = sin gestiones registradas
     return gs.length === 0;
   }).map(c => {
     const fechaIngreso = parseFecha(c.fecha_ingreso);
     const dias = diasDesde(fechaIngreso);
     return { ...c, fechaIngresoDate: fechaIngreso, diasSinSeg: dias };
-  }).sort((a, b) => (b.diasSinSeg || 0) - (a.diasSinSeg || 0)); // más antiguos primero
+  }).sort((a, b) => (b.diasSinSeg || 0) - (a.diasSinSeg || 0));
 
   if (sinSeguimiento.length === 0) {
     console.log('No hay casos sin seguimiento. No se envía email.');
     return;
   }
 
-  // Agrupar por ejecutivo
   const porEjecutivo = {};
   sinSeguimiento.forEach(c => {
     const ej = c.ejecutivo || 'SIN EJECUTIVO';
@@ -76,7 +72,6 @@ async function main() {
 
   const fechaHoy = hoy.toLocaleDateString('es-CL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-  // Colores según días sin seguimiento
   function colorDias(dias) {
     if (dias >= 7) return '#C62828';
     if (dias >= 3) return '#E65100';
@@ -125,7 +120,6 @@ async function main() {
       </div>`;
   });
 
-  // Resumen por ejecutivo
   let resumenFilas = '';
   let totalGeneral = 0, totalCasos = 0;
   Object.keys(porEjecutivo).sort().forEach(ej => {
@@ -152,8 +146,6 @@ async function main() {
         <p style="margin:4px 0 0;opacity:0.85;font-size:13px">${fechaHoy}</p>
       </div>
       <div style="background:#fff;padding:20px 24px;border:1px solid #CFD8DC;border-top:none;border-radius:0 0 8px 8px">
-
-        <!-- Resumen ejecutivo -->
         <div style="background:#F8F9FB;border-radius:8px;padding:16px;margin-bottom:24px">
           <p style="margin:0 0 12px;font-size:13px;font-weight:700;color:#37474F">RESUMEN POR EJECUTIVO</p>
           <table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -178,11 +170,8 @@ async function main() {
             </tbody>
           </table>
         </div>
-
-        <!-- Detalle por ejecutivo -->
         <p style="margin:0 0 16px;font-size:13px;font-weight:700;color:#37474F">DETALLE POR EJECUTIVO</p>
         ${tablas}
-
         <p style="color:#90A4AE;font-size:11px;margin-top:24px;border-top:1px solid #ECEFF1;padding-top:12px">
           Reporte automático generado por el sistema de Seguimiento de Créditos AutoFácil
         </p>
@@ -200,7 +189,7 @@ async function main() {
   await transporter.sendMail({
     from: `"AutoFácil Reportes" <${process.env.GMAIL_USER}>`,
     to: process.env.EMAIL_TO,
-    subject: `⚪ ${sinSeguimiento.length} créditos sin seguimiento — ${hoy.toLocaleDateString('es-CL')}`,
+    subject: `🔴 ${sinSeguimiento.length} créditos sin seguimiento — ${hoy.toLocaleDateString('es-CL')}`,
     html,
   });
 
