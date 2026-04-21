@@ -204,6 +204,36 @@
   #inp-buscar-nombre::placeholder { color: var(--texto-sec); }
   #inp-buscar-nombre:focus { border-color: var(--azul) !important; box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.1); }
 
+  /* EDITAR CREDITO */
+  #edit-credito-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.55);display:none;align-items:center;justify-content:center;z-index:600; }
+  #edit-credito-overlay.visible { display:flex; }
+  .edit-credito-modal { background:#fff;border-radius:14px;width:780px;max-width:97vw;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 12px 60px rgba(0,0,0,0.28);overflow:hidden; }
+  .edit-credito-header { background:#1565C0;color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0; }
+  .edit-credito-header h2 { font-size:15px;font-weight:700; }
+  .edit-credito-body { padding:20px;overflow-y:auto;flex:1; }
+  .edit-credito-search { display:flex;gap:10px;margin-bottom:20px;align-items:center; }
+  .edit-credito-search input { flex:1;padding:10px 14px;border:1.5px solid var(--borde);border-radius:var(--radio);font-size:14px;outline:none; }
+  .edit-credito-search input:focus { border-color:var(--azul); }
+  .btn-buscar-credito { background:var(--azul);color:#fff;border:none;padding:10px 20px;border-radius:var(--radio);font-size:13px;font-weight:600;cursor:pointer; }
+  .btn-buscar-credito:hover { background:#0D47A1; }
+  .edit-credito-form { display:none; }
+  .edit-credito-form.visible { display:block; }
+  .edit-seccion { margin-bottom:18px; }
+  .edit-seccion-title { font-size:11px;font-weight:700;color:var(--texto-sec);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--borde); }
+  .edit-grid { display:grid;grid-template-columns:1fr 1fr;gap:12px; }
+  .edit-grid-3 { display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px; }
+  .edit-field { display:flex;flex-direction:column;gap:4px; }
+  .edit-field label { font-size:11px;font-weight:700;color:var(--texto-sec);text-transform:uppercase;letter-spacing:0.4px; }
+  .edit-field input, .edit-field select { padding:8px 10px;border:1.5px solid var(--borde);border-radius:var(--radio);font-size:13px;font-family:inherit;outline:none;transition:border-color 0.2s; }
+  .edit-field input:focus, .edit-field select:focus { border-color:var(--azul); }
+  .edit-field input[readonly] { background:#F8F9FB;color:var(--texto-sec);cursor:not-allowed; }
+  .edit-credito-footer { padding:14px 20px;border-top:1px solid var(--borde);display:flex;gap:10px;justify-content:flex-end;flex-shrink:0; }
+  .btn-guardar-credito { background:var(--verde);color:#fff;border:none;padding:10px 28px;border-radius:var(--radio);font-size:13px;font-weight:600;cursor:pointer; }
+  .btn-guardar-credito:hover { background:#1B5E20; }
+  .edit-msg { font-size:13px;padding:8px 14px;border-radius:var(--radio);display:none;margin-bottom:14px; }
+  .edit-msg.ok { background:var(--verde-bg);color:var(--verde);display:block; }
+  .edit-msg.err { background:var(--rojo-bg);color:var(--rojo);display:block; }
+
   /* ADMIN PANEL */
   #admin-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.55);display:none;align-items:center;justify-content:center;z-index:600; }
   #admin-overlay.visible { display:flex; }
@@ -285,6 +315,7 @@
       <span id="header-ejecutivo"></span>
       <button class="btn-sm" id="btn-informe" style="display:none;background:rgba(255,255,255,0.28);font-weight:600" onclick="abrirInforme()">📊 Informe Consolidado</button>
       <button class="btn-sm" id="btn-admin" style="display:none;background:rgba(255,255,255,0.18);font-weight:600" onclick="abrirAdmin()">⚙️ Usuarios</button>
+      <button class="btn-sm" id="btn-edit-credito" style="display:none;background:rgba(255,255,255,0.18);font-weight:600" onclick="abrirEditCredito()">✏️ Editar Crédito</button>
       <button class="btn-sm" id="btn-eliminar" style="display:none;background:rgba(220,53,69,0.28);font-weight:600;border-color:rgba(220,53,69,0.5);color:#fff" onclick="abrirModalEliminar()" title="Eliminar registros por rango de fechas">🗑️ Eliminar Registros</button>
       <button class="btn-sm" onclick="recargarDatos()" title="Actualizar datos desde el servidor">🔄 Actualizar</button>
       <button class="btn-sm" onclick="doLogout()">Cerrar sesión</button>
@@ -621,6 +652,7 @@ async function initApp() {
   document.getElementById('btn-informe').style.display = currentUser.perfil === 'gerente' ? 'inline-block' : 'none';
   document.getElementById('btn-eliminar').style.display = currentUser.perfil === 'gerente' ? 'inline-block' : 'none';
   document.getElementById('btn-admin').style.display = currentUser.perfil === 'gerente' ? 'inline-block' : 'none';
+  document.getElementById('btn-edit-credito').style.display = currentUser.perfil === 'gerente' ? 'inline-block' : 'none';
   document.getElementById('filtro-ejecutivo-wrap').style.display = currentUser.perfil === 'gerente' ? 'block' : 'none';
   await recargarDatos();
 }
@@ -1573,6 +1605,91 @@ function exportarDetalle() {
 }
 
 // ============================================================
+// EDITAR CRÉDITO
+// ============================================================
+let editCreditoData = null;
+
+function abrirEditCredito() {
+  document.getElementById('edit-credito-overlay').classList.add('visible');
+  document.getElementById('ec-id-input').value = '';
+  document.getElementById('ec-form').classList.remove('visible');
+  document.getElementById('ec-msg').className = 'edit-msg';
+  editCreditoData = null;
+}
+
+function cerrarEditCredito() {
+  document.getElementById('edit-credito-overlay').classList.remove('visible');
+}
+
+async function buscarCreditoEdit() {
+  const id = document.getElementById('ec-id-input').value.trim();
+  if (!id) return;
+  const msg = document.getElementById('ec-msg');
+  msg.className = 'edit-msg';
+  try {
+    const rows = await sbGet('creditos', 'id=eq.' + encodeURIComponent(id) + '&limit=1');
+    if (!rows || rows.length === 0) {
+      msg.textContent = 'No se encontró ningún crédito con ese ID.';
+      msg.className = 'edit-msg err';
+      document.getElementById('ec-form').classList.remove('visible');
+      return;
+    }
+    editCreditoData = rows[0];
+    rellenarFormCredito(editCreditoData);
+    document.getElementById('ec-form').classList.add('visible');
+  } catch(e) {
+    msg.textContent = 'Error: ' + e.message;
+    msg.className = 'edit-msg err';
+  }
+}
+
+function rellenarFormCredito(c) {
+  const fields = ['categoria','estado','nombre','rut_cliente','ejecutivo','producto','dealer','sucursal','marca','modelo','precio','pie','saldo_precio','monto_pagare','riesgo_cliente','fecha_ingreso','fecha_curse','nom_evaluador','canal'];
+  fields.forEach(f => {
+    const el = document.getElementById('ec-' + f);
+    if (el) el.value = c[f] != null ? c[f] : '';
+  });
+  document.getElementById('ec-id-display').textContent = c.id;
+}
+
+async function guardarCreditoEdit() {
+  if (!editCreditoData) return;
+  const msg = document.getElementById('ec-msg');
+  msg.className = 'edit-msg';
+  const fields = ['categoria','estado','nombre','rut_cliente','ejecutivo','producto','dealer','sucursal','marca','modelo','precio','pie','saldo_precio','monto_pagare','riesgo_cliente','fecha_ingreso','fecha_curse','nom_evaluador','canal'];
+  const data = {};
+  fields.forEach(f => {
+    const el = document.getElementById('ec-' + f);
+    if (el) {
+      const v = el.value.trim();
+      // numeric fields
+      if (['precio','pie','saldo_precio','monto_pagare'].includes(f)) {
+        data[f] = v === '' ? null : Number(v);
+      } else {
+        data[f] = v === '' ? null : v;
+      }
+    }
+  });
+  try {
+    await sbUpdate('creditos', editCreditoData.id, data);
+    msg.textContent = 'Crédito actualizado correctamente.';
+    msg.className = 'edit-msg ok';
+    // Recargar datos de la app en background
+    recargarDatos().catch(()=>{});
+  } catch(e) {
+    msg.textContent = 'Error guardando: ' + e.message;
+    msg.className = 'edit-msg err';
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    cerrarEditCredito();
+    cerrarAdmin();
+  }
+});
+
+// ============================================================
 // ADMINISTRACIÓN DE USUARIOS
 // ============================================================
 let adminUsuarios = [];
@@ -1749,6 +1866,91 @@ function nuevoUser() {
 // ============================================================
 initConfig();
 </script>
+
+<!-- EDITAR CREDITO MODAL -->
+<div id="edit-credito-overlay">
+  <div class="edit-credito-modal">
+    <div class="edit-credito-header">
+      <h2>✏️ Editar Crédito</h2>
+      <button class="btn-sm" onclick="cerrarEditCredito()">✕ Cerrar</button>
+    </div>
+    <div class="edit-credito-body">
+      <div class="edit-credito-search">
+        <input type="text" id="ec-id-input" placeholder="Ingresa el ID del crédito..." onkeydown="if(event.key==='Enter') buscarCreditoEdit()">
+        <button class="btn-buscar-credito" onclick="buscarCreditoEdit()">🔍 Buscar</button>
+      </div>
+      <div id="ec-msg" class="edit-msg"></div>
+      <div id="ec-form" class="edit-credito-form">
+        <div class="edit-seccion">
+          <div class="edit-seccion-title">ID del Crédito</div>
+          <div style="font-size:22px;font-weight:700;color:var(--azul);padding:4px 0 8px" id="ec-id-display"></div>
+        </div>
+        <div class="edit-seccion">
+          <div class="edit-seccion-title">Datos del Cliente</div>
+          <div class="edit-grid">
+            <div class="edit-field"><label>Nombre</label><input type="text" id="ec-nombre"></div>
+            <div class="edit-field"><label>RUT Cliente</label><input type="text" id="ec-rut_cliente"></div>
+            <div class="edit-field"><label>Ejecutivo</label><input type="text" id="ec-ejecutivo"></div>
+            <div class="edit-field"><label>Riesgo Cliente</label>
+              <select id="ec-riesgo_cliente">
+                <option value="">-</option>
+                <option>Riesgo Bajo</option>
+                <option>Riesgo Neutro</option>
+                <option>Riesgo Alto</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="edit-seccion">
+          <div class="edit-seccion-title">Datos del Vehículo y Crédito</div>
+          <div class="edit-grid">
+            <div class="edit-field"><label>Producto</label><input type="text" id="ec-producto"></div>
+            <div class="edit-field"><label>Canal</label><input type="text" id="ec-canal"></div>
+            <div class="edit-field"><label>Marca</label><input type="text" id="ec-marca"></div>
+            <div class="edit-field"><label>Modelo</label><input type="text" id="ec-modelo"></div>
+            <div class="edit-field"><label>Dealer</label><input type="text" id="ec-dealer"></div>
+            <div class="edit-field"><label>Sucursal</label><input type="text" id="ec-sucursal"></div>
+          </div>
+        </div>
+        <div class="edit-seccion">
+          <div class="edit-seccion-title">Montos</div>
+          <div class="edit-grid-3">
+            <div class="edit-field"><label>Precio</label><input type="number" id="ec-precio"></div>
+            <div class="edit-field"><label>Pie</label><input type="number" id="ec-pie"></div>
+            <div class="edit-field"><label>Saldo Precio</label><input type="number" id="ec-saldo_precio"></div>
+            <div class="edit-field"><label>Monto Pagaré</label><input type="number" id="ec-monto_pagare"></div>
+            <div class="edit-field"><label>Categoría</label><input type="text" id="ec-categoria"></div>
+            <div class="edit-field"><label>Estado</label>
+              <select id="ec-estado">
+                <option value="">-</option>
+                <option>APROBADOS</option>
+                <option>ABIERTOS</option>
+                <option>DESISTIDO</option>
+                <option>POSPUESTO</option>
+                <option>PENDIENTE</option>
+                <option>LO PENSARÁ</option>
+                <option>OTROS</option>
+                <option>CERRADO</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="edit-seccion">
+          <div class="edit-seccion-title">Fechas y Evaluación</div>
+          <div class="edit-grid-3">
+            <div class="edit-field"><label>Fecha Ingreso</label><input type="text" id="ec-fecha_ingreso" placeholder="YYYY-MM-DD"></div>
+            <div class="edit-field"><label>Fecha Curse</label><input type="text" id="ec-fecha_curse" placeholder="YYYY-MM-DD"></div>
+            <div class="edit-field"><label>Evaluador</label><input type="text" id="ec-nom_evaluador"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="edit-credito-footer">
+      <button class="btn-cancelar" onclick="cerrarEditCredito()">Cancelar</button>
+      <button class="btn-guardar-credito" onclick="guardarCreditoEdit()">💾 Guardar Cambios</button>
+    </div>
+  </div>
+</div>
 
 <!-- ADMIN MODAL -->
 <div id="admin-overlay">
