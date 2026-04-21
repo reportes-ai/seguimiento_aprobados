@@ -129,7 +129,7 @@ async function main() {
   await transporter.sendMail({
     from: `"AutoFácil Reportes" <${process.env.GMAIL_USER}>`,
     to: process.env.EMAIL_TO,
-    subject: `🔴 ${vencidos.length} seguimientos vencidos — ${hoy.toLocaleDateString('es-CL')}`,
+    subject: `⏱️ ${vencidos.length} seguimientos vencidos — ${hoy.toLocaleDateString('es-CL')}`,
     html,
   });
 
