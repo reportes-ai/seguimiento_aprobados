@@ -203,6 +203,52 @@
   #inp-buscar-nombre { transition: all 0.2s; }
   #inp-buscar-nombre::placeholder { color: var(--texto-sec); }
   #inp-buscar-nombre:focus { border-color: var(--azul) !important; box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.1); }
+
+  /* ADMIN PANEL */
+  #admin-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.55);display:none;align-items:center;justify-content:center;z-index:600; }
+  #admin-overlay.visible { display:flex; }
+  .admin-modal { background:#fff;border-radius:14px;width:1000px;max-width:97vw;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 12px 60px rgba(0,0,0,0.28);overflow:hidden; }
+  .admin-header { background:var(--azul);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0; }
+  .admin-header h2 { font-size:15px;font-weight:700; }
+  .admin-body { display:flex;flex:1;overflow:hidden; }
+  .admin-list { width:340px;min-width:280px;border-right:1px solid var(--borde);display:flex;flex-direction:column;overflow:hidden; }
+  .admin-list-header { padding:12px 14px;border-bottom:1px solid var(--borde);display:flex;align-items:center;justify-content:space-between;flex-shrink:0; }
+  .admin-list-header span { font-size:12px;font-weight:700;color:var(--texto-sec);text-transform:uppercase;letter-spacing:0.5px; }
+  .btn-add-user { background:var(--verde);color:#fff;border:none;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer; }
+  .btn-add-user:hover { background:#1B5E20; }
+  .admin-user-list { overflow-y:auto;flex:1; }
+  .admin-user-item { padding:10px 14px;border-bottom:1px solid var(--gris-claro);cursor:pointer;transition:background 0.15s;display:flex;align-items:center;gap:10px; }
+  .admin-user-item:hover { background:#F0F4FF; }
+  .admin-user-item.active { background:var(--azul-bg);border-left:3px solid var(--azul); }
+  .admin-user-avatar { width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0; }
+  .avatar-gerente { background:#1565C0; }
+  .avatar-supervisor { background:#E65100; }
+  .avatar-usuario { background:#2E7D32; }
+  .admin-user-info { flex:1;min-width:0; }
+  .admin-user-email { font-size:12px;font-weight:600;color:var(--texto);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+  .admin-user-meta { font-size:11px;color:var(--texto-sec);margin-top:2px; }
+  .admin-user-last { font-size:10px;color:var(--gris-medio);margin-top:1px; }
+  .perfil-badge { display:inline-block;padding:1px 8px;border-radius:10px;font-size:10px;font-weight:700;text-transform:uppercase; }
+  .perfil-gerente { background:#E3F2FD;color:#1565C0; }
+  .perfil-supervisor { background:#FFF3E0;color:#E65100; }
+  .perfil-usuario { background:#E8F5E9;color:#2E7D32; }
+  .admin-form { flex:1;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:14px; }
+  .admin-empty-form { flex:1;display:flex;align-items:center;justify-content:center;color:var(--texto-sec);font-size:14px; }
+  .admin-form-title { font-size:14px;font-weight:700;color:var(--texto);padding-bottom:10px;border-bottom:1px solid var(--borde); }
+  .admin-log-section { margin-top:8px;padding:14px;background:var(--fondo);border-radius:var(--radio);border:1px solid var(--borde); }
+  .admin-log-title { font-size:11px;font-weight:700;color:var(--texto-sec);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px; }
+  .admin-log-item { font-size:12px;color:var(--texto-sec);padding:4px 0;border-bottom:1px solid var(--gris-claro);display:flex;justify-content:space-between; }
+  .admin-log-item:last-child { border:none; }
+  .admin-form-actions { display:flex;gap:10px;justify-content:flex-end;padding-top:8px;border-top:1px solid var(--borde);margin-top:auto; }
+  .btn-guardar-user { background:var(--verde);color:#fff;border:none;padding:9px 24px;border-radius:var(--radio);font-size:13px;font-weight:600;cursor:pointer; }
+  .btn-guardar-user:hover { background:#1B5E20; }
+  .btn-eliminar-user { background:var(--blanco);color:var(--rojo);border:1.5px solid var(--rojo);padding:9px 24px;border-radius:var(--radio);font-size:13px;font-weight:600;cursor:pointer; }
+  .btn-eliminar-user:hover { background:var(--rojo-bg); }
+  .admin-ejecutivos-list { display:flex;flex-direction:column;gap:6px;max-height:120px;overflow-y:auto; }
+  .admin-ej-item { display:flex;align-items:center;gap:8px;font-size:12px; }
+  .btn-remove-ej { background:none;border:none;color:var(--rojo);cursor:pointer;font-size:16px;line-height:1;padding:0 2px; }
+  .btn-add-ej { background:none;border:1.5px solid var(--azul);color:var(--azul);border-radius:var(--radio);padding:4px 12px;font-size:12px;cursor:pointer;margin-top:4px; }
+  .btn-add-ej:hover { background:var(--azul-bg); }
 </style>
 </head>
 <body>
@@ -238,6 +284,7 @@
     <div class="header-right">
       <span id="header-ejecutivo"></span>
       <button class="btn-sm" id="btn-informe" style="display:none;background:rgba(255,255,255,0.28);font-weight:600" onclick="abrirInforme()">📊 Informe Consolidado</button>
+      <button class="btn-sm" id="btn-admin" style="display:none;background:rgba(255,255,255,0.18);font-weight:600" onclick="abrirAdmin()">⚙️ Usuarios</button>
       <button class="btn-sm" id="btn-eliminar" style="display:none;background:rgba(220,53,69,0.28);font-weight:600;border-color:rgba(220,53,69,0.5);color:#fff" onclick="abrirModalEliminar()" title="Eliminar registros por rango de fechas">🗑️ Eliminar Registros</button>
       <button class="btn-sm" onclick="recargarDatos()" title="Actualizar datos desde el servidor">🔄 Actualizar</button>
       <button class="btn-sm" onclick="doLogout()">Cerrar sesión</button>
@@ -469,25 +516,31 @@ async function sbInsert(table, data) {
   return res.json();
 }
 
+async function sbUpdate(table, id, data) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: {
+      'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json', 'Prefer': 'return=representation'
+    },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function sbDelete(table, id) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${id}`, {
+    method: 'DELETE',
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
 // ============================================================
-// USUARIOS
+// USUARIOS (migrado a Supabase)
 // ============================================================
-const USUARIOS = [
-  {usuario:'alvaro.pinochet@autofacilchile.cl', clave:'J5098', perfil:'usuario', ejecutivos:['ALVARO PINOCHET (AFA)']},
-  {usuario:'alvaro.vargas@autofacilchile.cl', clave:'Y7989', perfil:'supervisor', ejecutivos:['ALVARO VARGAS VIELMA (AFA)','ALVARO VARGAS VIELMA (AFA) (JL)']},
-  {usuario:'carlo.moreno@autofacilchile.cl', clave:'K6723', perfil:'usuario', ejecutivos:['CARLO ANDRÉS MORENO LIZAMA (AFA)']},
-  {usuario:'catherinne.vargas@autofacilchile.cl', clave:'J5013', perfil:'usuario', ejecutivos:['Catherinne Vargas Vielma (AFA)']},
-  {usuario:'cristina.peña@autofacilchile.cl', clave:'F9000', perfil:'usuario', ejecutivos:['CRISTINA PEÑA (AFA)']},
-  {usuario:'florencia.bazan@autofacilchile.cl', clave:'T4043', perfil:'usuario', ejecutivos:['FLORENCIA BAZÁN SILVA (AFA)']},
-  {usuario:'juan.munoz@autofacilchile.cl', clave:'G1167', perfil:'usuario', ejecutivos:['JUAN NAZARIO MUÑOZ NUÑEZ (AFA)']},
-  {usuario:'karen.farias@autofacilchile.cl', clave:'E3016', perfil:'usuario', ejecutivos:['KAREN FARIAS (AFA)']},
-  {usuario:'luis.soto@autofacilchile.cl', clave:'E5625', perfil:'usuario', ejecutivos:['LUIS ALBERTO SOTO RAVELLO (AFA)']},
-  {usuario:'solange.vucina@autofacilchile.cl', clave:'I6370', perfil:'usuario', ejecutivos:['SOLANGE VUCINA SALAZAR (AFA)']},
-  {usuario:'tatiana.arriagada@autofacilchile.cl', clave:'Z4146', perfil:'supervisor', ejecutivos:['TATIANA ARRIAGADA CABEZAS (AFA)','TATIANA ARRIAGADA CABEZAS (AFA) (JL)']},
-  {usuario:'eduardo.abad@autofacilchile.cl', clave:'J4802', perfil:'gerente', ejecutivos:['todos']},
-  {usuario:'leonardo.sevilla@autofacilchile.cl', clave:'R4590', perfil:'gerente', ejecutivos:['todos']},
-  {usuario:'patricio.escobar@autofacilchile.cl', clave:'M7552', perfil:'gerente', ejecutivos:['todos']},
-];
+// Los usuarios se cargan desde la tabla 'usuarios' en Supabase.
 
 const MOTIVOS = {
   'DESISTIDO': ['FALTA PIE','CUOTA ALTA','ARREPINTIO','CAMBIO AUTO','BUSCARA OTRO AUTO','TOMO OTRO CRÉDITO','SOLO COTIZABA','OTROS'],
@@ -517,16 +570,27 @@ let badgeBase = ''; // Almacenar el badge sin búsqueda
 // ============================================================
 // LOGIN / LOGOUT
 // ============================================================
-function doLogin() {
+async function doLogin() {
   const u = document.getElementById('login-user').value.trim().toLowerCase();
   const p = document.getElementById('login-pass').value.trim();
-  const usr = USUARIOS.find(x => x.usuario === u && x.clave === p);
-  if (!usr) { document.getElementById('login-error').style.display = 'block'; return; }
-  document.getElementById('login-error').style.display = 'none';
-  currentUser = usr;
-  document.getElementById('login-screen').classList.remove('visible');
-  document.getElementById('app').style.display = 'block';
-  initApp();
+  const errEl = document.getElementById('login-error');
+  errEl.style.display = 'none';
+  try {
+    const rows = await sbGet('usuarios_seguimiento', 'usuario=eq.' + encodeURIComponent(u) + '&clave=eq.' + encodeURIComponent(p) + '&limit=1');
+    if (!rows || rows.length === 0) { errEl.style.display = 'block'; return; }
+    const usr = rows[0];
+    // Normalizar ejecutivos (puede venir como string JSON desde Supabase)
+    if (typeof usr.ejecutivos === 'string') usr.ejecutivos = JSON.parse(usr.ejecutivos);
+    currentUser = usr;
+    // Registrar ultimo_acceso en background (no bloquea login)
+    sbUpdate('usuarios_seguimiento', usr.id, { ultimo_acceso: new Date().toISOString() }).catch(()=>{});
+    document.getElementById('login-screen').classList.remove('visible');
+    document.getElementById('app').style.display = 'block';
+    initApp();
+  } catch(e) {
+    errEl.textContent = 'Error de conexión: ' + e.message;
+    errEl.style.display = 'block';
+  }
 }
 
 document.getElementById('login-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
@@ -556,6 +620,7 @@ async function initApp() {
   document.getElementById('upload-section').style.display = currentUser.perfil === 'gerente' ? 'block' : 'none';
   document.getElementById('btn-informe').style.display = currentUser.perfil === 'gerente' ? 'inline-block' : 'none';
   document.getElementById('btn-eliminar').style.display = currentUser.perfil === 'gerente' ? 'inline-block' : 'none';
+  document.getElementById('btn-admin').style.display = currentUser.perfil === 'gerente' ? 'inline-block' : 'none';
   document.getElementById('filtro-ejecutivo-wrap').style.display = currentUser.perfil === 'gerente' ? 'block' : 'none';
   await recargarDatos();
 }
@@ -1508,9 +1573,206 @@ function exportarDetalle() {
 }
 
 // ============================================================
+// ADMINISTRACIÓN DE USUARIOS
+// ============================================================
+let adminUsuarios = [];
+let adminSelIdx = null;
+let adminModo = null; // 'nuevo' | 'editar'
+
+async function abrirAdmin() {
+  document.getElementById('admin-overlay').classList.add('visible');
+  await cargarAdminUsuarios();
+}
+
+function cerrarAdmin() {
+  document.getElementById('admin-overlay').classList.remove('visible');
+  adminSelIdx = null;
+  adminModo = null;
+}
+
+async function cargarAdminUsuarios() {
+  try {
+    adminUsuarios = await sbGet('usuarios_seguimiento', 'order=perfil.asc,usuario.asc');
+    renderAdminLista();
+    renderAdminFormEmpty();
+  } catch(e) {
+    alert('Error cargando usuarios: ' + e.message);
+  }
+}
+
+function avatarLetra(u) {
+  return u.usuario ? u.usuario[0].toUpperCase() : '?';
+}
+
+function renderAdminLista() {
+  const ul = document.getElementById('admin-user-list');
+  if (!adminUsuarios.length) { ul.innerHTML = '<div style="padding:20px;text-align:center;color:var(--texto-sec);font-size:13px">Sin usuarios</div>'; return; }
+  ul.innerHTML = adminUsuarios.map((u, i) => {
+    const cls = i === adminSelIdx ? ' active' : '';
+    const avatarCls = 'avatar-' + u.perfil;
+    const last = u.ultimo_acceso ? new Date(u.ultimo_acceso).toLocaleString('es-CL', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : 'Nunca';
+    const ejs = Array.isArray(u.ejecutivos) ? u.ejecutivos : (u.ejecutivos ? JSON.parse(u.ejecutivos) : []);
+    return '<div class="admin-user-item' + cls + '" onclick="seleccionarUser(' + i + ')">' +
+      '<div class="admin-user-avatar ' + avatarCls + '">' + avatarLetra(u) + '</div>' +
+      '<div class="admin-user-info">' +
+        '<div class="admin-user-email">' + u.usuario + '</div>' +
+        '<div class="admin-user-meta"><span class="perfil-badge perfil-' + u.perfil + '">' + u.perfil + '</span> · ' + (ejs[0] === 'todos' ? 'Todos' : (ejs[0] || '-')) + '</div>' +
+        '<div class="admin-user-last">Último acceso: ' + last + '</div>' +
+      '</div></div>';
+  }).join('');
+}
+
+function seleccionarUser(i) {
+  adminSelIdx = i;
+  adminModo = 'editar';
+  renderAdminLista();
+  renderAdminFormEditar(adminUsuarios[i]);
+}
+
+function renderAdminFormEmpty() {
+  document.getElementById('admin-form-area').innerHTML = '<div class="admin-empty-form">Selecciona un usuario o crea uno nuevo</div>';
+}
+
+function renderAdminFormEditar(u) {
+  const ejs = Array.isArray(u.ejecutivos) ? u.ejecutivos : (u.ejecutivos ? JSON.parse(u.ejecutivos) : []);
+  const last = u.ultimo_acceso ? new Date(u.ultimo_acceso).toLocaleString('es-CL', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : 'Nunca';
+  const ejsFiltered = ejs.filter(e=>e!=='todos');
+  let ejHtml = ejsFiltered.map((e,i) =>
+    '<div class="admin-ej-item" id="af-ej-' + i + '">' +
+    '<input type="text" style="flex:1;padding:5px 8px;border:1.5px solid var(--borde);border-radius:6px;font-size:12px" value="' + e.replace(/"/g,'&quot;') + '" id="af-ej-val-' + i + '">' +
+    '<button class="btn-remove-ej" onclick="this.parentElement.remove()">×</button></div>'
+  ).join('');
+
+  document.getElementById('admin-form-area').innerHTML =
+    '<div class="admin-form">' +
+      '<div class="admin-form-title">' + (adminModo === 'nuevo' ? '➕ Nuevo Usuario' : '✏️ Editar Usuario') + '</div>' +
+      '<div class="form-group"><label>Email (usuario)</label>' +
+        '<input type="email" id="af-email" value="' + (u.usuario||'') + '" placeholder="nombre@autofacilchile.cl">' +
+      '</div>' +
+      '<div class="form-row">' +
+        '<div class="form-group"><label>Contraseña</label>' +
+          '<input type="text" id="af-clave" value="' + (u.clave||'') + '" placeholder="Ej: A1234"></div>' +
+        '<div class="form-group"><label>Perfil</label>' +
+          '<select id="af-perfil" onchange="onPerfilChange()">' +
+            '<option value="usuario"' + (u.perfil==='usuario'?' selected':'') + '>Usuario</option>' +
+            '<option value="supervisor"' + (u.perfil==='supervisor'?' selected':'') + '>Supervisor</option>' +
+            '<option value="gerente"' + (u.perfil==='gerente'?' selected':'') + '>Gerente</option>' +
+          '</select></div>' +
+      '</div>' +
+      '<div class="form-group" id="af-ej-group" style="' + (u.perfil==='gerente'?'display:none':'') + '">' +
+        '<label>Ejecutivos asignados</label>' +
+        '<div class="admin-ejecutivos-list" id="af-ej-list">' + ejHtml + '</div>' +
+        '<button class="btn-add-ej" onclick="addEjecutivo()">+ Agregar ejecutivo</button>' +
+      '</div>' +
+      '<div class="admin-log-section">' +
+        '<div class="admin-log-title">Último acceso</div>' +
+        '<div class="admin-log-item"><span>' + (u.usuario||'') + '</span><strong>' + last + '</strong></div>' +
+      '</div>' +
+      '<div class="admin-form-actions">' +
+        (adminModo==='editar' ? '<button class="btn-eliminar-user" onclick="eliminarUser()">Eliminar</button>' : '') +
+        '<button class="btn-guardar-user" onclick="guardarUser()">Guardar</button>' +
+      '</div>' +
+    '</div>';
+}
+
+function onPerfilChange() {
+  const p = document.getElementById('af-perfil').value;
+  document.getElementById('af-ej-group').style.display = p === 'gerente' ? 'none' : '';
+}
+
+let _ejCount = 0;
+function addEjecutivo() {
+  _ejCount++;
+  const li = document.getElementById('af-ej-list');
+  const div = document.createElement('div');
+  div.className = 'admin-ej-item';
+  div.innerHTML = '<input type="text" style="flex:1;padding:5px 8px;border:1.5px solid var(--borde);border-radius:6px;font-size:12px" value="" placeholder="Nombre ejecutivo (AFA)">' +
+    '<button class="btn-remove-ej" onclick="this.parentElement.remove()">×</button>';
+  li.appendChild(div);
+}
+
+function getEjecutivosForm() {
+  const perfil = document.getElementById('af-perfil').value;
+  if (perfil === 'gerente') return ['todos'];
+  const inputs = document.querySelectorAll('#af-ej-list input');
+  return Array.from(inputs).map(i=>i.value.trim()).filter(Boolean);
+}
+
+async function guardarUser() {
+  const email = document.getElementById('af-email').value.trim().toLowerCase();
+  const clave = document.getElementById('af-clave').value.trim();
+  const perfil = document.getElementById('af-perfil').value;
+  const ejecutivos = getEjecutivosForm();
+  if (!email || !clave) { alert('Email y contrasena son obligatorios'); return; }
+  if (ejecutivos.length === 0 && perfil !== 'gerente') { alert('Agrega al menos un ejecutivo'); return; }
+  const data = { usuario: email, clave, perfil, ejecutivos };
+  try {
+    if (adminModo === 'nuevo') {
+      await sbInsert('usuarios_seguimiento', data);
+    } else {
+      const u = adminUsuarios[adminSelIdx];
+      await sbUpdate('usuarios_seguimiento', u.id, data);
+    }
+    await cargarAdminUsuarios();
+    if (currentUser && currentUser.usuario === email) {
+      currentUser = { ...currentUser, ...data };
+    }
+  } catch(e) {
+    alert('Error guardando: ' + e.message);
+  }
+}
+
+async function eliminarUser() {
+  const u = adminUsuarios[adminSelIdx];
+  if (u.usuario === currentUser.usuario) { alert('No puedes eliminar tu propio usuario'); return; }
+  if (!confirm('Eliminar usuario ' + u.usuario + '?')) return;
+  try {
+    await sbDelete('usuarios_seguimiento', u.id);
+    adminSelIdx = null;
+    adminModo = null;
+    await cargarAdminUsuarios();
+    renderAdminFormEmpty();
+  } catch(e) {
+    alert('Error eliminando: ' + e.message);
+  }
+}
+
+function nuevoUser() {
+  adminSelIdx = null;
+  adminModo = 'nuevo';
+  renderAdminLista();
+  renderAdminFormEditar({ usuario:'', clave:'', perfil:'usuario', ejecutivos:[], ultimo_acceso:null });
+}
+
+// ============================================================
 // INICIO
 // ============================================================
 initConfig();
 </script>
+
+<!-- ADMIN MODAL -->
+<div id="admin-overlay">
+  <div class="admin-modal">
+    <div class="admin-header">
+      <h2>⚙️ Administración de Usuarios</h2>
+      <button class="btn-sm" onclick="cerrarAdmin()">✕ Cerrar</button>
+    </div>
+    <div class="admin-body">
+      <div class="admin-list">
+        <div class="admin-list-header">
+          <span>Usuarios</span>
+          <button class="btn-add-user" onclick="nuevoUser()">+ Nuevo</button>
+        </div>
+        <div class="admin-user-list" id="admin-user-list">
+          <div style="padding:20px;text-align:center;color:var(--texto-sec);font-size:13px">Cargando...</div>
+        </div>
+      </div>
+      <div id="admin-form-area" style="flex:1;overflow-y:auto;">
+        <div class="admin-empty-form">Selecciona un usuario o crea uno nuevo</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
