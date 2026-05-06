@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seguimiento de Créditos v4.1</title>
+<title>Seguimiento de Créditos v4.2</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
@@ -311,7 +311,7 @@
 <!-- APP -->
 <div id="app">
   <header>
-    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v4.1</small></h1>
+    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v4.2</small></h1>
     <div class="header-right">
       <span id="header-ejecutivo"></span>
       <button class="btn-sm" id="btn-informe" style="display:none;background:rgba(255,255,255,0.28);font-weight:600" onclick="abrirInforme()">📊 Informe Consolidado</button>
@@ -506,7 +506,7 @@
 
 
 <!-- MODAL DETALLE RESUMEN -->
-<div class="modal-overlay" id="modal-detalle-resumen">
+<div class="modal-overlay" id="modal-detalle-resumen" style="z-index:450">
   <div class="modal" style="width:98vw;max-width:1300px;max-height:92vh;display:flex;flex-direction:column">
     <div class="modal-header" style="justify-content:space-between;flex-shrink:0">
       <h3 id="detalle-resumen-titulo">Detalle</h3>
@@ -1214,6 +1214,8 @@ function renderFicha(c) {
 // ============================================================
 function abrirModal() {
   if (!registrosFiltrados[idxActual]) return;
+  // Cerrar popup detalle si está abierto
+  document.getElementById('modal-detalle-resumen').classList.remove('visible');
   const now = new Date();
   document.getElementById('modal-fecha-hora').textContent =
     `FECHA: ${now.toLocaleDateString('es-CL')}   HORA: ${now.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'})} hrs`;
