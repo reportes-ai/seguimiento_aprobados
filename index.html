@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seguimiento de Créditos v3.8</title>
+<title>Seguimiento de Créditos v3.9</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
@@ -200,6 +200,7 @@
   .estado-LO_PENSARA { background: #E0F7FA; color: #00838F; }
   .estado-OTROS { background: var(--gris-claro); color: var(--gris); }
   .estado-CERRADO { background: #E8F5E9; color: #1B5E20; }
+  .estado-OTORGADO { background: #E3F2FD; color: #0D47A1; font-weight: 700; }
   #inp-buscar-nombre { transition: all 0.2s; }
   #inp-buscar-nombre::placeholder { color: var(--texto-sec); }
   #inp-buscar-nombre:focus { border-color: var(--azul) !important; box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.1); }
@@ -310,7 +311,7 @@
 <!-- APP -->
 <div id="app">
   <header>
-    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v3.8</small></h1>
+    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v3.9</small></h1>
     <div class="header-right">
       <span id="header-ejecutivo"></span>
       <button class="btn-sm" id="btn-informe" style="display:none;background:rgba(255,255,255,0.28);font-weight:600" onclick="abrirInforme()">📊 Informe Consolidado</button>
@@ -435,6 +436,7 @@
             <option>DESISTIDO</option><option>POSPUESTO</option>
             <option>PENDIENTE</option><option>LO PENSARÁ</option><option>OTROS</option>
             <option>CERRADO</option>
+            <option>OTORGADO</option>
           </select>
         </div>
         <div class="form-group">
@@ -580,9 +582,10 @@ const MOTIVOS = {
   'LO PENSARÁ': ['CUOTA ALTA','DUDAS CON AUTO','OTROS'],
   'OTROS': ['OTROS'],
   'CERRADO': ['CRÉDITO CURSADO','FALTA PIE','CUOTA ALTA','ARREPINTIO','COMPRO OTRO AUTO','BUSCARA OTRO AUTO','TOMO OTRO CRÉDITO','SOLO COTIZABA','OTROS'],
+  'OTORGADO': ['AUTOFIN','UNIDAD'],
 };
 
-const ESTADOS_ORDEN = ['APROBADOS','DESISTIDO','POSPUESTO','PENDIENTE','LO PENSARÁ','OTROS','CERRADO'];
+const ESTADOS_ORDEN = ['APROBADOS','DESISTIDO','POSPUESTO','PENDIENTE','LO PENSARÁ','OTROS','CERRADO','OTORGADO'];
 
 // Estado global
 let currentUser = null;
@@ -911,8 +914,8 @@ function getEstadoGestion(credito) {
   const gs = credito.gestiones;
   if (!gs || gs.length===0) return 'SIN_SEG';
   const ultima = gs[gs.length-1];
-  // CERRADO siempre AL_DIA
-  if ((ultima.nuevo_estado||'').toUpperCase() === 'CERRADO') return 'AL_DIA';
+  // CERRADO y OTORGADO siempre AL_DIA
+  if (['CERRADO','OTORGADO'].includes((ultima.nuevo_estado||'').toUpperCase())) return 'AL_DIA';
   const fechaSeg = ultima.fecha_seguimiento ? new Date(ultima.fecha_seguimiento + 'T00:00:00') : null;
   if (!fechaSeg) return 'SIN_SEG';
   const hoy = new Date(); hoy.setHours(0,0,0,0);
@@ -1178,8 +1181,8 @@ function actualizarMotivos() {
   (MOTIVOS[est]||[]).forEach(m => {
     const opt = document.createElement('option'); opt.value=m; opt.textContent=m; sel.appendChild(opt);
   });
-  // Si es CERRADO, fecha automática = hoy + 365 días
-  if (est === 'CERRADO') {
+  // Si es CERRADO u OTORGADO, fecha automática = hoy + 365 días
+  if (est === 'CERRADO' || est === 'OTORGADO') {
     const fechaCierre = new Date();
     fechaCierre.setDate(fechaCierre.getDate() + 365);
     document.getElementById('inp-fecha-seg').value = fechaCierre.toISOString().split('T')[0];
@@ -1190,7 +1193,9 @@ async function grabarGestion() {
   const estado = document.getElementById('sel-estado').value;
   const motivo = document.getElementById('sel-motivo').value;
   const seguimiento = document.getElementById('sel-seguimiento').value;
+  const comentario = document.getElementById('inp-comentario').value.trim();
   if (!estado || !motivo || !seguimiento) { alert('Complete: Nuevo Estado, Motivo y Seguimiento'); return; }
+  if (comentario.length < 4) { alert('El comentario es obligatorio (mínimo 4 caracteres)'); return; }
 
   const credito = registrosFiltrados[idxActual];
   const btn = document.getElementById('btn-grabar');
