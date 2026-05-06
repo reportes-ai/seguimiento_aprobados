@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seguimiento de Créditos v4.4</title>
+<title>Seguimiento de Créditos v4.5</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
@@ -311,13 +311,15 @@
 <!-- APP -->
 <div id="app">
   <header>
-    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v4.4</small></h1>
+    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v4.5</small></h1>
     <div class="header-right">
       <span id="header-ejecutivo"></span>
       <button class="btn-sm" id="btn-informe" style="display:none;background:rgba(255,255,255,0.28);font-weight:600" onclick="abrirInforme()">📊 Informe Consolidado</button>
       <button class="btn-sm" id="btn-admin" style="display:none;background:rgba(255,255,255,0.18);font-weight:600" onclick="abrirAdmin()">⚙️ Usuarios</button>
       <button class="btn-sm" id="btn-edit-credito" style="display:none;background:rgba(255,255,255,0.18);font-weight:600" onclick="abrirEditCredito()">✏️ Editar Crédito</button>
       <button class="btn-sm" id="btn-eliminar" style="display:none;background:rgba(220,53,69,0.28);font-weight:600;border-color:rgba(220,53,69,0.5);color:#fff" onclick="abrirModalEliminar()" title="Eliminar registros por rango de fechas">🗑️ Eliminar Registros</button>
+      <label class="btn-sm" id="btn-cargar-excel" for="file-input" style="display:none;cursor:pointer;background:rgba(255,255,255,0.18);font-weight:600">📂 Cargar TRISolicitud</label>
+      <input type="file" id="file-input" accept=".xlsx,.xls" onchange="loadExcel(event)" style="display:none">
       <button class="btn-sm" onclick="recargarDatos()" title="Actualizar datos desde el servidor">🔄 Actualizar</button>
       <button class="btn-sm" onclick="doLogout()">Cerrar sesión</button>
     </div>
@@ -347,17 +349,7 @@
         </div>
       </div>
 
-      <div id="upload-section" style="display:none">
-        <label class="upload-area" for="file-input">
-          <span class="icon">📂</span>
-          <div>
-            <p>Cargar archivo TRISolicitud</p>
-            <small>Solo se importarán operaciones nuevas</small>
-          </div>
-        </label>
-        <input type="file" id="file-input" accept=".xlsx,.xls" onchange="loadExcel(event)">
-        <div class="estado-carga" id="estado-carga"></div>
-      </div>
+      <div class="estado-carga" id="estado-carga"></div>
 
       <div class="resumen-container">
         <table class="resumen-table" id="resumen-table">
@@ -678,7 +670,8 @@ async function initApp() {
   document.getElementById('header-ejecutivo').textContent = `${label}: ${nombre}`;
   document.getElementById('panel-ejecutivo').textContent = nombre;
   document.getElementById('panel-fecha').textContent = new Date().toLocaleDateString('es-CL', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  document.getElementById('upload-section').style.display = currentUser.perfil === 'gerente' ? 'block' : 'none';
+  document.getElementById('upload-section') && (document.getElementById('upload-section').style.display = 'none');
+  document.getElementById('btn-cargar-excel').style.display = currentUser.perfil === 'gerente' ? 'inline-block' : 'none';
   document.getElementById('btn-informe').style.display = currentUser.perfil === 'gerente' ? 'inline-block' : 'none';
   document.getElementById('btn-eliminar').style.display = currentUser.perfil === 'gerente' ? 'inline-block' : 'none';
   document.getElementById('btn-admin').style.display = currentUser.perfil === 'gerente' ? 'inline-block' : 'none';
@@ -688,8 +681,7 @@ async function initApp() {
   // Fechas por default: desde = mismo día mes anterior, hasta = hoy
   const hoy = new Date();
   const fmtISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  const mesAnterior = new Date(hoy);
-  mesAnterior.setMonth(mesAnterior.getMonth() - 1);
+  const mesAnterior = new Date(hoy.getFullYear(), hoy.getMonth() - 1, hoy.getDate());
   document.getElementById('filtro-fecha-desde').value = fmtISO(mesAnterior);
   document.getElementById('filtro-fecha-hasta').value = fmtISO(hoy);
 
