@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seguimiento de Créditos v4.6</title>
+<title>Seguimiento de Créditos v4.7</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
@@ -310,7 +310,7 @@
 <!-- APP -->
 <div id="app">
   <header>
-    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v4.6</small></h1>
+    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v4.7</small></h1>
     <div class="header-right">
       <span id="header-ejecutivo"></span>
       <button class="btn-sm" id="btn-informe" style="display:none;background:rgba(255,255,255,0.28);font-weight:600" onclick="abrirInforme()">📊 Informe Consolidado</button>
@@ -1045,8 +1045,11 @@ function renderPanelDerecho() {
   badge.textContent = `${badgeBase} (${registrosFiltrados.length})`;
   badge.className = `estado-badge estado-${filtroEstado.replace(/\s/g,'_').replace(/Á/g,'A').replace(/á/g,'a').replace(/É/g,'E').replace(/é/g,'e')}`;
 
-  // Actualizar toggle visual
-  setVista(vistaActual);
+  // Actualizar toggle visual sin re-renderizar
+  const btnFicha = document.getElementById('toggle-ficha');
+  const btnLista = document.getElementById('toggle-lista');
+  if (btnFicha) { btnFicha.style.background = vistaActual==='ficha'?'var(--azul)':'transparent'; btnFicha.style.color = vistaActual==='ficha'?'#fff':'var(--texto-sec)'; }
+  if (btnLista) { btnLista.style.background = vistaActual==='lista'?'var(--azul)':'transparent'; btnLista.style.color = vistaActual==='lista'?'#fff':'var(--texto-sec)'; }
 
   if (vistaActual === 'lista') {
     document.getElementById('nav-registros-wrap').style.display = 'none';
@@ -1906,13 +1909,29 @@ function nuevoUser() {
 // ============================================================
 function setVista(v) {
   vistaActual = v;
-  document.getElementById('toggle-ficha').style.background = v === 'ficha' ? 'var(--azul)' : 'transparent';
-  document.getElementById('toggle-ficha').style.color = v === 'ficha' ? '#fff' : 'var(--texto-sec)';
-  document.getElementById('toggle-lista').style.background = v === 'lista' ? 'var(--azul)' : 'transparent';
-  document.getElementById('toggle-lista').style.color = v === 'lista' ? '#fff' : 'var(--texto-sec)';
+  const btnFicha = document.getElementById('toggle-ficha');
+  const btnLista = document.getElementById('toggle-lista');
+  if (btnFicha) {
+    btnFicha.style.background = v === 'ficha' ? 'var(--azul)' : 'transparent';
+    btnFicha.style.color = v === 'ficha' ? '#fff' : 'var(--texto-sec)';
+  }
+  if (btnLista) {
+    btnLista.style.background = v === 'lista' ? 'var(--azul)' : 'transparent';
+    btnLista.style.color = v === 'lista' ? '#fff' : 'var(--texto-sec)';
+  }
   const navWrap = document.getElementById('nav-registros-wrap');
   if (navWrap) navWrap.style.display = v === 'ficha' ? 'flex' : 'none';
-  if (filtroEstado) renderPanelDerecho();
+  // Solo re-renderizar si hay datos cargados
+  if (filtroEstado && registrosFiltrados.length > 0) {
+    if (v === 'lista') {
+      renderVistaLista();
+    } else {
+      document.getElementById('nav-label').textContent = `Registro: ${idxActual+1} de ${registrosFiltrados.length}`;
+      document.getElementById('btn-prev').disabled = idxActual===0;
+      document.getElementById('btn-next').disabled = idxActual===registrosFiltrados.length-1;
+      renderFicha(registrosFiltrados[idxActual]);
+    }
+  }
 }
 
 function renderVistaLista() {
