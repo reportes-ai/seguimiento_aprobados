@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seguimiento de Créditos v4.7</title>
+<title>Seguimiento de Créditos v4.8</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
@@ -310,7 +310,7 @@
 <!-- APP -->
 <div id="app">
   <header>
-    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v4.7</small></h1>
+    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v4.8</small></h1>
     <div class="header-right">
       <span id="header-ejecutivo"></span>
       <button class="btn-sm" id="btn-informe" style="display:none;background:rgba(255,255,255,0.28);font-weight:600" onclick="abrirInforme()">📊 Informe Consolidado</button>
@@ -377,7 +377,7 @@
         <span class="estado-badge" id="badge-estado"></span>
         <input type="text" id="inp-buscar-nombre" placeholder="BUSCAR NOMBRE" style="margin-left:auto;padding:8px 12px;border:1.5px solid var(--borde);border-radius:var(--radio);font-size:13px;outline:none;background:var(--blanco);color:var(--texto);width:180px" oninput="buscarPorNombre(this.value)">
         <!-- TOGGLE VISTAS -->
-        <div style="display:flex;background:#ECEFF1;border-radius:20px;padding:3px;gap:2px;flex-shrink:0">
+        <div id="toggle-vista-wrap" style="display:flex;background:#ECEFF1;border-radius:20px;padding:3px;gap:2px;flex-shrink:0">
           <button id="toggle-ficha" onclick="setVista('ficha')" style="padding:5px 14px;border-radius:16px;border:none;font-size:12px;font-weight:600;cursor:pointer;background:var(--azul);color:#fff;transition:all 0.2s">🪪 Ficha</button>
           <button id="toggle-lista" onclick="setVista('lista')" style="padding:5px 14px;border-radius:16px;border:none;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--texto-sec);transition:all 0.2s">☰ Lista</button>
         </div>
@@ -638,6 +638,9 @@ async function doLogin() {
     if (typeof usr.ejecutivos === 'string') usr.ejecutivos = JSON.parse(usr.ejecutivos);
     currentUser = usr;
     vistaActual = usr.vista_default || 'ficha';
+    // Ocultar toggle si no tiene permiso
+    const toggleWrap = document.getElementById('toggle-vista-wrap');
+    if (toggleWrap) toggleWrap.style.display = usr.permite_cambio_vista !== false ? 'flex' : 'none';
     // Registrar ultimo_acceso en background (no bloquea login)
     sbUpdate('usuarios_seguimiento', usr.id, { ultimo_acceso: new Date().toISOString() }).catch(()=>{});
     document.getElementById('login-screen').classList.remove('visible');
@@ -1819,6 +1822,10 @@ function renderAdminFormEditar(u) {
           '<option value="lista"' + ((u.vista_default||'')==='lista'?' selected':'') + '>☰ Vista Lista (tabla)</option>' +
         '</select>' +
       '</div>' +
+      '<div class="form-group" style="flex-direction:row;align-items:center;gap:10px">' +
+        '<input type="checkbox" id="af-permite-cambio" style="width:16px;height:16px;cursor:pointer"' + (u.permite_cambio_vista!==false?' checked':'') + '>' +
+        '<label for="af-permite-cambio" style="font-weight:600;font-size:12px;cursor:pointer;text-transform:none;letter-spacing:0">Permitir al usuario cambiar de vista</label>' +
+      '</div>' +
       '<div class="form-group" id="af-ej-group" style="' + (u.perfil==='gerente'?'display:none':'') + '">' +
         '<label>Ejecutivos asignados</label>' +
         '<div class="admin-ejecutivos-list" id="af-ej-list">' + ejHtml + '</div>' +
@@ -1865,7 +1872,7 @@ async function guardarUser() {
   const ejecutivos = getEjecutivosForm();
   if (!email || !clave) { alert('Email y contrasena son obligatorios'); return; }
   if (ejecutivos.length === 0 && perfil !== 'gerente') { alert('Agrega al menos un ejecutivo'); return; }
-  const data = { usuario: email, clave, perfil, ejecutivos, vista_default: document.getElementById('af-vista').value };
+  const data = { usuario: email, clave, perfil, ejecutivos, vista_default: document.getElementById('af-vista').value, permite_cambio_vista: document.getElementById('af-permite-cambio').checked };
   try {
     if (adminModo === 'nuevo') {
       await sbInsert('usuarios_seguimiento', data);
