@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seguimiento de Créditos v5.0</title>
+<title>Seguimiento de Créditos v5.1</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
@@ -310,7 +310,7 @@
 <!-- APP -->
 <div id="app">
   <header>
-    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v5.0</small></h1>
+    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v5.1</small></h1>
     <div class="header-right">
       <span id="header-ejecutivo"></span>
       <button class="btn-sm" id="btn-informe" style="display:none;background:rgba(255,255,255,0.28);font-weight:600" onclick="abrirInforme()">📊 Informe Consolidado</button>
@@ -333,11 +333,11 @@
         <!-- Checkboxes modo vista ejecutivos -->
         <div style="display:flex;gap:12px;padding:6px 16px 4px;font-size:12px">
           <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:600;color:var(--texto-sec)">
-            <input type="radio" name="modo-ejecutivo" id="modo-todos" value="todos" checked onchange="cambiarModoEjecutivo('todos')" style="cursor:pointer">
+            <input type="radio" name="modo-ejecutivo" id="modo-todos" value="todos" onchange="cambiarModoEjecutivo('todos')" style="cursor:pointer">
             Todos los Ejecutivos
           </label>
           <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:600;color:var(--texto-sec)">
-            <input type="radio" name="modo-ejecutivo" id="modo-agrupado" value="agrupado" onchange="cambiarModoEjecutivo('agrupado')" style="cursor:pointer">
+            <input type="radio" name="modo-ejecutivo" id="modo-agrupado" value="agrupado" checked onchange="cambiarModoEjecutivo('agrupado')" style="cursor:pointer">
             Ejecutivo Agrupado
           </label>
         </div>
@@ -677,7 +677,7 @@ function doLogout() {
 }
 
 let filtroEjecutivo = ''; // '' = todos
-let modoEjecutivo = 'todos'; // 'todos' o 'agrupado'
+let modoEjecutivo = 'agrupado'; // 'todos' o 'agrupado'
 let filtroEjecutivoAgrupado = ''; // nombre formateado del usuario agrupado
 
 async function initApp() {
@@ -1917,6 +1917,16 @@ function renderAdminFormEditar(u) {
             '<option value="gerente"' + (u.perfil==='gerente'?' selected':'') + '>Gerente</option>' +
           '</select></div>' +
       '</div>' +
+      '<div class="form-group"><label>Vista por defecto</label>' +
+        '<select id="af-vista">' +
+          '<option value="ficha"' + ((u.vista_default||'ficha')==='ficha'?' selected':'') + '>🪪 Vista Ficha (una a una)</option>' +
+          '<option value="lista"' + ((u.vista_default||'')==='lista'?' selected':'') + '>☰ Vista Lista (tabla)</option>' +
+        '</select>' +
+      '</div>' +
+      '<div class="form-group" style="flex-direction:row;align-items:center;gap:10px">' +
+        '<input type="checkbox" id="af-permite-cambio" style="width:16px;height:16px;cursor:pointer"' + (u.permite_cambio_vista!==false?' checked':'') + '>' +
+        '<label for="af-permite-cambio" style="font-weight:600;font-size:12px;cursor:pointer;text-transform:none;letter-spacing:0">Permitir al usuario cambiar de vista</label>' +
+      '</div>' +
       '<div class="form-group" id="af-ej-group" style="' + (u.perfil==='gerente'?'display:none':'') + '">' +
         '<label>Ejecutivos asignados</label>' +
         '<div class="admin-ejecutivos-list" id="af-ej-list">' + ejHtml + '</div>' +
@@ -1963,7 +1973,9 @@ async function guardarUser() {
   const ejecutivos = getEjecutivosForm();
   if (!email || !clave) { alert('Email y contrasena son obligatorios'); return; }
   if (ejecutivos.length === 0 && perfil !== 'gerente') { alert('Agrega al menos un ejecutivo'); return; }
-  const data = { usuario: email, clave, perfil, ejecutivos };
+  const vistaDefault = document.getElementById('af-vista')?.value || 'ficha';
+  const permiteCambio = document.getElementById('af-permite-cambio')?.checked !== false;
+  const data = { usuario: email, clave, perfil, ejecutivos, vista_default: vistaDefault, permite_cambio_vista: permiteCambio };
   try {
     if (adminModo === 'nuevo') {
       await sbInsert('usuarios_seguimiento', data);
