@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seguimiento de Créditos v4.8</title>
+<title>Seguimiento de Créditos v4.9</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
@@ -310,7 +310,7 @@
 <!-- APP -->
 <div id="app">
   <header>
-    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v4.8</small></h1>
+    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v4.9</small></h1>
     <div class="header-right">
       <span id="header-ejecutivo"></span>
       <button class="btn-sm" id="btn-informe" style="display:none;background:rgba(255,255,255,0.28);font-weight:600" onclick="abrirInforme()">📊 Informe Consolidado</button>
@@ -330,6 +330,17 @@
       </div>
 
       <div id="filtro-ejecutivo-wrap" style="display:none">
+        <!-- Checkboxes modo vista ejecutivos -->
+        <div style="display:flex;gap:12px;padding:6px 16px 4px;font-size:12px">
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:600;color:var(--texto-sec)">
+            <input type="radio" name="modo-ejecutivo" id="modo-todos" value="todos" checked onchange="cambiarModoEjecutivo('todos')" style="cursor:pointer">
+            Todos los Ejecutivos
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:600;color:var(--texto-sec)">
+            <input type="radio" name="modo-ejecutivo" id="modo-agrupado" value="agrupado" onchange="cambiarModoEjecutivo('agrupado')" style="cursor:pointer">
+            Ejecutivo Agrupado
+          </label>
+        </div>
         <select class="sel-ejecutivo" id="sel-ejecutivo-gerente" onchange="filtrarPorEjecutivo(this.value)" oninput="filtrarPorEjecutivo(this.value)">
           <option value="">Todos los ejecutivos</option>
         </select>
@@ -375,13 +386,8 @@
     <div class="panel-right">
       <div class="panel-right-header" id="right-header" style="display:none">
         <span class="estado-badge" id="badge-estado"></span>
-        <input type="text" id="inp-buscar-nombre" placeholder="BUSCAR NOMBRE" style="margin-left:auto;padding:8px 12px;border:1.5px solid var(--borde);border-radius:var(--radio);font-size:13px;outline:none;background:var(--blanco);color:var(--texto);width:180px" oninput="buscarPorNombre(this.value)">
-        <!-- TOGGLE VISTAS -->
-        <div id="toggle-vista-wrap" style="display:flex;background:#ECEFF1;border-radius:20px;padding:3px;gap:2px;flex-shrink:0">
-          <button id="toggle-ficha" onclick="setVista('ficha')" style="padding:5px 14px;border-radius:16px;border:none;font-size:12px;font-weight:600;cursor:pointer;background:var(--azul);color:#fff;transition:all 0.2s">🪪 Ficha</button>
-          <button id="toggle-lista" onclick="setVista('lista')" style="padding:5px 14px;border-radius:16px;border:none;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--texto-sec);transition:all 0.2s">☰ Lista</button>
-        </div>
-        <div class="nav-registros" id="nav-registros-wrap">
+        <input type="text" id="inp-buscar-nombre" placeholder="BUSCAR NOMBRE" style="margin-left:auto;padding:8px 12px;border:1.5px solid var(--borde);border-radius:var(--radio);font-size:13px;outline:none;background:var(--blanco);color:var(--texto);width:220px" oninput="buscarPorNombre(this.value)">
+        <div class="nav-registros">
           <span id="nav-label">Registro: — de —</span>
           <button class="btn-nav" id="btn-prev" onclick="navRegistro(-1)">‹</button>
           <button class="btn-nav" id="btn-next" onclick="navRegistro(1)">›</button>
@@ -512,23 +518,6 @@
 </div>
 
 
-<!-- MODAL FICHA DESDE LISTA -->
-<div class="modal-overlay" id="modal-ficha-lista" style="z-index:600">
-  <div class="modal" style="width:96vw;max-width:1100px;max-height:94vh;display:flex;flex-direction:column">
-    <div class="modal-header" style="justify-content:space-between;flex-shrink:0">
-      <div>
-        <h3 id="ficha-lista-titulo">Datos del Crédito</h3>
-        <div class="modal-fecha-hora" id="ficha-lista-subtitulo"></div>
-      </div>
-      <div style="display:flex;gap:10px;align-items:center">
-        <button id="btn-gestion-lista" onclick="abrirGestionDesdelista()" style="background:var(--azul);color:#fff;border:none;padding:8px 18px;border-radius:var(--radio);font-size:13px;font-weight:600;cursor:pointer">➕ Nueva Gestión</button>
-        <button onclick="cerrarFichaLista()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer">✕</button>
-      </div>
-    </div>
-    <div style="flex:1;overflow-y:auto;padding:0" id="ficha-lista-body"></div>
-  </div>
-</div>
-
 <script>
 // ============================================================
 // CONFIGURACIÓN SUPABASE
@@ -608,8 +597,6 @@ const ESTADOS_ORDEN = ['APROBADOS','DESISTIDO','POSPUESTO','PENDIENTE','LO PENSA
 
 // Estado global
 let currentUser = null;
-let vistaActual = 'ficha'; // 'ficha' o 'lista'
-let creditoFichaLista = null; // crédito activo en modal lista
 let creditos = [];      // Array de créditos con gestiones embebidas
 let filtroEstado = null;
 let filtroCol = null;
@@ -637,10 +624,6 @@ async function doLogin() {
     // Normalizar ejecutivos (puede venir como string JSON desde Supabase)
     if (typeof usr.ejecutivos === 'string') usr.ejecutivos = JSON.parse(usr.ejecutivos);
     currentUser = usr;
-    vistaActual = usr.vista_default || 'ficha';
-    // Ocultar toggle si no tiene permiso
-    const toggleWrap = document.getElementById('toggle-vista-wrap');
-    if (toggleWrap) toggleWrap.style.display = usr.permite_cambio_vista !== false ? 'flex' : 'none';
     // Registrar ultimo_acceso en background (no bloquea login)
     sbUpdate('usuarios_seguimiento', usr.id, { ultimo_acceso: new Date().toISOString() }).catch(()=>{});
     document.getElementById('login-screen').classList.remove('visible');
@@ -668,6 +651,8 @@ function doLogout() {
 }
 
 let filtroEjecutivo = ''; // '' = todos
+let modoEjecutivo = 'todos'; // 'todos' o 'agrupado'
+let filtroEjecutivoAgrupado = ''; // nombre formateado del usuario agrupado
 
 async function initApp() {
   filtroEjecutivo = '';
@@ -776,6 +761,19 @@ function loading(show, msg='Cargando datos...') {
 async function recargarDatos() {
   loading(true, 'Cargando créditos...');
   try {
+    // Cargar cache de usuarios para modo agrupado (solo gerentes)
+    if (currentUser.perfil === 'gerente' && USUARIOS_CACHE.length === 0) {
+      try {
+        USUARIOS_CACHE = await sbGet('usuarios_seguimiento', 'order=usuario.asc');
+        USUARIOS_CACHE = USUARIOS_CACHE.filter(u => u.ejecutivos && u.ejecutivos !== 'todos' && (!Array.isArray(u.ejecutivos) || u.ejecutivos[0] !== 'todos'));
+        // Parsear ejecutivos si vienen como string
+        USUARIOS_CACHE = USUARIOS_CACHE.map(u => ({
+          ...u,
+          ejecutivos: Array.isArray(u.ejecutivos) ? u.ejecutivos : (typeof u.ejecutivos === 'string' ? JSON.parse(u.ejecutivos) : [])
+        }));
+      } catch(e) { console.warn('No se pudo cargar cache usuarios:', e); }
+    }
+
     // Traer TODOS los créditos y filtrar en el cliente (más robusto)
     let creditosRaw = await sbGet('creditos', 'order=id.desc&limit=5000');
 
@@ -807,10 +805,7 @@ async function recargarDatos() {
 
     // Poblar selector de ejecutivos para gerentes
     if (currentUser.perfil === 'gerente') {
-      const sel = document.getElementById('sel-ejecutivo-gerente');
-      const ejecs = [...new Set(creditosRaw.map(c => c.ejecutivo).filter(Boolean))].sort();
-      sel.innerHTML = '<option value="">Todos los ejecutivos</option>';
-      ejecs.forEach(e => { const o = document.createElement('option'); o.value=e; o.textContent=e; if(e===filtroEjecutivo) o.selected=true; sel.appendChild(o); });
+      poblarSelectorEjecutivos(creditosRaw);
     }
 
     renderResumen();
@@ -930,9 +925,87 @@ async function loadExcel(event) {
 // ============================================================
 function normaliza(s) { return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
 
+function formatearNombreUsuario(email) {
+  // alvaro.vargas@... → Alvaro Vargas
+  const parte = email.split('@')[0];
+  return parte.split('.').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+}
+
+function poblarSelectorEjecutivos(creditosRaw) {
+  const sel = document.getElementById('sel-ejecutivo-gerente');
+  sel.innerHTML = '<option value="">Todos los ejecutivos</option>';
+
+  if (modoEjecutivo === 'todos') {
+    const ejecs = [...new Set(creditosRaw.map(c => c.ejecutivo).filter(Boolean))].sort();
+    ejecs.forEach(e => {
+      const o = document.createElement('option');
+      o.value = e; o.textContent = e;
+      if (e === filtroEjecutivo) o.selected = true;
+      sel.appendChild(o);
+    });
+  } else {
+    // Modo agrupado: un entry por usuario (raíz del email)
+    // Cargar usuarios para obtener la lista
+    if (typeof USUARIOS_CACHE !== 'undefined' && USUARIOS_CACHE.length > 0) {
+      USUARIOS_CACHE.forEach(u => {
+        if (!u.usuario) return;
+        const nombre = formatearNombreUsuario(u.usuario);
+        const o = document.createElement('option');
+        o.value = '__agrupado__' + u.usuario; // prefijo para identificar
+        o.textContent = nombre;
+        if (filtroEjecutivo === '__agrupado__' + u.usuario) o.selected = true;
+        sel.appendChild(o);
+      });
+    }
+  }
+}
+
+let USUARIOS_CACHE = [];
+
+function cambiarModoEjecutivo(modo) {
+  modoEjecutivo = modo;
+  filtroEjecutivo = '';
+  filtroEstado = null;
+  idxActual = 0;
+  poblarSelectorEjecutivos(creditos);
+  renderResumen();
+  document.getElementById('right-header').style.display = 'none';
+  document.getElementById('btn-nueva-gestion').disabled = true;
+  document.getElementById('btn-exportar-detalle') && (document.getElementById('btn-exportar-detalle').disabled = true);
+  document.getElementById('panel-content').innerHTML = '<div class="empty-state"><div class="icon-big">📊</div><p>Seleccione un estado en la tabla para ver los registros</p></div>';
+}
+
 function getCreditosActivos() {
-  if (!filtroEjecutivo) return creditos;
-  return creditos.filter(c => (c.ejecutivo||'').toUpperCase().trim() === filtroEjecutivo.toUpperCase().trim());
+  let lista = creditos;
+
+  if (filtroEjecutivo) {
+    if (filtroEjecutivo.startsWith('__agrupado__')) {
+      // Modo agrupado: filtrar por todos los ejecutivos del usuario
+      const email = filtroEjecutivo.replace('__agrupado__', '');
+      const usr = USUARIOS_CACHE.find(u => u.usuario === email);
+      if (usr) {
+        const ejecs = Array.isArray(usr.ejecutivos) ? usr.ejecutivos : [];
+        lista = lista.filter(c => ejecs.some(e => (c.ejecutivo||'').toUpperCase().trim() === e.toUpperCase().trim()));
+      }
+    } else {
+      lista = lista.filter(c => (c.ejecutivo||'').toUpperCase().trim() === filtroEjecutivo.toUpperCase().trim());
+    }
+  }
+
+  // Filtro por rango de fecha_ingreso
+  const desde = document.getElementById('filtro-fecha-desde')?.value;
+  const hasta = document.getElementById('filtro-fecha-hasta')?.value;
+  if (desde || hasta) {
+    lista = lista.filter(c => {
+      const fi = parseFechaIngreso(c.fecha_ingreso || c.fecha_curse);
+      if (!fi) return false;
+      const fStr = fi.toISOString().split('T')[0];
+      if (desde && fStr < desde) return false;
+      if (hasta && fStr > hasta) return false;
+      return true;
+    });
+  }
+  return lista;
 }
 
 function getEstadoGestion(credito) {
@@ -1045,25 +1118,13 @@ function renderPanelDerecho() {
   const colLabel = filtroCol==='sinSeg'?'SIN SEGUIMIENTO':filtroCol==='vencido'?'SEG. VENCIDO':filtroCol==='alDia'?'SEG. AL DÍA':'';
   badgeBase = colLabel ? `${filtroEstado} — ${colLabel}` : filtroEstado;
   const badge = document.getElementById('badge-estado');
-  badge.textContent = `${badgeBase} (${registrosFiltrados.length})`;
+  badge.textContent = badgeBase;
   badge.className = `estado-badge estado-${filtroEstado.replace(/\s/g,'_').replace(/Á/g,'A').replace(/á/g,'a').replace(/É/g,'E').replace(/é/g,'e')}`;
-
-  // Actualizar toggle visual sin re-renderizar
-  const btnFicha = document.getElementById('toggle-ficha');
-  const btnLista = document.getElementById('toggle-lista');
-  if (btnFicha) { btnFicha.style.background = vistaActual==='ficha'?'var(--azul)':'transparent'; btnFicha.style.color = vistaActual==='ficha'?'#fff':'var(--texto-sec)'; }
-  if (btnLista) { btnLista.style.background = vistaActual==='lista'?'var(--azul)':'transparent'; btnLista.style.color = vistaActual==='lista'?'#fff':'var(--texto-sec)'; }
-
-  if (vistaActual === 'lista') {
-    document.getElementById('nav-registros-wrap').style.display = 'none';
-    renderVistaLista();
-  } else {
-    document.getElementById('nav-registros-wrap').style.display = 'flex';
-    document.getElementById('nav-label').textContent = `Registro: ${idxActual+1} de ${registrosFiltrados.length}`;
-    document.getElementById('btn-prev').disabled = idxActual===0;
-    document.getElementById('btn-next').disabled = idxActual===registrosFiltrados.length-1;
-    renderFicha(registrosFiltrados[idxActual]);
-  }
+  
+  document.getElementById('nav-label').textContent = `Registro: ${idxActual+1} de ${registrosFiltrados.length}`;
+  document.getElementById('btn-prev').disabled = idxActual===0;
+  document.getElementById('btn-next').disabled = idxActual===registrosFiltrados.length-1;
+  renderFicha(registrosFiltrados[idxActual]);
 }
 
 function navRegistro(dir) {
@@ -1816,16 +1877,6 @@ function renderAdminFormEditar(u) {
             '<option value="gerente"' + (u.perfil==='gerente'?' selected':'') + '>Gerente</option>' +
           '</select></div>' +
       '</div>' +
-      '<div class="form-group"><label>Vista por defecto</label>' +
-        '<select id="af-vista">' +
-          '<option value="ficha"' + ((u.vista_default||'ficha')==='ficha'?' selected':'') + '>🪪 Vista Ficha (una a una)</option>' +
-          '<option value="lista"' + ((u.vista_default||'')==='lista'?' selected':'') + '>☰ Vista Lista (tabla)</option>' +
-        '</select>' +
-      '</div>' +
-      '<div class="form-group" style="flex-direction:row;align-items:center;gap:10px">' +
-        '<input type="checkbox" id="af-permite-cambio" style="width:16px;height:16px;cursor:pointer"' + (u.permite_cambio_vista!==false?' checked':'') + '>' +
-        '<label for="af-permite-cambio" style="font-weight:600;font-size:12px;cursor:pointer;text-transform:none;letter-spacing:0">Permitir al usuario cambiar de vista</label>' +
-      '</div>' +
       '<div class="form-group" id="af-ej-group" style="' + (u.perfil==='gerente'?'display:none':'') + '">' +
         '<label>Ejecutivos asignados</label>' +
         '<div class="admin-ejecutivos-list" id="af-ej-list">' + ejHtml + '</div>' +
@@ -1872,7 +1923,7 @@ async function guardarUser() {
   const ejecutivos = getEjecutivosForm();
   if (!email || !clave) { alert('Email y contrasena son obligatorios'); return; }
   if (ejecutivos.length === 0 && perfil !== 'gerente') { alert('Agrega al menos un ejecutivo'); return; }
-  const data = { usuario: email, clave, perfil, ejecutivos, vista_default: document.getElementById('af-vista').value, permite_cambio_vista: document.getElementById('af-permite-cambio').checked };
+  const data = { usuario: email, clave, perfil, ejecutivos };
   try {
     if (adminModo === 'nuevo') {
       await sbInsert('usuarios_seguimiento', data);
@@ -1910,189 +1961,6 @@ function nuevoUser() {
   renderAdminLista();
   renderAdminFormEditar({ usuario:'', clave:'', perfil:'usuario', ejecutivos:[], ultimo_acceso:null });
 }
-
-// ============================================================
-// VISTAS: FICHA / LISTA
-// ============================================================
-function setVista(v) {
-  vistaActual = v;
-  const btnFicha = document.getElementById('toggle-ficha');
-  const btnLista = document.getElementById('toggle-lista');
-  if (btnFicha) {
-    btnFicha.style.background = v === 'ficha' ? 'var(--azul)' : 'transparent';
-    btnFicha.style.color = v === 'ficha' ? '#fff' : 'var(--texto-sec)';
-  }
-  if (btnLista) {
-    btnLista.style.background = v === 'lista' ? 'var(--azul)' : 'transparent';
-    btnLista.style.color = v === 'lista' ? '#fff' : 'var(--texto-sec)';
-  }
-  const navWrap = document.getElementById('nav-registros-wrap');
-  if (navWrap) navWrap.style.display = v === 'ficha' ? 'flex' : 'none';
-  // Solo re-renderizar si hay datos cargados
-  if (filtroEstado && registrosFiltrados.length > 0) {
-    if (v === 'lista') {
-      renderVistaLista();
-    } else {
-      document.getElementById('nav-label').textContent = `Registro: ${idxActual+1} de ${registrosFiltrados.length}`;
-      document.getElementById('btn-prev').disabled = idxActual===0;
-      document.getElementById('btn-next').disabled = idxActual===registrosFiltrados.length-1;
-      renderFicha(registrosFiltrados[idxActual]);
-    }
-  }
-}
-
-function renderVistaLista() {
-  const lista = busquedaActiva ? resultadosBusqueda : registrosFiltrados;
-  if (!lista || lista.length === 0) return;
-
-  const thS = 'padding:6px 10px;text-align:left;position:sticky;top:0;z-index:2;background:#1565C0;color:#fff;font-size:11px;white-space:nowrap;font-weight:600';
-  const segClase = { SIN_SEG:'seg-sin', VENCIDO:'seg-vencido', AL_DIA:'seg-al-dia' };
-  const segLabel = { SIN_SEG:'SIN SEG.', VENCIDO:'VENCIDO', AL_DIA:'AL DÍA' };
-  const fmt = n => n ? '$'+Number(n).toLocaleString('es-CL') : '-';
-
-  const filas = lista.map((c, idx) => {
-    const gs = getEstadoGestion(c);
-    const ec = getEstadoComercial(c);
-    const ult = c.gestiones && c.gestiones.length > 0 ? c.gestiones[c.gestiones.length-1] : {};
-    const bg = idx % 2 === 0 ? '#fff' : '#F8F9FB';
-    const td = 'padding:5px 10px;border-bottom:1px solid #ECEFF1;font-size:12px;white-space:nowrap';
-    return `<tr style="background:${bg};cursor:pointer" onclick="abrirFichaLista(${idx})">
-      <td style="${td};color:var(--azul);font-weight:700;text-decoration:underline">${c.id}</td>
-      <td style="${td};font-weight:600">${c.nombre||'-'}</td>
-      <td style="${td}">${c.rut_cliente||'-'}</td>
-      <td style="${td};max-width:150px;overflow:hidden;text-overflow:ellipsis">${c.ejecutivo||'-'}</td>
-      <td style="${td}">${c.producto||'-'}</td>
-      <td style="${td}">${(c.marca||'')+' '+(c.modelo||'')}</td>
-      <td style="${td}">${fmtFecha(c.fecha_ingreso)||'-'}</td>
-      <td style="${td};color:#2E7D32;font-weight:600">${fmt(c.monto_pagare)}</td>
-      <td style="${td}"><span class="hist-estado-badge ${segClase[gs]||''}">${segLabel[gs]||gs}</span></td>
-      <td style="${td}">${ult.nuevo_estado||'-'}</td>
-      <td style="${td};max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${ult.comentario||''}">${ult.comentario||'-'}</td>
-    </tr>`;
-  }).join('');
-
-  document.getElementById('panel-content').innerHTML = `
-    <div style="flex:1;overflow:auto;height:100%">
-      <table style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead><tr>
-          <th style="${thS}">ID</th>
-          <th style="${thS}">Nombre</th>
-          <th style="${thS}">RUT</th>
-          <th style="${thS}">Ejecutivo</th>
-          <th style="${thS}">Producto</th>
-          <th style="${thS}">Marca/Modelo</th>
-          <th style="${thS}">F.Ingreso</th>
-          <th style="${thS}">Pagaré</th>
-          <th style="${thS}">Seg.</th>
-          <th style="${thS}">Últ. Estado</th>
-          <th style="${thS}">Comentario</th>
-        </tr></thead>
-        <tbody>${filas}</tbody>
-      </table>
-    </div>`;
-}
-
-let idxFichaLista = 0;
-
-function abrirFichaLista(idx) {
-  const lista = busquedaActiva ? resultadosBusqueda : registrosFiltrados;
-  if (!lista[idx]) return;
-  idxFichaLista = idx;
-  creditoFichaLista = lista[idx];
-  const c = creditoFichaLista;
-  const gs = getEstadoGestion(c);
-  const segLabel = { SIN_SEG:'SIN SEG.', VENCIDO:'VENCIDO', AL_DIA:'AL DÍA' };
-  const segClase = { SIN_SEG:'seg-sin', VENCIDO:'seg-vencido', AL_DIA:'seg-al-dia' };
-
-  document.getElementById('ficha-lista-titulo').textContent = `${c.id} — ${c.nombre}`;
-  document.getElementById('ficha-lista-subtitulo').textContent = c.ejecutivo || '';
-
-  // Historial
-  let histHTML = '';
-  if (c.gestiones && c.gestiones.length > 0) {
-    histHTML = c.gestiones.slice().reverse().map(g => {
-      const fechaGestion = new Date(g.created_at).toLocaleString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-      const hoy=new Date(); hoy.setHours(0,0,0,0);
-      const fechaSegLabel = g.fecha_seguimiento ? (() => {
-        const fs=new Date(g.fecha_seguimiento+'T00:00:00');
-        const cls=fs<hoy?'seg-vencido':'seg-al-dia';
-        const lbl=fs<hoy?'VENCIDO':'AL DÍA';
-        return `<span class="hist-estado-badge ${cls}">${g.fecha_seguimiento} ${lbl}</span>`;
-      })() : '-';
-      return `<tr>
-        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;white-space:nowrap;font-size:12px">${fechaGestion}</td>
-        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px">${g.nuevo_estado||''}</td>
-        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px">${g.motivo_estado||''}</td>
-        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px">${g.seguimiento||''}</td>
-        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px">${g.contacto||''}</td>
-        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px">${fechaSegLabel}</td>
-        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${g.comentario||''}">${g.comentario||''}</td>
-        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:11px;color:var(--texto-sec)">${g.usuario||''}</td>
-      </tr>`;
-    }).join('');
-  } else {
-    histHTML = '<tr><td colspan="8" style="text-align:center;color:var(--texto-sec);padding:16px;font-size:12px">Sin gestiones registradas</td></tr>';
-  }
-
-  const fmt = n => n ? '$'+Number(n).toLocaleString('es-CL') : '-';
-  document.getElementById('ficha-lista-body').innerHTML = `
-    <div style="padding:12px 16px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-        <div style="background:#F8F9FB;border-radius:8px;border:1px solid var(--borde);overflow:hidden">
-          ${[['ID',`<strong>${c.id}</strong>`],['Estado',c.estado],['RUT',c.rut_cliente],['Categoría',c.categoria],['Nombre',`<strong>${c.nombre}</strong>`],['Riesgo',`<span class="${riesgoClass(c.riesgo_cliente)}">${c.riesgo_cliente}</span>`],['Producto',c.producto],['Canal',c.canal],['Marca/Modelo',`${c.marca||''} ${c.modelo||''}`],['F.Ingreso',fmtFecha(c.fecha_ingreso)]].map(([l,v])=>`
-          <div style="display:flex;border-bottom:1px solid #ECEFF1">
-            <span style="width:120px;min-width:120px;padding:5px 10px;background:#F0F2F5;font-size:11px;font-weight:600;color:var(--texto-sec);border-right:1px solid #ECEFF1">${l}</span>
-            <span style="padding:5px 10px;font-size:12px">${v||'-'}</span>
-          </div>`).join('')}
-        </div>
-        <div style="background:#F8F9FB;border-radius:8px;border:1px solid var(--borde);overflow:hidden">
-          ${[['Precio',`<span style="color:#2E7D32;font-weight:700">${fmt(c.precio)}</span>`],['Pie',`<span style="color:#2E7D32;font-weight:700">${fmt(c.pie)}</span>`],['Saldo Precio',`<span style="color:#2E7D32;font-weight:700">${fmt(c.saldo_precio)}</span>`],['Monto Pagaré',`<span style="color:#2E7D32;font-weight:700">${fmt(c.monto_pagare)}</span>`],['Ejecutivo',c.ejecutivo],['Evaluador',c.nom_evaluador||'-'],['Dealer',c.dealer],['Sucursal',c.sucursal],['Seguimiento',`<span class="hist-estado-badge ${segClase[gs]||''}">${segLabel[gs]||gs}</span>`]].map(([l,v])=>`
-          <div style="display:flex;border-bottom:1px solid #ECEFF1">
-            <span style="width:120px;min-width:120px;padding:5px 10px;background:#F0F2F5;font-size:11px;font-weight:600;color:var(--texto-sec);border-right:1px solid #ECEFF1">${l}</span>
-            <span style="padding:5px 10px;font-size:12px">${v||'-'}</span>
-          </div>`).join('')}
-        </div>
-      </div>
-      <div style="background:#fff;border-radius:8px;border:1px solid var(--borde);overflow:hidden">
-        <div style="background:var(--azul);color:#fff;padding:6px 12px;font-size:11px;font-weight:600">📋 Historial de Gestiones</div>
-        <div style="overflow-x:auto">
-          <table style="width:100%;border-collapse:collapse;font-size:12px">
-            <thead><tr style="background:#E3F2FD">
-              <th style="padding:5px 8px;text-align:left;font-size:11px;color:var(--azul)">Fecha</th>
-              <th style="padding:5px 8px;text-align:left;font-size:11px;color:var(--azul)">Estado</th>
-              <th style="padding:5px 8px;text-align:left;font-size:11px;color:var(--azul)">Motivo</th>
-              <th style="padding:5px 8px;text-align:left;font-size:11px;color:var(--azul)">Seguimiento</th>
-              <th style="padding:5px 8px;text-align:left;font-size:11px;color:var(--azul)">Contacto</th>
-              <th style="padding:5px 8px;text-align:left;font-size:11px;color:var(--azul)">F.Seg.</th>
-              <th style="padding:5px 8px;text-align:left;font-size:11px;color:var(--azul)">Comentario</th>
-              <th style="padding:5px 8px;text-align:left;font-size:11px;color:var(--azul)">Usuario</th>
-            </tr></thead>
-            <tbody>${histHTML}</tbody>
-          </table>
-        </div>
-      </div>
-    </div>`;
-
-  document.getElementById('modal-ficha-lista').classList.add('visible');
-}
-
-function cerrarFichaLista() {
-  document.getElementById('modal-ficha-lista').classList.remove('visible');
-  creditoFichaLista = null;
-}
-
-function abrirGestionDesdelista() {
-  if (!creditoFichaLista) return;
-  // Setear el crédito activo en registrosFiltrados para que abrirModal lo use
-  const idx = registrosFiltrados.findIndex(r => r.id === creditoFichaLista.id);
-  if (idx >= 0) idxActual = idx;
-  cerrarFichaLista();
-  abrirModal();
-}
-
-document.getElementById('modal-ficha-lista').addEventListener('click', function(e) {
-  if (e.target === this) cerrarFichaLista();
-});
 
 // ============================================================
 // INICIO
