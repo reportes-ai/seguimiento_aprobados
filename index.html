@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seguimiento de Créditos v5.4</title>
+<title>Seguimiento de Créditos v5.5</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
@@ -311,7 +311,7 @@
 <!-- APP -->
 <div id="app">
   <header>
-    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v5.4</small></h1>
+    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v5.5</small></h1>
     <div class="header-right">
       <span id="header-ejecutivo"></span>
       <button class="btn-sm" id="btn-informe" style="display:none;background:rgba(255,255,255,0.28);font-weight:600" onclick="abrirInforme()">📊 Informe Consolidado</button>
@@ -319,6 +319,7 @@
       <button class="btn-sm" id="btn-edit-credito" style="display:none;background:rgba(255,255,255,0.18);font-weight:600" onclick="abrirEditCredito()">✏️ Editar Crédito</button>
       <button class="btn-sm" id="btn-eliminar" style="display:none;background:rgba(220,53,69,0.28);font-weight:600;border-color:rgba(220,53,69,0.5);color:#fff" onclick="abrirModalEliminar()" title="Eliminar registros por rango de fechas">🗑️ Eliminar Registros</button>
       <button class="btn-sm" onclick="recargarDatos()" title="Actualizar datos desde el servidor">🔄 Actualizar</button>
+      <button class="btn-sm" onclick="abrirAyuda()" style="background:rgba(255,255,255,0.18);font-weight:600">❓ Ayuda</button>
       <button class="btn-sm" onclick="doLogout()">Cerrar sesión</button>
     </div>
   </header>
@@ -566,6 +567,20 @@
       </div>
     </div>
     <div style="flex:1;overflow-y:auto;padding:0" id="ficha-lista-body"></div>
+  </div>
+</div>
+
+<!-- MODAL AYUDA -->
+<div class="modal-overlay" id="modal-ayuda" style="z-index:700;align-items:flex-start;padding:20px 0">
+  <div style="background:#fff;border-radius:12px;width:96vw;max-width:1000px;max-height:94vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.25);margin:auto">
+    <div style="background:#1565C0;color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-radius:12px 12px 0 0;flex-shrink:0">
+      <div>
+        <h3 style="font-size:16px;font-weight:700;margin:0">❓ Manual de Usuario — Seguimiento de Créditos</h3>
+        <div style="font-size:12px;opacity:0.8;margin-top:2px">AutoFácil Chile · v5.5</div>
+      </div>
+      <button onclick="cerrarAyuda()" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:0 4px">✕</button>
+    </div>
+    <iframe id="ayuda-iframe" style="flex:1;border:none;border-radius:0 0 12px 12px;min-height:80vh"></iframe>
   </div>
 </div>
 
@@ -2229,6 +2244,857 @@ function abrirGestionDesdeLista() {
 document.getElementById('modal-ficha-lista').addEventListener('click', function(e) {
   if (e.target === this) cerrarFichaLista();
 });
+
+
+// ============================================================
+// AYUDA / MANUAL
+// ============================================================
+const MANUAL_HTML = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual de Usuario — Seguimiento de Créditos AutoFácil</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #F5F7FA; color: #263238; font-size: 15px; line-height: 1.7; }
+
+  /* PORTADA */
+  .portada {
+    background: linear-gradient(135deg, #0D47A1 0%, #1565C0 60%, #1976D2 100%);
+    color: #fff; padding: 80px 60px; text-align: center; page-break-after: always;
+  }
+  .portada h1 { font-size: 42px; font-weight: 800; margin-bottom: 16px; letter-spacing: -1px; }
+  .portada h2 { font-size: 22px; font-weight: 400; opacity: 0.85; margin-bottom: 40px; }
+  .portada .version { display: inline-block; background: rgba(255,255,255,0.2); padding: 8px 24px; border-radius: 20px; font-size: 14px; margin-bottom: 60px; }
+  .portada .empresa { font-size: 18px; font-weight: 600; margin-top: 60px; opacity: 0.9; }
+  .portada .fecha { font-size: 14px; opacity: 0.7; margin-top: 8px; }
+
+  /* LAYOUT */
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+
+  /* ÍNDICE */
+  .indice { background: #fff; border-radius: 12px; padding: 32px; margin-bottom: 40px; border-left: 6px solid #1565C0; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  .indice h2 { color: #1565C0; font-size: 20px; margin-bottom: 20px; }
+  .indice ol { padding-left: 20px; }
+  .indice li { margin-bottom: 8px; }
+  .indice a { color: #1565C0; text-decoration: none; font-weight: 500; }
+  .indice a:hover { text-decoration: underline; }
+  .indice .sub { margin-left: 20px; margin-top: 4px; list-style-type: none; }
+  .indice .sub li::before { content: "→ "; color: #1565C0; }
+
+  /* SECCIONES */
+  .seccion { background: #fff; border-radius: 12px; padding: 36px; margin-bottom: 32px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  .seccion-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #E3F2FD; }
+  .seccion-icon { width: 48px; height: 48px; background: #1565C0; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+  .seccion h2 { color: #1565C0; font-size: 22px; }
+  .seccion h3 { color: #0D47A1; font-size: 17px; margin: 24px 0 12px; }
+  .seccion h4 { color: #37474F; font-size: 15px; margin: 16px 0 8px; font-weight: 700; }
+  .seccion p { margin-bottom: 12px; color: #37474F; }
+  .seccion ul, .seccion ol { padding-left: 24px; margin-bottom: 12px; }
+  .seccion li { margin-bottom: 6px; color: #37474F; }
+
+  /* PERFIL BADGE */
+  .perfil-section { border-left: 4px solid; padding: 20px 24px; border-radius: 0 8px 8px 0; margin-bottom: 24px; }
+  .perfil-ejecutivo { border-color: #1565C0; background: #E3F2FD; }
+  .perfil-supervisor { border-color: #E65100; background: #FFF3E0; }
+  .perfil-gerente { border-color: #2E7D32; background: #E8F5E9; }
+  .perfil-section h3 { margin: 0 0 8px; }
+  .perfil-ejecutivo h3 { color: #1565C0; }
+  .perfil-supervisor h3 { color: #E65100; }
+  .perfil-gerente h3 { color: #2E7D32; }
+
+  /* MOCK SCREENS */
+  .pantalla { background: #F5F7FA; border: 2px solid #CFD8DC; border-radius: 10px; overflow: hidden; margin: 20px 0; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+  .pantalla-header { background: #1565C0; color: #fff; padding: 10px 16px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .pantalla-body { padding: 16px; }
+
+  /* LOGIN MOCK */
+  .login-mock { background: linear-gradient(135deg, #0D47A1, #1976D2); padding: 40px; display: flex; justify-content: center; }
+  .login-card-mock { background: #fff; border-radius: 12px; padding: 28px; width: 280px; box-shadow: 0 8px 32px rgba(0,0,0,0.25); }
+  .login-card-mock h3 { color: #1565C0; text-align: center; font-size: 16px; margin-bottom: 4px; }
+  .login-card-mock p { color: #546E7A; text-align: center; font-size: 12px; margin-bottom: 16px; }
+  .mock-label { font-size: 10px; font-weight: 700; color: #546E7A; text-transform: uppercase; margin-bottom: 3px; }
+  .mock-input { background: #F5F7FA; border: 1.5px solid #CFD8DC; border-radius: 6px; padding: 8px 10px; font-size: 13px; color: #263238; margin-bottom: 12px; width: 100%; }
+  .mock-btn { background: #1565C0; color: #fff; border: none; border-radius: 6px; padding: 10px; width: 100%; font-size: 14px; font-weight: 600; text-align: center; cursor: pointer; }
+  .mock-btn.verde { background: #2E7D32; }
+  .mock-btn.rojo { background: #C62828; }
+
+  /* APP LAYOUT MOCK */
+  .app-mock { display: flex; gap: 0; min-height: 300px; }
+  .panel-izq-mock { width: 200px; min-width: 200px; background: #fff; border-right: 1px solid #CFD8DC; }
+  .panel-der-mock { flex: 1; background: #F5F7FA; padding: 12px; }
+  .mock-header-bar { background: #1565C0; color: #fff; padding: 8px 12px; font-size: 12px; display: flex; align-items: center; justify-content: space-between; }
+  .mock-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .mock-table th { background: #1565C0; color: #fff; padding: 5px 8px; text-align: center; }
+  .mock-table th:first-child { text-align: left; }
+  .mock-table td { padding: 4px 8px; border-bottom: 1px solid #ECEFF1; font-size: 11px; text-align: center; }
+  .mock-table td:first-child { text-align: left; font-weight: 600; }
+  .mock-table tr:hover td { background: #E3F2FD; }
+  .num-rojo { color: #C62828; font-weight: 700; }
+  .num-verde { color: #2E7D32; font-weight: 700; }
+  .num-gris { color: #90A4AE; }
+
+  /* ESTADO BADGES */
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+  .badge-vencido { background: #FFEBEE; color: #C62828; }
+  .badge-aldia { background: #E8F5E9; color: #2E7D32; }
+  .badge-sinseg { background: #ECEFF1; color: #546E7A; }
+  .badge-cerrado { background: #E8F5E9; color: #1B5E20; }
+  .badge-otorgado { background: #E3F2FD; color: #0D47A1; font-weight: 700; }
+  .badge-desistido { background: #FFEBEE; color: #C62828; }
+  .badge-pospuesto { background: #F3E5F5; color: #6A1B9A; }
+
+  /* STEPS */
+  .paso { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 20px; padding: 16px; background: #F8F9FB; border-radius: 8px; border-left: 4px solid #1565C0; }
+  .paso-num { width: 32px; height: 32px; background: #1565C0; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; flex-shrink: 0; }
+  .paso-content h4 { color: #0D47A1; margin-bottom: 4px; font-size: 14px; }
+  .paso-content p { font-size: 13px; color: #546E7A; margin: 0; }
+
+  /* ALERTA / CONSEJO */
+  .alerta { padding: 14px 18px; border-radius: 8px; margin: 16px 0; display: flex; gap: 12px; align-items: flex-start; }
+  .alerta-info { background: #E3F2FD; border-left: 4px solid #1565C0; }
+  .alerta-warning { background: #FFFDE7; border-left: 4px solid #F9A825; }
+  .alerta-danger { background: #FFEBEE; border-left: 4px solid #C62828; }
+  .alerta-success { background: #E8F5E9; border-left: 4px solid #2E7D32; }
+  .alerta-icon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+  .alerta p { margin: 0; font-size: 13px; color: #37474F; }
+  .alerta strong { color: #263238; }
+
+  /* TABLA RESUMEN ESTADOS */
+  .tabla-estados { width: 100%; border-collapse: collapse; font-size: 13px; margin: 16px 0; }
+  .tabla-estados th { background: #1565C0; color: #fff; padding: 8px 12px; text-align: left; }
+  .tabla-estados td { padding: 8px 12px; border-bottom: 1px solid #ECEFF1; vertical-align: top; }
+  .tabla-estados tr:nth-child(even) td { background: #F8F9FB; }
+
+  /* MODAL MOCK */
+  .modal-mock { background: #fff; border-radius: 10px; overflow: hidden; border: 1px solid #CFD8DC; max-width: 460px; margin: 16px auto; box-shadow: 0 8px 32px rgba(0,0,0,0.15); }
+  .modal-mock-header { background: #1565C0; color: #fff; padding: 12px 16px; font-size: 13px; font-weight: 700; }
+  .modal-mock-body { padding: 16px; }
+  .form-row-mock { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+  .form-group-mock label { font-size: 10px; font-weight: 700; color: #546E7A; text-transform: uppercase; display: block; margin-bottom: 3px; }
+  .form-group-mock select, .form-group-mock input { width: 100%; padding: 7px 9px; border: 1.5px solid #CFD8DC; border-radius: 6px; font-size: 12px; color: #263238; background: #fff; }
+  .modal-mock-footer { padding: 12px 16px; border-top: 1px solid #ECEFF1; display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* SEPARADOR */
+  .sep { border: none; border-top: 2px solid #E3F2FD; margin: 32px 0; }
+
+  /* PRINT */
+  @media print {
+    .seccion { page-break-inside: avoid; box-shadow: none; border: 1px solid #CFD8DC; }
+    .portada { page-break-after: always; }
+  }
+
+  @media (max-width: 600px) {
+    .portada h1 { font-size: 28px; }
+    .portada { padding: 40px 20px; }
+    .container { padding: 20px 12px; }
+    .app-mock { flex-direction: column; }
+    .panel-izq-mock { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- PORTADA -->
+<div class="portada">
+  <div style="font-size:64px;margin-bottom:24px">📋</div>
+  <h1>Seguimiento de Créditos</h1>
+  <h2>Manual de Usuario — Plataforma de Gestión Comercial</h2>
+  <div class="version">Versión 5.4 — Mayo 2026</div>
+  <div class="empresa">🏦 AutoFácil Chile</div>
+  <div class="fecha">Documento confidencial de uso interno</div>
+</div>
+
+<div class="container">
+
+<!-- ÍNDICE -->
+<div class="indice" id="indice">
+  <h2>📑 Contenido</h2>
+  <ol>
+    <li><a href="#que-es">¿Qué es esta aplicación?</a></li>
+    <li><a href="#perfiles">Perfiles de usuario</a></li>
+    <li><a href="#login">Cómo ingresar al sistema</a></li>
+    <li><a href="#pantalla-principal">La pantalla principal</a>
+      <ul class="sub">
+        <li><a href="#panel-izquierdo">Panel izquierdo — Resumen</a></li>
+        <li><a href="#panel-derecho">Panel derecho — Detalle</a></li>
+      </ul>
+    </li>
+    <li><a href="#estados">Los estados de un crédito</a></li>
+    <li><a href="#nueva-gestion">Ingresar una nueva gestión</a></li>
+    <li><a href="#vistas">Vista Ficha y Vista Lista</a></li>
+    <li><a href="#buscar">Buscar por nombre</a></li>
+    <li><a href="#exportar">Exportar detalle a Excel</a></li>
+    <li><a href="#admin">Para el Administrador (Gerente)</a>
+      <ul class="sub">
+        <li><a href="#cargar-excel">Cargar archivo TRISolicitud</a></li>
+        <li><a href="#informe">Informe Consolidado</a></li>
+        <li><a href="#eliminar">Eliminar registros</a></li>
+        <li><a href="#usuarios">Administrar usuarios</a></li>
+      </ul>
+    </li>
+    <li><a href="#mail">Reportes automáticos por email</a></li>
+    <li><a href="#faq">Preguntas frecuentes</a></li>
+  </ol>
+</div>
+
+<!-- 1. QUÉ ES -->
+<div class="seccion" id="que-es">
+  <div class="seccion-header">
+    <div class="seccion-icon">🎯</div>
+    <h2>1. ¿Qué es esta aplicación?</h2>
+  </div>
+
+  <p>La plataforma <strong>Seguimiento de Créditos</strong> es una herramienta diseñada exclusivamente para los ejecutivos comerciales de AutoFácil Chile. Su propósito es llevar un registro organizado de todos los clientes que tienen un crédito aprobado pero que, por algún motivo, aún no han comprado su vehículo.</p>
+
+  <p>Piense en estos clientes como <strong>oportunidades de negocio activas</strong>: ya tienen el crédito listo, solo necesitan encontrar el auto adecuado o tomar la decisión final. Un seguimiento oportuno puede significar la diferencia entre cerrar o perder la venta.</p>
+
+  <div class="alerta alerta-success">
+    <span class="alerta-icon">💡</span>
+    <p><strong>¿Para qué sirve?</strong> Para que usted nunca pierda el rastro de un cliente con crédito aprobado. El sistema le recuerda cuándo hacer contacto, registra cada conversación y le muestra el historial completo de cada caso.</p>
+  </div>
+
+  <h3>¿Qué información maneja el sistema?</h3>
+  <ul>
+    <li>Datos del crédito aprobado (monto, producto, vehículo, evaluador)</li>
+    <li>Datos del cliente (nombre, RUT, riesgo)</li>
+    <li>Historial completo de todas las gestiones realizadas</li>
+    <li>Fechas de seguimiento y alertas de vencimiento</li>
+    <li>Estado actual de cada crédito</li>
+  </ul>
+</div>
+
+<!-- 2. PERFILES -->
+<div class="seccion" id="perfiles">
+  <div class="seccion-header">
+    <div class="seccion-icon">👤</div>
+    <h2>2. Perfiles de usuario</h2>
+  </div>
+
+  <p>El sistema tiene tres tipos de usuarios, cada uno con diferentes permisos y vistas:</p>
+
+  <div class="perfil-section perfil-ejecutivo">
+    <h3>🔵 Ejecutivo Comercial</h3>
+    <p>Ve y gestiona <strong>únicamente sus propios créditos</strong>. Puede ingresar gestiones, ver el historial de sus clientes y exportar información. Es el usuario principal del día a día.</p>
+  </div>
+
+  <div class="perfil-section perfil-supervisor">
+    <h3>🟠 Supervisor</h3>
+    <p>Tiene acceso a los créditos de <strong>uno o más ejecutivos asignados</strong>. Puede ver el avance del equipo y también ingresar gestiones en nombre del equipo.</p>
+  </div>
+
+  <div class="perfil-section perfil-gerente">
+    <h3>🟢 Gerente / Administrador</h3>
+    <p>Tiene acceso a <strong>todos los créditos y todos los ejecutivos</strong>. Puede cargar nuevos registros, generar informes consolidados, administrar usuarios y eliminar registros históricos.</p>
+  </div>
+</div>
+
+<!-- 3. LOGIN -->
+<div class="seccion" id="login">
+  <div class="seccion-header">
+    <div class="seccion-icon">🔐</div>
+    <h2>3. Cómo ingresar al sistema</h2>
+  </div>
+
+  <p>Para acceder al sistema necesita un <strong>correo electrónico</strong> y una <strong>contraseña</strong> que le habrá entregado el administrador.</p>
+
+  <div class="pantalla">
+    <div class="pantalla-header">🖥️ Pantalla de inicio de sesión</div>
+    <div class="login-mock">
+      <div class="login-card-mock">
+        <h3>🏦 Seguimiento Créditos</h3>
+        <p>Plataforma de gestión comercial</p>
+        <div class="mock-label">Usuario</div>
+        <div class="mock-input" style="color:#90A4AE">usuario@autofacilchile.cl</div>
+        <div class="mock-label">Contraseña</div>
+        <div class="mock-input" style="color:#90A4AE">••••••</div>
+        <div class="mock-btn">Ingresar</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="paso">
+    <div class="paso-num">1</div>
+    <div class="paso-content">
+      <h4>Abra el navegador</h4>
+      <p>Use Chrome o Edge. Escriba la dirección del sistema: <strong>seguimiento-aprobados.vercel.app</strong></p>
+    </div>
+  </div>
+  <div class="paso">
+    <div class="paso-num">2</div>
+    <div class="paso-content">
+      <h4>Ingrese su correo</h4>
+      <p>Escriba su correo en el campo "Usuario". Ejemplo: juan.perez@autofacilchile.cl</p>
+    </div>
+  </div>
+  <div class="paso">
+    <div class="paso-num">3</div>
+    <div class="paso-content">
+      <h4>Ingrese su contraseña</h4>
+      <p>Escriba la clave que le entregó el administrador. Es una combinación corta de letras y números.</p>
+    </div>
+  </div>
+  <div class="paso">
+    <div class="paso-num">4</div>
+    <div class="paso-content">
+      <h4>Haga clic en "Ingresar"</h4>
+      <p>El sistema cargará automáticamente sus créditos asignados. Puede tomar unos segundos.</p>
+    </div>
+  </div>
+
+  <div class="alerta alerta-warning">
+    <span class="alerta-icon">⚠️</span>
+    <p><strong>Si el mensaje "Usuario o contraseña incorrectos" aparece:</strong> verifique que no haya espacios al inicio o al final del correo, y que las mayúsculas sean correctas en la contraseña. Si el problema persiste, contacte al administrador.</p>
+  </div>
+</div>
+
+<!-- 4. PANTALLA PRINCIPAL -->
+<div class="seccion" id="pantalla-principal">
+  <div class="seccion-header">
+    <div class="seccion-icon">🖥️</div>
+    <h2>4. La pantalla principal</h2>
+  </div>
+
+  <p>Una vez que ingrese, verá la pantalla principal dividida en dos partes:</p>
+
+  <div class="pantalla">
+    <div class="pantalla-header">🖥️ Vista general de la aplicación</div>
+    <div class="mock-header-bar">
+      <span>📋 Seguimiento de Créditos Aprobados v5.5</span>
+      <span style="font-size:11px;opacity:0.8">Ejecutivo: JUAN PÉREZ (AFA) &nbsp;|&nbsp; 🔄 Actualizar &nbsp;|&nbsp; Cerrar sesión</span>
+    </div>
+    <div class="app-mock">
+      <div class="panel-izq-mock">
+        <div style="padding:10px 12px;border-bottom:1px solid #ECEFF1;background:#fff">
+          <div style="font-size:12px;font-weight:700;color:#1565C0">JUAN PÉREZ (AFA)</div>
+          <div style="font-size:10px;color:#546E7A">viernes, 23 de mayo de 2026</div>
+        </div>
+        <div style="padding:8px 10px">
+          <div style="font-size:9px;font-weight:700;color:#546E7A;text-transform:uppercase;margin-bottom:3px">Desde</div>
+          <div style="background:#F5F7FA;border:1px solid #CFD8DC;border-radius:4px;padding:4px 8px;font-size:11px;margin-bottom:6px">23-04-2026</div>
+          <div style="font-size:9px;font-weight:700;color:#546E7A;text-transform:uppercase;margin-bottom:3px">Hasta</div>
+          <div style="background:#F5F7FA;border:1px solid #CFD8DC;border-radius:4px;padding:4px 8px;font-size:11px">23-05-2026</div>
+        </div>
+        <table class="mock-table" style="margin:0 8px;width:calc(100% - 16px)">
+          <thead>
+            <tr><th>Estado</th><th>N°</th><th style="color:#F57F17">Venc.</th><th style="color:#4CAF50">Al Día</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>APROBADOS</td><td>42</td><td class="num-rojo">0</td><td class="num-verde">0</td></tr>
+            <tr><td>DESISTIDO</td><td>18</td><td class="num-rojo">5</td><td class="num-verde">13</td></tr>
+            <tr><td>POSPUESTO</td><td>12</td><td class="num-rojo">3</td><td class="num-verde">9</td></tr>
+            <tr><td>OTROS</td><td>8</td><td class="num-rojo">2</td><td class="num-verde">6</td></tr>
+            <tr><td>CERRADO</td><td>25</td><td class="num-gris">0</td><td class="num-verde">25</td></tr>
+            <tr><td>OTORGADO</td><td>4</td><td class="num-gris">0</td><td class="num-verde">4</td></tr>
+            <tr style="background:#EEF2FF"><td><strong>TOTAL</strong></td><td><strong>109</strong></td><td class="num-rojo"><strong>10</strong></td><td class="num-verde"><strong>57</strong></td></tr>
+          </tbody>
+        </table>
+        <div style="margin:8px;padding:8px 0;background:#1565C0;color:#fff;text-align:center;border-radius:6px;font-size:11px;font-weight:600">➕ Ingresar Nueva Gestión</div>
+        <div style="margin:4px 8px 8px;padding:8px 0;background:#2E7D32;color:#fff;text-align:center;border-radius:6px;font-size:11px;font-weight:600">⬇️ Exportar Detalle Excel</div>
+      </div>
+      <div class="panel-der-mock">
+        <div style="background:#fff;border-radius:8px;padding:16px;text-align:center;color:#90A4AE">
+          <div style="font-size:36px;margin-bottom:8px">📊</div>
+          <div style="font-size:13px">Haga clic en un número de la tabla para ver los registros</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3 id="panel-izquierdo">Panel izquierdo — El resumen de sus créditos</h3>
+  <p>En el lado izquierdo encontrará:</p>
+  <ul>
+    <li><strong>Su nombre y la fecha actual</strong> arriba del todo</li>
+    <li><strong>Filtro de fechas (Desde / Hasta)</strong>: muestra solo los créditos ingresados en ese período</li>
+    <li><strong>Tabla resumen</strong>: muestra cuántos créditos tiene en cada estado, cuántos tienen el seguimiento vencido (en rojo) y cuántos están al día (en verde)</li>
+    <li><strong>Botón "Ingresar Nueva Gestión"</strong>: para registrar una nueva acción sobre un cliente</li>
+    <li><strong>Botón "Exportar Detalle Excel"</strong>: para descargar la lista como planilla</li>
+  </ul>
+
+  <div class="alerta alerta-info">
+    <span class="alerta-icon">ℹ️</span>
+    <p><strong>Cómo usar la tabla resumen:</strong> Haga clic en cualquier número de la tabla para ver los créditos de ese grupo. Por ejemplo, si hace clic en el número de la columna "Vencido" en la fila "DESISTIDO", verá todos los créditos desistidos cuyo seguimiento está atrasado.</p>
+  </div>
+
+  <h3 id="panel-derecho">Panel derecho — El detalle del registro</h3>
+  <p>Cuando hace clic en un número de la tabla, en el panel derecho aparece la información completa del crédito y todo el historial de gestiones realizadas. Puede navegar entre registros con las flechas ‹ ›.</p>
+</div>
+
+<!-- 5. ESTADOS -->
+<div class="seccion" id="estados">
+  <div class="seccion-header">
+    <div class="seccion-icon">🏷️</div>
+    <h2>5. Los estados de un crédito</h2>
+  </div>
+
+  <p>Cada crédito tiene un <strong>estado comercial</strong> que indica en qué situación se encuentra. Cuando usted registra una gestión, elige el nuevo estado del cliente.</p>
+
+  <table class="tabla-estados">
+    <thead>
+      <tr><th>Estado</th><th>¿Qué significa?</th><th>Motivos disponibles</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="badge" style="background:#E3F2FD;color:#1565C0">APROBADOS</span></td>
+        <td>Crédito aprobado, aún sin gestión registrada. Es el estado inicial de todos los créditos.</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-desistido">DESISTIDO</span></td>
+        <td>El cliente decidió no tomar el crédito ni el auto.</td>
+        <td>Falta pie, Cuota alta, Arrepintió, Cambio auto, Buscará otro auto, Tomó otro crédito, Solo cotizaba, Otros</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-pospuesto">POSPUESTO</span></td>
+        <td>El cliente quiere seguir adelante, pero necesita más tiempo.</td>
+        <td>Arrepintió, Cuota alta, Falta pie, Cambio auto, Buscará otro auto, Cotizará otro crédito, Vendrá otro día, Faltan antecedentes, Otros</td>
+      </tr>
+      <tr>
+        <td><span class="badge" style="background:#ECEFF1;color:#546E7A">OTROS</span></td>
+        <td>Situaciones que no encajan en los demás estados.</td>
+        <td>Otros</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-cerrado">CERRADO</span></td>
+        <td>El caso ya no requiere seguimiento activo.</td>
+        <td>Crédito cursado, Falta pie, Cuota alta, Arrepintió, Compró otro auto, Buscará otro auto, Tomó otro crédito, Solo cotizaba, Otros</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-otorgado">OTORGADO</span></td>
+        <td>¡El crédito fue otorgado y el cliente compró! El negocio se cerró exitosamente.</td>
+        <td>AutoFin, Unidad</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>¿Qué significa el color de seguimiento?</h3>
+  <p>Además del estado comercial, cada crédito tiene un indicador de seguimiento:</p>
+
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin:12px 0">
+    <div style="display:flex;align-items:center;gap:8px;background:#F8F9FB;padding:10px 14px;border-radius:8px">
+      <span class="badge badge-sinseg">SIN SEG.</span>
+      <span style="font-size:13px">No tiene ninguna gestión registrada aún</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;background:#F8F9FB;padding:10px 14px;border-radius:8px">
+      <span class="badge badge-vencido">VENCIDO</span>
+      <span style="font-size:13px">La fecha de seguimiento ya pasó — ¡requiere atención!</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;background:#F8F9FB;padding:10px 14px;border-radius:8px">
+      <span class="badge badge-aldia">AL DÍA</span>
+      <span style="font-size:13px">El próximo seguimiento aún no ha llegado</span>
+    </div>
+  </div>
+
+  <div class="alerta alerta-danger">
+    <span class="alerta-icon">🔴</span>
+    <p><strong>Los números en ROJO son urgentes:</strong> indican casos con seguimiento vencido. Estos clientes esperan ser contactados. Haga clic en el número rojo para ver quiénes son y comuníquese con ellos a la brevedad.</p>
+  </div>
+</div>
+
+<!-- 6. NUEVA GESTIÓN -->
+<div class="seccion" id="nueva-gestion">
+  <div class="seccion-header">
+    <div class="seccion-icon">✍️</div>
+    <h2>6. Ingresar una nueva gestión</h2>
+  </div>
+
+  <p>Una "gestión" es cualquier acción que usted realice con un cliente: una llamada, un WhatsApp, una visita, etc. Cada vez que contacte o intente contactar a un cliente, debe registrarlo aquí.</p>
+
+  <h3>¿Cómo registrar una gestión?</h3>
+
+  <div class="paso">
+    <div class="paso-num">1</div>
+    <div class="paso-content">
+      <h4>Seleccione el crédito</h4>
+      <p>En la tabla de la izquierda, haga clic en el estado del cliente. Luego navegue con las flechas hasta encontrar al cliente específico.</p>
+    </div>
+  </div>
+  <div class="paso">
+    <div class="paso-num">2</div>
+    <div class="paso-content">
+      <h4>Haga clic en "Ingresar Nueva Gestión"</h4>
+      <p>El botón azul en la parte inferior izquierda. Se abrirá un formulario.</p>
+    </div>
+  </div>
+  <div class="paso">
+    <div class="paso-num">3</div>
+    <div class="paso-content">
+      <h4>Complete el formulario</h4>
+      <p>Seleccione el nuevo estado, el motivo, el tipo de seguimiento y agregue sus comentarios.</p>
+    </div>
+  </div>
+  <div class="paso">
+    <div class="paso-num">4</div>
+    <div class="paso-content">
+      <h4>Haga clic en "Grabar"</h4>
+      <p>La gestión queda guardada y el historial del cliente se actualiza automáticamente.</p>
+    </div>
+  </div>
+
+  <div class="modal-mock">
+    <div class="modal-mock-header">✍️ NUEVA GESTIÓN SEGUIMIENTO &nbsp;&nbsp; FECHA: 23-05-2026 &nbsp; HORA: 10:30 a.m.</div>
+    <div class="modal-mock-body">
+      <div class="form-row-mock">
+        <div class="form-group-mock">
+          <label>Nuevo Estado</label>
+          <select><option>POSPUESTO</option></select>
+        </div>
+        <div class="form-group-mock">
+          <label>Motivo Estado</label>
+          <select><option>CUOTA ALTA</option></select>
+        </div>
+      </div>
+      <div class="form-row-mock">
+        <div class="form-group-mock">
+          <label>Seguimiento</label>
+          <select><option>LLAMAR</option></select>
+        </div>
+        <div class="form-group-mock">
+          <label>Contacto</label>
+          <input type="text" value="+56 9 8765 4321">
+        </div>
+      </div>
+      <div class="form-row-mock">
+        <div class="form-group-mock">
+          <label>Fecha Seguimiento</label>
+          <input type="date" value="2026-06-02">
+        </div>
+      </div>
+      <div class="form-row-mock">
+        <div class="form-group-mock">
+          <label>Concesionario</label>
+          <input type="text" placeholder="Nombre del concesionario">
+        </div>
+        <div class="form-group-mock">
+          <label>Vendedor</label>
+          <input type="text" placeholder="Nombre del vendedor">
+        </div>
+      </div>
+      <div class="form-group-mock">
+        <label>Comentario (obligatorio, mínimo 4 caracteres)</label>
+        <input type="text" value="Cliente interesado, quiere bajar la cuota. Llamar en 10 días.">
+      </div>
+    </div>
+    <div class="modal-mock-footer">
+      <div class="mock-btn rojo" style="padding:7px 18px;font-size:12px;border-radius:6px;display:inline-block;width:auto">CANCELAR</div>
+      <div class="mock-btn verde" style="padding:7px 18px;font-size:12px;border-radius:6px;display:inline-block;width:auto">GRABAR</div>
+    </div>
+  </div>
+
+  <h3>Descripción de cada campo</h3>
+  <table class="tabla-estados">
+    <thead><tr><th>Campo</th><th>¿Qué debo poner?</th><th>Obligatorio</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Nuevo Estado</strong></td><td>La situación actual del cliente (Desistido, Pospuesto, Cerrado, Otorgado, etc.)</td><td>✅ Sí</td></tr>
+      <tr><td><strong>Motivo Estado</strong></td><td>La razón específica de ese estado</td><td>✅ Sí</td></tr>
+      <tr><td><strong>Seguimiento</strong></td><td>Cómo contactó al cliente: Llamar, WhatsApp, Email, Visita, Sin Contacto</td><td>✅ Sí</td></tr>
+      <tr><td><strong>Contacto</strong></td><td>El número de teléfono o email usado (aparece solo si eligió Llamar, WhatsApp o Email)</td><td>No</td></tr>
+      <tr><td><strong>Fecha Seguimiento</strong></td><td>¿Cuándo debe volver a contactar a este cliente? El sistema le recordará.</td><td>No</td></tr>
+      <tr><td><strong>Concesionario</strong></td><td>Si está trabajando con un concesionario, puede anotarlo aquí</td><td>No</td></tr>
+      <tr><td><strong>Vendedor</strong></td><td>Nombre del vendedor del concesionario</td><td>No</td></tr>
+      <tr><td><strong>Teléfono Vendedor</strong></td><td>Número de contacto del vendedor</td><td>No</td></tr>
+      <tr><td><strong>Comentario</strong></td><td>Sus notas sobre la conversación. Mínimo 4 caracteres.</td><td>✅ Sí</td></tr>
+    </tbody>
+  </table>
+
+  <div class="alerta alerta-info">
+    <span class="alerta-icon">💡</span>
+    <p><strong>Consejo:</strong> Al elegir el estado <strong>CERRADO</strong> u <strong>OTORGADO</strong>, la fecha de seguimiento se fija automáticamente en un año a futuro. Esto indica que el caso ya no necesita atención activa y siempre aparecerá como "Al Día".</p>
+  </div>
+</div>
+
+<!-- 7. VISTAS -->
+<div class="seccion" id="vistas">
+  <div class="seccion-header">
+    <div class="seccion-icon">🔀</div>
+    <h2>7. Vista Ficha y Vista Lista</h2>
+  </div>
+
+  <p>El panel derecho tiene dos formas de mostrar la información. Puede cambiar entre ellas usando los botones en la parte superior derecha:</p>
+
+  <div style="display:flex;gap:12px;margin:16px 0;flex-wrap:wrap">
+    <div style="background:#1565C0;color:#fff;padding:8px 20px;border-radius:16px;font-size:13px;font-weight:700">🪪 Ficha</div>
+    <div style="background:#ECEFF1;color:#546E7A;padding:8px 20px;border-radius:16px;font-size:13px;font-weight:600">☰ Lista</div>
+  </div>
+
+  <h3>🪪 Vista Ficha</h3>
+  <p>Muestra <strong>un cliente a la vez</strong> con toda su información detallada y el historial completo de gestiones. Use las flechas ‹ › para pasar de un cliente al siguiente. Es ideal para revisar un caso en profundidad.</p>
+
+  <h3>☰ Vista Lista</h3>
+  <p>Muestra <strong>todos los clientes del estado seleccionado en una tabla</strong>. Es ideal para tener una visión general rápida de todos sus casos. Haga clic en cualquier fila para abrir la ficha completa de ese cliente y registrar una gestión.</p>
+
+  <div class="alerta alerta-info">
+    <span class="alerta-icon">💡</span>
+    <p>El administrador puede configurar cuál vista ve cada usuario por defecto, e incluso bloquear el cambio de vista si así lo requiere.</p>
+  </div>
+</div>
+
+<!-- 8. BUSCAR -->
+<div class="seccion" id="buscar">
+  <div class="seccion-header">
+    <div class="seccion-icon">🔍</div>
+    <h2>8. Buscar por nombre</h2>
+  </div>
+
+  <p>En la parte superior del panel derecho hay un campo de búsqueda. Escriba el nombre (o parte del nombre) del cliente y el sistema filtrará los resultados automáticamente, sin importar en qué estado esté.</p>
+
+  <div style="background:#fff;border:1.5px solid #CFD8DC;border-radius:8px;padding:10px 14px;max-width:280px;margin:16px 0;font-size:13px;color:#90A4AE">
+    🔍 &nbsp; BUSCAR NOMBRE
+  </div>
+
+  <div class="alerta alerta-info">
+    <span class="alerta-icon">💡</span>
+    <p>La búsqueda funciona en tiempo real: a medida que escribe, los resultados se van filtrando. No necesita presionar Enter.</p>
+  </div>
+</div>
+
+<!-- 9. EXPORTAR -->
+<div class="seccion" id="exportar">
+  <div class="seccion-header">
+    <div class="seccion-icon">📊</div>
+    <h2>9. Exportar detalle a Excel</h2>
+  </div>
+
+  <p>El botón verde <strong>"Exportar Detalle Excel"</strong> en la parte inferior izquierda descarga un archivo Excel con todos los créditos del estado y subconjunto que tiene seleccionado en ese momento.</p>
+
+  <p>El archivo incluye: ID, nombre, RUT, ejecutivo, producto, marca/modelo, fecha ingreso, precio, pagaré, riesgo, estado de seguimiento, y los datos de la última gestión registrada.</p>
+
+  <div class="alerta alerta-warning">
+    <span class="alerta-icon">⚠️</span>
+    <p>Primero debe seleccionar un estado en la tabla para que el botón se active. Si está en gris, haga clic primero en algún número de la tabla.</p>
+  </div>
+</div>
+
+<hr class="sep">
+
+<!-- 10. ADMINISTRADOR -->
+<div class="seccion" id="admin">
+  <div class="seccion-header">
+    <div class="seccion-icon">⚙️</div>
+    <h2>10. Para el Administrador (Gerente)</h2>
+  </div>
+
+  <p>Los usuarios con perfil <strong>Gerente</strong> tienen acceso a funciones adicionales que aparecen en la barra superior:</p>
+
+  <div style="background:#1565C0;border-radius:8px;padding:10px 16px;display:flex;gap:8px;flex-wrap:wrap;margin:16px 0">
+    <span style="background:rgba(255,255,255,0.25);color:#fff;padding:5px 14px;border-radius:14px;font-size:12px;font-weight:600">📊 Informe Consolidado</span>
+    <span style="background:rgba(255,255,255,0.25);color:#fff;padding:5px 14px;border-radius:14px;font-size:12px;font-weight:600">⚙️ Usuarios</span>
+    <span style="background:rgba(255,255,255,0.25);color:#fff;padding:5px 14px;border-radius:14px;font-size:12px;font-weight:600">✏️ Editar Crédito</span>
+    <span style="background:rgba(220,53,69,0.6);color:#fff;padding:5px 14px;border-radius:14px;font-size:12px;font-weight:600">🗑️ Eliminar Registros</span>
+    <span style="background:rgba(255,255,255,0.25);color:#fff;padding:5px 14px;border-radius:14px;font-size:12px;font-weight:600">📂 Cargar TRISolicitud</span>
+    <span style="background:rgba(255,255,255,0.25);color:#fff;padding:5px 14px;border-radius:14px;font-size:12px;font-weight:600">🔄 Actualizar</span>
+  </div>
+
+  <h3 id="cargar-excel">📂 Cargar archivo TRISolicitud</h3>
+  <p>Esta función importa nuevos créditos desde el sistema TRI al sistema de seguimiento.</p>
+
+  <div class="paso">
+    <div class="paso-num">1</div>
+    <div class="paso-content">
+      <h4>Exporte el reporte de TRI</h4>
+      <p>En el sistema TRI, genere el reporte "TRISolicitud" en formato Excel (.xlsx).</p>
+    </div>
+  </div>
+  <div class="paso">
+    <div class="paso-num">2</div>
+    <div class="paso-content">
+      <h4>Haga clic en "📂 Cargar TRISolicitud"</h4>
+      <p>En la barra superior del sistema. Se abrirá un selector de archivos.</p>
+    </div>
+  </div>
+  <div class="paso">
+    <div class="paso-num">3</div>
+    <div class="paso-content">
+      <h4>Seleccione el archivo</h4>
+      <p>Busque el archivo Excel exportado de TRI y ábralo. El sistema lo procesará automáticamente.</p>
+    </div>
+  </div>
+
+  <div class="alerta alerta-success">
+    <span class="alerta-icon">✅</span>
+    <p><strong>El sistema es inteligente:</strong> solo importa los créditos que no existen aún. Los registros duplicados se ignoran automáticamente. Puede cargar el mismo archivo varias veces sin problema.</p>
+  </div>
+
+  <h3 id="informe">📊 Informe Consolidado</h3>
+  <p>Genera un resumen de todos los créditos por ejecutivo y por estado, para un rango de fechas específico.</p>
+
+  <div class="paso">
+    <div class="paso-num">1</div>
+    <div class="paso-content">
+      <h4>Haga clic en "Informe Consolidado"</h4>
+      <p>Se abrirá una ventana con dos campos de fecha (Desde y Hasta).</p>
+    </div>
+  </div>
+  <div class="paso">
+    <div class="paso-num">2</div>
+    <div class="paso-content">
+      <h4>Seleccione el rango de fechas</h4>
+      <p>Por defecto muestra desde el registro más antiguo hasta el más reciente. Puede ajustarlo.</p>
+    </div>
+  </div>
+  <div class="paso">
+    <div class="paso-num">3</div>
+    <div class="paso-content">
+      <h4>Haga clic en "Generar"</h4>
+      <p>Aparecerá la tabla con el resumen. Puede exportarla a Excel con el botón verde "Exportar Excel".</p>
+    </div>
+  </div>
+
+  <h3 id="eliminar">🗑️ Eliminar Registros</h3>
+  <p>Permite eliminar créditos y sus gestiones de un rango de fechas determinado. <strong>Esta acción es irreversible.</strong></p>
+
+  <div class="alerta alerta-danger">
+    <span class="alerta-icon">⛔</span>
+    <p><strong>¡Precaución!</strong> Una vez eliminados, los registros no se pueden recuperar. Use esta función solo para limpiar períodos históricos que ya no son necesarios. El sistema le pedirá confirmación antes de proceder.</p>
+  </div>
+
+  <p>Por defecto, el sistema sugiere el rango desde el registro más antiguo hasta el último día hábil del mes anterior, para proteger los datos del período actual.</p>
+
+  <h3 id="usuarios">⚙️ Administrar Usuarios</h3>
+  <p>Permite crear, modificar y eliminar usuarios del sistema.</p>
+
+  <h4>Agregar un nuevo usuario</h4>
+  <div class="paso">
+    <div class="paso-num">1</div>
+    <div class="paso-content">
+      <h4>Haga clic en "Usuarios"</h4>
+      <p>Se abre el panel de administración con la lista de todos los usuarios.</p>
+    </div>
+  </div>
+  <div class="paso">
+    <div class="paso-num">2</div>
+    <div class="paso-content">
+      <h4>Haga clic en "+ Nuevo"</h4>
+      <p>Se limpiará el formulario de la derecha para ingresar un nuevo usuario.</p>
+    </div>
+  </div>
+  <div class="paso">
+    <div class="paso-num">3</div>
+    <div class="paso-content">
+      <h4>Complete los datos</h4>
+      <p>Email, contraseña, perfil (Usuario/Supervisor/Gerente), vista por defecto y ejecutivos asignados.</p>
+    </div>
+  </div>
+  <div class="paso">
+    <div class="paso-num">4</div>
+    <div class="paso-content">
+      <h4>Haga clic en "Guardar"</h4>
+      <p>El usuario quedará creado y podrá ingresar al sistema inmediatamente.</p>
+    </div>
+  </div>
+
+  <h4>Configurar la vista de un usuario</h4>
+  <p>En el formulario de edición de usuario puede configurar:</p>
+  <ul>
+    <li><strong>Vista por defecto:</strong> Si el usuario verá los casos en Vista Ficha (uno a uno) o Vista Lista (tabla)</li>
+    <li><strong>Permitir cambiar de vista:</strong> Si está marcado, el usuario puede cambiar la vista por sí mismo. Si está desmarcado, siempre verá la vista que usted configuró.</li>
+  </ul>
+
+  <h4>Vista Ejecutivo Agrupado (solo Gerente)</h4>
+  <p>En el panel izquierdo, el gerente puede ver los créditos de dos maneras:</p>
+  <ul>
+    <li><strong>Todos los Ejecutivos:</strong> Muestra cada ejecutivo individualmente en el selector</li>
+    <li><strong>Ejecutivo Agrupado:</strong> Agrupa todos los créditos de un ejecutivo bajo un solo nombre (ej: "Alvaro Vargas" en vez de tres entradas separadas). Útil cuando un ejecutivo tiene múltiples variantes de nombre en el sistema.</li>
+  </ul>
+</div>
+
+<!-- 11. MAIL -->
+<div class="seccion" id="mail">
+  <div class="seccion-header">
+    <div class="seccion-icon">📧</div>
+    <h2>11. Reportes automáticos por email</h2>
+  </div>
+
+  <p>El sistema envía automáticamente <strong>dos reportes por correo electrónico</strong> todos los días hábiles a las 8:00 AM, a los gerentes de AutoFácil:</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0;flex-wrap:wrap">
+    <div style="background:#FFEBEE;border-radius:8px;padding:16px;border-left:4px solid #C62828">
+      <div style="font-size:20px;margin-bottom:8px">🔴</div>
+      <h4 style="color:#C62828;margin-bottom:8px">Reporte de Seguimientos Vencidos</h4>
+      <p style="font-size:13px;color:#37474F">Lista todos los créditos cuya fecha de seguimiento ya venció, agrupados por ejecutivo. Incluye días de atraso.</p>
+    </div>
+    <div style="background:#ECEFF1;border-radius:8px;padding:16px;border-left:4px solid #546E7A">
+      <div style="font-size:20px;margin-bottom:8px">⚪</div>
+      <h4 style="color:#546E7A;margin-bottom:8px">Reporte de Créditos Sin Seguimiento</h4>
+      <p style="font-size:13px;color:#37474F">Lista todos los créditos que nunca han tenido una gestión registrada, con los días que llevan sin atención.</p>
+    </div>
+  </div>
+
+  <p>Estos reportes llegan automáticamente a <strong>eduardo.abad@autofacilchile.cl</strong> y <strong>patricio.escobar@autofacilchile.cl</strong>. No requieren ninguna acción de los usuarios.</p>
+
+  <div class="alerta alerta-info">
+    <span class="alerta-icon">💡</span>
+    <p>Si un día no hay casos vencidos o sin seguimiento, el sistema <strong>no envía el correo</strong> de ese reporte para evitar mensajes innecesarios.</p>
+  </div>
+</div>
+
+<!-- 12. FAQ -->
+<div class="seccion" id="faq">
+  <div class="seccion-header">
+    <div class="seccion-icon">❓</div>
+    <h2>12. Preguntas frecuentes</h2>
+  </div>
+
+  <h3>¿Puedo usar el sistema desde el celular?</h3>
+  <p>Sí, el sistema es compatible con smartphones. Sin embargo, la experiencia es mejor en una pantalla de computadora por la cantidad de información que muestra.</p>
+
+  <h3>¿Qué navegador debo usar?</h3>
+  <p>Se recomienda <strong>Google Chrome</strong> o <strong>Microsoft Edge</strong>. No se garantiza compatibilidad con Internet Explorer.</p>
+
+  <h3>Olvidé mi contraseña, ¿qué hago?</h3>
+  <p>Contacte al administrador del sistema (Eduardo Abad o Patricio Escobar) para que le cambien la contraseña.</p>
+
+  <h3>¿Puedo modificar una gestión ya guardada?</h3>
+  <p>No. Una vez guardada, una gestión no se puede editar para mantener la integridad del historial. Si cometió un error, registre una nueva gestión corrigiendo la información.</p>
+
+  <h3>¿Qué significa "Sin Seg." en la tabla?</h3>
+  <p>Significa "Sin Seguimiento". Son créditos que nunca han tenido una gestión registrada. Son los más urgentes porque nadie los ha contactado aún.</p>
+
+  <h3>El sistema muestra 0 registros, ¿qué pasó?</h3>
+  <p>Verifique el rango de fechas (Desde/Hasta). Si el rango está muy restringido, puede que no haya créditos en ese período. Amplíe las fechas.</p>
+
+  <h3>¿Cada cuánto tiempo se actualizan los datos?</h3>
+  <p>Los datos se actualizan en tiempo real cuando alguien ingresa una gestión. Para asegurarse de ver lo más reciente, haga clic en el botón <strong>🔄 Actualizar</strong> en la barra superior.</p>
+
+  <h3>¿Pueden dos personas trabajar al mismo tiempo?</h3>
+  <p>Sí, múltiples usuarios pueden usar el sistema simultáneamente sin problemas.</p>
+
+  <div class="alerta alerta-info">
+    <span class="alerta-icon">📞</span>
+    <p><strong>¿Necesita ayuda adicional?</strong> Contacte al administrador del sistema o al equipo de tecnología de AutoFácil Chile.</p>
+  </div>
+</div>
+
+<!-- PIE DE PÁGINA -->
+<div style="text-align:center;padding:32px 0;color:#90A4AE;font-size:12px;border-top:2px solid #ECEFF1;margin-top:40px">
+  <div style="font-size:24px;margin-bottom:8px">🏦</div>
+  <strong>AutoFácil Chile</strong><br>
+  Manual de Usuario — Seguimiento de Créditos v5.5<br>
+  Documento confidencial de uso interno · Mayo 2026
+</div>
+
+</div><!-- container -->
+</body>
+</html>
+`;
+
+function abrirAyuda() {
+  const blob = new Blob([MANUAL_HTML], {type: 'text/html'});
+  const url = URL.createObjectURL(blob);
+  document.getElementById('ayuda-iframe').src = url;
+  document.getElementById('modal-ayuda').classList.add('visible');
+}
+
+function cerrarAyuda() {
+  document.getElementById('modal-ayuda').classList.remove('visible');
+  document.getElementById('ayuda-iframe').src = '';
+}
+
+document.getElementById('modal-ayuda').addEventListener('click', function(e) {
+  if (e.target === this) cerrarAyuda();
+});
+
 
 // ============================================================
 // INICIO
