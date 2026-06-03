@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seguimiento de Créditos v5.5</title>
+<title>Seguimiento de Créditos v5.6</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
@@ -311,7 +311,7 @@
 <!-- APP -->
 <div id="app">
   <header>
-    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v5.5</small></h1>
+    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v5.6</small></h1>
     <div class="header-right">
       <span id="header-ejecutivo"></span>
       <button class="btn-sm" id="btn-informe" style="display:none;background:rgba(255,255,255,0.28);font-weight:600" onclick="abrirInforme()">📊 Informe Consolidado</button>
@@ -576,7 +576,7 @@
     <div style="background:#1565C0;color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-radius:12px 12px 0 0;flex-shrink:0">
       <div>
         <h3 style="font-size:16px;font-weight:700;margin:0">❓ Manual de Usuario — Seguimiento de Créditos</h3>
-        <div style="font-size:12px;opacity:0.8;margin-top:2px">AutoFácil Chile · v5.5</div>
+        <div style="font-size:12px;opacity:0.8;margin-top:2px">AutoFácil Chile · v5.6</div>
       </div>
       <button onclick="cerrarAyuda()" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:0 4px">✕</button>
     </div>
@@ -2123,15 +2123,38 @@ function renderVistaLista() {
   const lista = busquedaActiva ? resultadosBusqueda : registrosFiltrados;
   if (!lista || lista.length === 0) return;
   const thS = 'padding:6px 10px;text-align:left;position:sticky;top:0;z-index:2;background:#1565C0;color:#fff;font-size:11px;white-space:nowrap;font-weight:600';
+  const thF = 'position:sticky;top:29px;z-index:2;background:#E3F2FD;padding:3px 4px;';
+  const inpS = 'width:100%;padding:3px 6px;border:1px solid #90CAF9;border-radius:4px;font-size:11px;outline:none;background:#fff;box-sizing:border-box';
   const segClase = { SIN_SEG:'seg-sin', VENCIDO:'seg-vencido', AL_DIA:'seg-al-dia' };
   const segLabel = { SIN_SEG:'SIN SEG.', VENCIDO:'VENCIDO', AL_DIA:'AL DÍA' };
-  const fmt = n => n ? '$'+Number(n).toLocaleString('es-CL') : '-';
+  const fmtM = n => n ? '$'+Number(n).toLocaleString('es-CL') : '-';
+
+  // Unique values for select filters
+  const uniq = (arr) => ['', ...new Set(arr.filter(Boolean).sort())];
+  const ejecutivos = uniq(lista.map(c => c.ejecutivo));
+  const productos = uniq(lista.map(c => c.producto));
+  const segs = ['', 'SIN SEG.', 'VENCIDO', 'AL DÍA'];
+  const ultEstados = uniq(lista.map(c => c.gestiones && c.gestiones.length > 0 ? c.gestiones[c.gestiones.length-1].nuevo_estado : ''));
+
+  const selOpts = (arr) => arr.map(v => `<option value="${v}">${v || 'Todos'}</option>`).join('');
+
   const filas = lista.map((c, idx) => {
     const gs = getEstadoGestion(c);
     const ult = c.gestiones && c.gestiones.length > 0 ? c.gestiones[c.gestiones.length-1] : {};
     const bg = idx % 2 === 0 ? '#fff' : '#F8F9FB';
     const td = 'padding:5px 10px;border-bottom:1px solid #ECEFF1;font-size:12px;white-space:nowrap';
-    return `<tr style="background:${bg};cursor:pointer" onclick="abrirFichaLista(${idx})">
+    return `<tr class="lista-row" style="background:${bg};cursor:pointer"
+      data-id="${c.id}"
+      data-nombre="${(c.nombre||'').toLowerCase()}"
+      data-rut="${(c.rut_cliente||'').toLowerCase()}"
+      data-ejecutivo="${(c.ejecutivo||'').toLowerCase()}"
+      data-producto="${(c.producto||'').toLowerCase()}"
+      data-marca="${((c.marca||'')+' '+(c.modelo||'')).toLowerCase()}"
+      data-fingreso="${c.fecha_ingreso||''}"
+      data-seg="${segLabel[gs]||gs}"
+      data-estado="${(ult.nuevo_estado||'').toLowerCase()}"
+      data-comentario="${(ult.comentario||'').toLowerCase()}"
+      onclick="abrirFichaLista(${idx})">
       <td style="${td};color:var(--azul);font-weight:700;text-decoration:underline">${c.id}</td>
       <td style="${td};font-weight:600">${c.nombre||'-'}</td>
       <td style="${td}">${c.rut_cliente||'-'}</td>
@@ -2139,24 +2162,79 @@ function renderVistaLista() {
       <td style="${td}">${c.producto||'-'}</td>
       <td style="${td}">${(c.marca||'')+' '+(c.modelo||'')}</td>
       <td style="${td}">${fmtFecha(c.fecha_ingreso)||'-'}</td>
-      <td style="${td};color:#2E7D32;font-weight:600">${fmt(c.monto_pagare)}</td>
+      <td style="${td};color:#2E7D32;font-weight:600">${fmtM(c.monto_pagare)}</td>
       <td style="${td}"><span class="hist-estado-badge ${segClase[gs]||''}">${segLabel[gs]||gs}</span></td>
       <td style="${td}">${ult.nuevo_estado||'-'}</td>
       <td style="${td};max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${ult.comentario||''}">${ult.comentario||'-'}</td>
     </tr>`;
   }).join('');
+
   document.getElementById('panel-content').innerHTML = `
     <div style="flex:1;overflow:auto;height:100%">
       <table style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead><tr>
-          <th style="${thS}">ID</th><th style="${thS}">Nombre</th><th style="${thS}">RUT</th>
-          <th style="${thS}">Ejecutivo</th><th style="${thS}">Producto</th><th style="${thS}">Marca/Modelo</th>
-          <th style="${thS}">F.Ingreso</th><th style="${thS}">Pagaré</th><th style="${thS}">Seg.</th>
-          <th style="${thS}">Últ. Estado</th><th style="${thS}">Comentario</th>
-        </tr></thead>
-        <tbody>${filas}</tbody>
+        <thead>
+          <tr>
+            <th style="${thS}">ID</th><th style="${thS}">Nombre</th><th style="${thS}">RUT</th>
+            <th style="${thS}">Ejecutivo</th><th style="${thS}">Producto</th><th style="${thS}">Marca/Modelo</th>
+            <th style="${thS}">F.Ingreso</th><th style="${thS}">Pagaré</th><th style="${thS}">Seg.</th>
+            <th style="${thS}">Últ. Estado</th><th style="${thS}">Comentario</th>
+          </tr>
+          <tr id="lista-filtros-row">
+            <th style="${thF}"><input style="${inpS}" placeholder="ID" oninput="filtrarColumnas()" id="fltr-id"></th>
+            <th style="${thF}"><input style="${inpS}" placeholder="Nombre" oninput="filtrarColumnas()" id="fltr-nombre"></th>
+            <th style="${thF}"><input style="${inpS}" placeholder="RUT" oninput="filtrarColumnas()" id="fltr-rut"></th>
+            <th style="${thF}"><select style="${inpS}" onchange="filtrarColumnas()" id="fltr-ejecutivo">${selOpts(ejecutivos)}</select></th>
+            <th style="${thF}"><select style="${inpS}" onchange="filtrarColumnas()" id="fltr-producto">${selOpts(productos)}</select></th>
+            <th style="${thF}"><input style="${inpS}" placeholder="Marca/Modelo" oninput="filtrarColumnas()" id="fltr-marca"></th>
+            <th style="${thF}"><input style="${inpS}" placeholder="dd-mm-yyyy" oninput="filtrarColumnas()" id="fltr-fingreso"></th>
+            <th style="${thF}"></th>
+            <th style="${thF}"><select style="${inpS}" onchange="filtrarColumnas()" id="fltr-seg">${selOpts(segs)}</select></th>
+            <th style="${thF}"><select style="${inpS}" onchange="filtrarColumnas()" id="fltr-estado">${selOpts(ultEstados)}</select></th>
+            <th style="${thF}"><input style="${inpS}" placeholder="Comentario" oninput="filtrarColumnas()" id="fltr-comentario"></th>
+          </tr>
+        </thead>
+        <tbody id="lista-tbody">${filas}</tbody>
       </table>
     </div>`;
+}
+
+function filtrarColumnas() {
+  const get = id => { const el = document.getElementById(id); return el ? el.value.trim().toLowerCase() : ''; };
+  const fId       = get('fltr-id');
+  const fNombre   = get('fltr-nombre');
+  const fRut      = get('fltr-rut');
+  const fEjec     = get('fltr-ejecutivo');
+  const fProd     = get('fltr-producto');
+  const fMarca    = get('fltr-marca');
+  const fFingreso = get('fltr-fingreso');
+  const fSeg      = get('fltr-seg');
+  const fEstado   = get('fltr-estado');
+  const fComent   = get('fltr-comentario');
+
+  let visible = 0;
+  document.querySelectorAll('#lista-tbody .lista-row').forEach(row => {
+    const d = row.dataset;
+    const ok =
+      (!fId       || String(d.id).toLowerCase().includes(fId)) &&
+      (!fNombre   || d.nombre.includes(fNombre)) &&
+      (!fRut      || d.rut.includes(fRut)) &&
+      (!fEjec     || d.ejecutivo.includes(fEjec)) &&
+      (!fProd     || d.producto.includes(fProd)) &&
+      (!fMarca    || d.marca.includes(fMarca)) &&
+      (!fFingreso || d.fingreso.includes(fFingreso)) &&
+      (!fSeg      || d.seg.toLowerCase().includes(fSeg)) &&
+      (!fEstado   || d.estado.includes(fEstado)) &&
+      (!fComent   || d.comentario.includes(fComent));
+    row.style.display = ok ? '' : 'none';
+    if (ok) visible++;
+  });
+
+  // Update badge count
+  const badge = document.getElementById('badge-estado');
+  if (badge) {
+    const base = (badge.textContent || '').replace(/\s*\(\d+\)/, '');
+    badge.textContent = `${base} (${visible})`;
+  }
 }
 
 function abrirFichaLista(idx) {
@@ -2561,7 +2639,7 @@ const MANUAL_HTML = `<!DOCTYPE html>
   <div class="pantalla">
     <div class="pantalla-header">🖥️ Vista general de la aplicación</div>
     <div class="mock-header-bar">
-      <span>📋 Seguimiento de Créditos Aprobados v5.5</span>
+      <span>📋 Seguimiento de Créditos Aprobados v5.6</span>
       <span style="font-size:11px;opacity:0.8">Ejecutivo: JUAN PÉREZ (AFA) &nbsp;|&nbsp; 🔄 Actualizar &nbsp;|&nbsp; Cerrar sesión</span>
     </div>
     <div class="app-mock">
@@ -3070,7 +3148,7 @@ const MANUAL_HTML = `<!DOCTYPE html>
 <div style="text-align:center;padding:32px 0;color:#90A4AE;font-size:12px;border-top:2px solid #ECEFF1;margin-top:40px">
   <div style="font-size:24px;margin-bottom:8px">🏦</div>
   <strong>AutoFácil Chile</strong><br>
-  Manual de Usuario — Seguimiento de Créditos v5.5<br>
+  Manual de Usuario — Seguimiento de Créditos v5.6<br>
   Documento confidencial de uso interno · Mayo 2026
 </div>
 
