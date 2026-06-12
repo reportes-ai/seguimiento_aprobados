@@ -201,6 +201,7 @@
   .estado-OTROS { background: var(--gris-claro); color: var(--gris); }
   .estado-CERRADO { background: #E8F5E9; color: #1B5E20; }
   .estado-OTORGADO { background: #E3F2FD; color: #0D47A1; font-weight:700; }
+  .estado-RECHAZADOS { background: #FFEBEE; color: #B71C1C; font-weight:700; }
   #inp-buscar-nombre { transition: all 0.2s; }
   #inp-buscar-nombre::placeholder { color: var(--texto-sec); }
   #inp-buscar-nombre:focus { border-color: var(--azul) !important; box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.1); }
@@ -310,8 +311,15 @@
 
 <!-- APP -->
 <div id="app">
-  <header>
-    <h1>📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v5.6</small></h1>
+  <header id="app-header" style="background:var(--azul)">
+    <div style="display:flex;align-items:center;gap:10px">
+      <h1 id="header-titulo">📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v5.6</small></h1>
+      <!-- SELECTOR MODO -->
+      <div id="modo-selector-wrap" style="display:none;background:rgba(0,0,0,0.2);border-radius:20px;padding:3px;gap:2px;display:flex">
+        <button id="modo-btn-aprobados" onclick="setModoCredito('aprobados')" style="padding:4px 14px;border-radius:16px;border:none;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:#1565C0;transition:all 0.2s">✅ Aprobados</button>
+        <button id="modo-btn-rechazados" onclick="setModoCredito('rechazados')" style="padding:4px 14px;border-radius:16px;border:none;font-size:12px;font-weight:700;cursor:pointer;background:transparent;color:rgba(255,255,255,0.7);transition:all 0.2s">❌ Rechazados</button>
+      </div>
+    </div>
     <div class="header-right">
       <span id="header-ejecutivo"></span>
       <button class="btn-sm" id="btn-informe" style="display:none;background:rgba(255,255,255,0.28);font-weight:600" onclick="abrirInforme()">📊 Informe Consolidado</button>
@@ -363,11 +371,19 @@
         <label class="upload-area" for="file-input">
           <span class="icon">📂</span>
           <div>
-            <p>Cargar archivo TRISolicitud</p>
+            <p>Cargar Aprobados (TRISolicitud)</p>
             <small>Solo se importarán operaciones nuevas</small>
           </div>
         </label>
-        <input type="file" id="file-input" accept=".xlsx,.xls" onchange="loadExcel(event)">
+        <input type="file" id="file-input" accept=".xlsx,.xls" onchange="loadExcel(event, 'aprobados')">
+        <label class="upload-area" for="file-input-rechazados" style="border-color:#E53935;background:#FFEBEE;margin-top:4px">
+          <span class="icon">📂</span>
+          <div>
+            <p style="color:#C62828">Cargar Rechazados (TRISolicitud)</p>
+            <small>Solo se importarán operaciones nuevas</small>
+          </div>
+        </label>
+        <input type="file" id="file-input-rechazados" accept=".xlsx,.xls" onchange="loadExcel(event, 'rechazados')">
         <div class="estado-carga" id="estado-carga"></div>
       </div>
 
@@ -662,7 +678,9 @@ const ESTADOS_ORDEN = ['APROBADOS','DESISTIDO','POSPUESTO','OTROS','CERRADO','OT
 
 // Estado global
 let currentUser = null;
+let modoCredito = 'aprobados'; // 'aprobados' o 'rechazados'
 let creditos = [];      // Array de créditos con gestiones embebidas
+let rechazados = [];    // Array de rechazados
 let filtroEstado = null;
 let filtroCol = null;
 let registrosFiltrados = [];
@@ -731,6 +749,7 @@ async function initApp() {
   document.getElementById('panel-ejecutivo').textContent = nombre;
   document.getElementById('panel-fecha').textContent = new Date().toLocaleDateString('es-CL', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
   document.getElementById('upload-section').style.display = currentUser.perfil === 'gerente' ? 'block' : 'none';
+  document.getElementById('modo-selector-wrap').style.display = currentUser.perfil === 'gerente' ? 'flex' : 'none';
   document.getElementById('btn-informe').style.display = currentUser.perfil === 'gerente' ? 'inline-block' : 'none';
   document.getElementById('btn-eliminar').style.display = currentUser.perfil === 'gerente' ? 'inline-block' : 'none';
   document.getElementById('btn-admin').style.display = currentUser.perfil === 'gerente' ? 'inline-block' : 'none';
@@ -843,13 +862,24 @@ async function recargarDatos() {
       try {
         USUARIOS_CACHE = await sbGet('usuarios_seguimiento', 'order=usuario.asc');
         USUARIOS_CACHE = USUARIOS_CACHE.filter(u => u.ejecutivos && u.ejecutivos !== 'todos' && (!Array.isArray(u.ejecutivos) || u.ejecutivos[0] !== 'todos'));
-        // Parsear ejecutivos si vienen como string
         USUARIOS_CACHE = USUARIOS_CACHE.map(u => ({
           ...u,
           ejecutivos: Array.isArray(u.ejecutivos) ? u.ejecutivos : (typeof u.ejecutivos === 'string' ? JSON.parse(u.ejecutivos) : [])
         }));
       } catch(e) { console.warn('No se pudo cargar cache usuarios:', e); }
     }
+
+    // Cargar rechazados si existe la tabla
+    try {
+      let rechazadosRaw = await sbGet('creditos_rechazados', 'order=id.desc&limit=5000');
+      if (currentUser.ejecutivos[0] !== 'todos') {
+        rechazadosRaw = rechazadosRaw.filter(c => {
+          const cej = (c.ejecutivo || '').toUpperCase().trim();
+          return currentUser.ejecutivos.some(e => cej === e.toUpperCase().trim());
+        });
+      }
+      rechazados = rechazadosRaw.map(c => ({...c, gestiones: []}));
+    } catch(e) { rechazados = []; }
 
     // Traer TODOS los créditos y filtrar en el cliente (más robusto)
     let creditosRaw = await sbGet('creditos', 'order=id.desc&limit=5000');
@@ -919,7 +949,7 @@ function mostrarCarga(msg, esError=false) {
   setTimeout(() => { el.style.display = 'none'; }, 6000);
 }
 
-async function loadExcel(event) {
+async function loadExcel(event, tipo = 'aprobados') {
   const file = event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
@@ -939,7 +969,58 @@ async function loadExcel(event) {
       const headers = raw[headerRow].map(h => String(h).trim());
       const rows = raw.slice(headerRow+1);
 
-      // IDs ya existentes en Supabase
+      if (tipo === 'rechazados') {
+        // Cargar rechazados a tabla separada
+        const idsExistentes = new Set(rechazados.map(c => String(c.id)));
+        const nuevos = [];
+        rows.forEach(row => {
+          const rec = {};
+          headers.forEach((h,i) => rec[h] = row[i] ?? '');
+          const id = String(rec['ID']).trim();
+          if (!id || isNaN(id) || idsExistentes.has(id)) return;
+          nuevos.push({
+            id,
+            categoria: rec['Categoría']||'',
+            estado: rec['Estado']||'RECHAZADO',
+            nombre: rec['Nombre']||'',
+            rut_cliente: rec['Rut Cliente']||'',
+            ejecutivo: rec['Ejecutivo']||'',
+            producto: rec['Producto']||rec['Producto admisión']||'',
+            dealer: rec['Dealer']||'',
+            sucursal: rec['Sucursal']||'',
+            marca: rec['Marca']||'',
+            modelo: rec['Modelo']||'',
+            precio: Number(rec['Precio'])||0,
+            pie: Number(rec['Pie'])||0,
+            saldo_precio: Number(rec['Saldo Precio'])||0,
+            monto_pagare: Number(rec['Monto Pagare'])||0,
+            riesgo_cliente: rec['Riesgo Cliente']||'',
+            fecha_ingreso: rec['Fecha Ingreso'] ? fmtFechaExcel(rec['Fecha Ingreso']) : '',
+            fecha_curse: rec['Fecha Curse'] ? fmtFechaExcel(rec['Fecha Curse']) : '',
+            nom_evaluador: rec['Nom Evaluador']||'',
+            canal: rec['Canal']||'',
+            puntaje_scoring: rec['Puntaje Scoring']||'',
+            modulo: rec['Módulo']||'',
+            comentario_rechazo: rec['Comentario Rechazo']||'',
+            vendedor: rec['Vendedor']||'',
+          });
+        });
+        if (nuevos.length === 0) {
+          loading(false);
+          mostrarCarga(`✅ Sin rechazados nuevos. Todos ya existen (${idsExistentes.size} cargados).`);
+          return;
+        }
+        loading(true, `Importando ${nuevos.length} rechazados nuevos...`);
+        for (let i=0; i<nuevos.length; i+=100) {
+          await sbInsert('creditos_rechazados', nuevos.slice(i, i+100));
+        }
+        loading(false);
+        mostrarCarga(`✅ Importados ${nuevos.length} rechazados nuevos.`);
+        await recargarDatos();
+        return;
+      }
+
+      // IDs ya existentes en Supabase (aprobados)
       const idsExistentes = new Set(creditos.map(c => String(c.id)));
 
       const nuevos = [];
@@ -1072,12 +1153,41 @@ function aplicarFiltroFecha() {
   document.getElementById('panel-content').innerHTML = '<div class="empty-state"><div class="icon-big">📊</div><p>Seleccione un estado en la tabla para ver los registros</p></div>';
 }
 
+function setModoCredito(modo) {
+  modoCredito = modo;
+  const header = document.getElementById('app-header');
+  const titulo = document.getElementById('header-titulo');
+  const btnAp = document.getElementById('modo-btn-aprobados');
+  const btnRe = document.getElementById('modo-btn-rechazados');
+
+  if (modo === 'rechazados') {
+    header.style.background = '#B71C1C';
+    titulo.innerHTML = '❌ Seguimiento de Créditos Rechazados <small style="font-size:11px;opacity:0.7">v5.6</small>';
+    btnAp.style.background = 'transparent'; btnAp.style.color = 'rgba(255,255,255,0.7)';
+    btnRe.style.background = '#fff'; btnRe.style.color = '#B71C1C';
+  } else {
+    header.style.background = 'var(--azul)';
+    titulo.innerHTML = '📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v5.6</small>';
+    btnAp.style.background = '#fff'; btnAp.style.color = '#1565C0';
+    btnRe.style.background = 'transparent'; btnRe.style.color = 'rgba(255,255,255,0.7)';
+  }
+
+  // Reset filtros
+  filtroEstado = null; filtroCol = null; idxActual = 0;
+  renderResumen();
+  document.getElementById('right-header').style.display = 'none';
+  document.getElementById('btn-nueva-gestion').disabled = true;
+  const btnExp = document.getElementById('btn-exportar-detalle');
+  if (btnExp) btnExp.disabled = true;
+  document.getElementById('panel-content').innerHTML = '<div class="empty-state"><div class="icon-big">📊</div><p>Seleccione un estado en la tabla para ver los registros</p></div>';
+}
+
 function getCreditosActivos() {
-  let lista = creditos;
+  // Usar rechazados o aprobados según el modo
+  let lista = modoCredito === 'rechazados' ? rechazados : creditos;
 
   if (filtroEjecutivo) {
     if (filtroEjecutivo.startsWith('__agrupado__')) {
-      // Modo agrupado: filtrar por todos los ejecutivos del usuario
       const email = filtroEjecutivo.replace('__agrupado__', '');
       const usr = USUARIOS_CACHE.find(u => u.usuario === email);
       if (usr) {
@@ -1118,6 +1228,8 @@ function getEstadoGestion(credito) {
 }
 
 function getEstadoComercial(credito) {
+  // En modo rechazados, todos son RECHAZADOS
+  if (modoCredito === 'rechazados') return 'RECHAZADOS';
   const gs = credito.gestiones;
   if (!gs || gs.length===0) return 'APROBADOS';
   const ultimo = gs[gs.length-1];
@@ -1130,8 +1242,9 @@ function getEstadoComercial(credito) {
 // RESUMEN
 // ============================================================
 function renderResumen() {
+  const estadosActivos = modoCredito === 'rechazados' ? ['RECHAZADOS'] : ESTADOS_ORDEN;
   const contadores = {};
-  ESTADOS_ORDEN.forEach(e => contadores[e] = {total:0,sinSeg:0,vencido:0,alDia:0});
+  estadosActivos.forEach(e => contadores[e] = {total:0,sinSeg:0,vencido:0,alDia:0});
 
   getCreditosActivos().forEach(c => {
     const ec = getEstadoComercial(c);
@@ -1144,7 +1257,7 @@ function renderResumen() {
   });
 
   const totales = {total:0,sinSeg:0,vencido:0,alDia:0};
-  ESTADOS_ORDEN.forEach(e => {
+  estadosActivos.forEach(e => {
     totales.total += contadores[e].total;
     totales.sinSeg += contadores[e].sinSeg;
     totales.vencido += contadores[e].vencido;
@@ -1153,7 +1266,7 @@ function renderResumen() {
 
   const tbody = document.getElementById('resumen-body');
   tbody.innerHTML = '';
-  ESTADOS_ORDEN.forEach(est => {
+  estadosActivos.forEach(est => {
     const c = contadores[est];
     const ia = filtroEstado===est;
     const tr = document.createElement('tr');
@@ -2123,38 +2236,15 @@ function renderVistaLista() {
   const lista = busquedaActiva ? resultadosBusqueda : registrosFiltrados;
   if (!lista || lista.length === 0) return;
   const thS = 'padding:6px 10px;text-align:left;position:sticky;top:0;z-index:2;background:#1565C0;color:#fff;font-size:11px;white-space:nowrap;font-weight:600';
-  const thF = 'position:sticky;top:29px;z-index:2;background:#E3F2FD;padding:3px 4px;';
-  const inpS = 'width:100%;padding:3px 6px;border:1px solid #90CAF9;border-radius:4px;font-size:11px;outline:none;background:#fff;box-sizing:border-box';
   const segClase = { SIN_SEG:'seg-sin', VENCIDO:'seg-vencido', AL_DIA:'seg-al-dia' };
   const segLabel = { SIN_SEG:'SIN SEG.', VENCIDO:'VENCIDO', AL_DIA:'AL DÍA' };
-  const fmtM = n => n ? '$'+Number(n).toLocaleString('es-CL') : '-';
-
-  // Unique values for select filters
-  const uniq = (arr) => ['', ...new Set(arr.filter(Boolean).sort())];
-  const ejecutivos = uniq(lista.map(c => c.ejecutivo));
-  const productos = uniq(lista.map(c => c.producto));
-  const segs = ['', 'SIN SEG.', 'VENCIDO', 'AL DÍA'];
-  const ultEstados = uniq(lista.map(c => c.gestiones && c.gestiones.length > 0 ? c.gestiones[c.gestiones.length-1].nuevo_estado : ''));
-
-  const selOpts = (arr) => arr.map(v => `<option value="${v}">${v || 'Todos'}</option>`).join('');
-
+  const fmt = n => n ? '$'+Number(n).toLocaleString('es-CL') : '-';
   const filas = lista.map((c, idx) => {
     const gs = getEstadoGestion(c);
     const ult = c.gestiones && c.gestiones.length > 0 ? c.gestiones[c.gestiones.length-1] : {};
     const bg = idx % 2 === 0 ? '#fff' : '#F8F9FB';
     const td = 'padding:5px 10px;border-bottom:1px solid #ECEFF1;font-size:12px;white-space:nowrap';
-    return `<tr class="lista-row" style="background:${bg};cursor:pointer"
-      data-id="${c.id}"
-      data-nombre="${(c.nombre||'').toLowerCase()}"
-      data-rut="${(c.rut_cliente||'').toLowerCase()}"
-      data-ejecutivo="${(c.ejecutivo||'').toLowerCase()}"
-      data-producto="${(c.producto||'').toLowerCase()}"
-      data-marca="${((c.marca||'')+' '+(c.modelo||'')).toLowerCase()}"
-      data-fingreso="${c.fecha_ingreso||''}"
-      data-seg="${segLabel[gs]||gs}"
-      data-estado="${(ult.nuevo_estado||'').toLowerCase()}"
-      data-comentario="${(ult.comentario||'').toLowerCase()}"
-      onclick="abrirFichaLista(${idx})">
+    return `<tr style="background:${bg};cursor:pointer" onclick="abrirFichaLista(${idx})">
       <td style="${td};color:var(--azul);font-weight:700;text-decoration:underline">${c.id}</td>
       <td style="${td};font-weight:600">${c.nombre||'-'}</td>
       <td style="${td}">${c.rut_cliente||'-'}</td>
@@ -2162,79 +2252,24 @@ function renderVistaLista() {
       <td style="${td}">${c.producto||'-'}</td>
       <td style="${td}">${(c.marca||'')+' '+(c.modelo||'')}</td>
       <td style="${td}">${fmtFecha(c.fecha_ingreso)||'-'}</td>
-      <td style="${td};color:#2E7D32;font-weight:600">${fmtM(c.monto_pagare)}</td>
+      <td style="${td};color:#2E7D32;font-weight:600">${fmt(c.monto_pagare)}</td>
       <td style="${td}"><span class="hist-estado-badge ${segClase[gs]||''}">${segLabel[gs]||gs}</span></td>
       <td style="${td}">${ult.nuevo_estado||'-'}</td>
       <td style="${td};max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${ult.comentario||''}">${ult.comentario||'-'}</td>
     </tr>`;
   }).join('');
-
   document.getElementById('panel-content').innerHTML = `
     <div style="flex:1;overflow:auto;height:100%">
       <table style="width:100%;border-collapse:collapse;font-size:12px">
-        <thead>
-          <tr>
-            <th style="${thS}">ID</th><th style="${thS}">Nombre</th><th style="${thS}">RUT</th>
-            <th style="${thS}">Ejecutivo</th><th style="${thS}">Producto</th><th style="${thS}">Marca/Modelo</th>
-            <th style="${thS}">F.Ingreso</th><th style="${thS}">Pagaré</th><th style="${thS}">Seg.</th>
-            <th style="${thS}">Últ. Estado</th><th style="${thS}">Comentario</th>
-          </tr>
-          <tr id="lista-filtros-row">
-            <th style="${thF}"><input style="${inpS}" placeholder="ID" oninput="filtrarColumnas()" id="fltr-id"></th>
-            <th style="${thF}"><input style="${inpS}" placeholder="Nombre" oninput="filtrarColumnas()" id="fltr-nombre"></th>
-            <th style="${thF}"><input style="${inpS}" placeholder="RUT" oninput="filtrarColumnas()" id="fltr-rut"></th>
-            <th style="${thF}"><select style="${inpS}" onchange="filtrarColumnas()" id="fltr-ejecutivo">${selOpts(ejecutivos)}</select></th>
-            <th style="${thF}"><select style="${inpS}" onchange="filtrarColumnas()" id="fltr-producto">${selOpts(productos)}</select></th>
-            <th style="${thF}"><input style="${inpS}" placeholder="Marca/Modelo" oninput="filtrarColumnas()" id="fltr-marca"></th>
-            <th style="${thF}"><input style="${inpS}" placeholder="dd-mm-yyyy" oninput="filtrarColumnas()" id="fltr-fingreso"></th>
-            <th style="${thF}"></th>
-            <th style="${thF}"><select style="${inpS}" onchange="filtrarColumnas()" id="fltr-seg">${selOpts(segs)}</select></th>
-            <th style="${thF}"><select style="${inpS}" onchange="filtrarColumnas()" id="fltr-estado">${selOpts(ultEstados)}</select></th>
-            <th style="${thF}"><input style="${inpS}" placeholder="Comentario" oninput="filtrarColumnas()" id="fltr-comentario"></th>
-          </tr>
-        </thead>
-        <tbody id="lista-tbody">${filas}</tbody>
+        <thead><tr>
+          <th style="${thS}">ID</th><th style="${thS}">Nombre</th><th style="${thS}">RUT</th>
+          <th style="${thS}">Ejecutivo</th><th style="${thS}">Producto</th><th style="${thS}">Marca/Modelo</th>
+          <th style="${thS}">F.Ingreso</th><th style="${thS}">Pagaré</th><th style="${thS}">Seg.</th>
+          <th style="${thS}">Últ. Estado</th><th style="${thS}">Comentario</th>
+        </tr></thead>
+        <tbody>${filas}</tbody>
       </table>
     </div>`;
-}
-
-function filtrarColumnas() {
-  const get = id => { const el = document.getElementById(id); return el ? el.value.trim().toLowerCase() : ''; };
-  const fId       = get('fltr-id');
-  const fNombre   = get('fltr-nombre');
-  const fRut      = get('fltr-rut');
-  const fEjec     = get('fltr-ejecutivo');
-  const fProd     = get('fltr-producto');
-  const fMarca    = get('fltr-marca');
-  const fFingreso = get('fltr-fingreso');
-  const fSeg      = get('fltr-seg');
-  const fEstado   = get('fltr-estado');
-  const fComent   = get('fltr-comentario');
-
-  let visible = 0;
-  document.querySelectorAll('#lista-tbody .lista-row').forEach(row => {
-    const d = row.dataset;
-    const ok =
-      (!fId       || String(d.id).toLowerCase().includes(fId)) &&
-      (!fNombre   || d.nombre.includes(fNombre)) &&
-      (!fRut      || d.rut.includes(fRut)) &&
-      (!fEjec     || d.ejecutivo.includes(fEjec)) &&
-      (!fProd     || d.producto.includes(fProd)) &&
-      (!fMarca    || d.marca.includes(fMarca)) &&
-      (!fFingreso || d.fingreso.includes(fFingreso)) &&
-      (!fSeg      || d.seg.toLowerCase().includes(fSeg)) &&
-      (!fEstado   || d.estado.includes(fEstado)) &&
-      (!fComent   || d.comentario.includes(fComent));
-    row.style.display = ok ? '' : 'none';
-    if (ok) visible++;
-  });
-
-  // Update badge count
-  const badge = document.getElementById('badge-estado');
-  if (badge) {
-    const base = (badge.textContent || '').replace(/\s*\(\d+\)/, '');
-    badge.textContent = `${base} (${visible})`;
-  }
 }
 
 function abrirFichaLista(idx) {
