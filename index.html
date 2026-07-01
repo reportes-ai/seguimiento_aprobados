@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seguimiento de Créditos v5.6</title>
+<title>Seguimiento de Créditos v5.7</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
@@ -313,7 +313,7 @@
 <div id="app">
   <header id="app-header" style="background:var(--azul)">
     <div style="display:flex;align-items:center;gap:10px">
-      <h1 id="header-titulo">📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v5.6</small></h1>
+      <h1 id="header-titulo">📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v5.7</small></h1>
       <!-- SELECTOR MODO -->
       <div id="modo-selector-wrap" style="display:none;background:rgba(0,0,0,0.2);border-radius:20px;padding:3px;gap:2px;display:flex">
         <button id="modo-btn-aprobados" onclick="setModoCredito('aprobados')" style="padding:4px 14px;border-radius:16px;border:none;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:#1565C0;transition:all 0.2s">✅ Aprobados</button>
@@ -592,7 +592,7 @@
     <div style="background:#1565C0;color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-radius:12px 12px 0 0;flex-shrink:0">
       <div>
         <h3 style="font-size:16px;font-weight:700;margin:0">❓ Manual de Usuario — Seguimiento de Créditos</h3>
-        <div style="font-size:12px;opacity:0.8;margin-top:2px">AutoFácil Chile · v5.6</div>
+        <div style="font-size:12px;opacity:0.8;margin-top:2px">AutoFácil Chile · v5.7</div>
       </div>
       <button onclick="cerrarAyuda()" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:0 4px">✕</button>
     </div>
@@ -685,6 +685,7 @@ let filtroEstado = null;
 let filtroCol = null;
 let registrosFiltrados = [];
 let idxActual = 0;
+let seleccionIds = new Set(); // IDs seleccionados en vista Lista para exportar
 
 // Variables para búsqueda por nombre
 let busquedaActiva = false;
@@ -1145,6 +1146,7 @@ function parseFechaIngreso(fi) {
 
 function aplicarFiltroFecha() {
   filtroEstado = null; filtroCol = null; idxActual = 0;
+  seleccionIds.clear();
   renderResumen();
   document.getElementById('right-header').style.display = 'none';
   document.getElementById('btn-nueva-gestion').disabled = true;
@@ -1162,18 +1164,19 @@ function setModoCredito(modo) {
 
   if (modo === 'rechazados') {
     header.style.background = '#B71C1C';
-    titulo.innerHTML = '❌ Seguimiento de Créditos Rechazados <small style="font-size:11px;opacity:0.7">v5.6</small>';
+    titulo.innerHTML = '❌ Seguimiento de Créditos Rechazados <small style="font-size:11px;opacity:0.7">v5.7</small>';
     btnAp.style.background = 'transparent'; btnAp.style.color = 'rgba(255,255,255,0.7)';
     btnRe.style.background = '#fff'; btnRe.style.color = '#B71C1C';
   } else {
     header.style.background = 'var(--azul)';
-    titulo.innerHTML = '📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v5.6</small>';
+    titulo.innerHTML = '📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v5.7</small>';
     btnAp.style.background = '#fff'; btnAp.style.color = '#1565C0';
     btnRe.style.background = 'transparent'; btnRe.style.color = 'rgba(255,255,255,0.7)';
   }
 
   // Reset filtros
   filtroEstado = null; filtroCol = null; idxActual = 0;
+  seleccionIds.clear();
   renderResumen();
   document.getElementById('right-header').style.display = 'none';
   document.getElementById('btn-nueva-gestion').disabled = true;
@@ -1289,8 +1292,9 @@ function selFiltro(estado, col) {
   resultadosBusqueda = [];
   idxBusqueda = 0;
   document.getElementById('inp-buscar-nombre').value = '';
-  
+
   filtroEstado = estado; filtroCol = col; idxActual = 0;
+  seleccionIds.clear();
   renderResumen(); aplicarFiltro();
 }
 
@@ -1890,11 +1894,16 @@ document.getElementById('modal-eliminar').addEventListener('click', function(e) 
 // EXPORTAR DETALLE
 // ============================================================
 function exportarDetalle() {
-  const lista = busquedaActiva ? resultadosBusqueda : registrosFiltrados;
+  let lista = busquedaActiva ? resultadosBusqueda : registrosFiltrados;
+  if (!lista || lista.length === 0) return;
+
+  const haySeleccion = vistaActual === 'lista' && seleccionIds.size > 0;
+  if (haySeleccion) lista = lista.filter(c => seleccionIds.has(c.id));
   if (!lista || lista.length === 0) return;
 
   const colLabel = filtroCol==='sinSeg'?'SIN_SEG':filtroCol==='vencido'?'VENCIDO':filtroCol==='alDia'?'AL_DIA':'TODOS';
-  const nombreArchivo = `Detalle_${(filtroEstado||'todos').replace(/\s/g,'_')}_${colLabel}_${new Date().toISOString().slice(0,10)}.xlsx`;
+  const sufijo = haySeleccion ? 'Seleccion' : colLabel;
+  const nombreArchivo = `Detalle_${(filtroEstado||'todos').replace(/\s/g,'_')}_${sufijo}_${new Date().toISOString().slice(0,10)}.xlsx`;
 
   const rows = lista.map(c => {
     const gs = getEstadoGestion(c);
@@ -2244,7 +2253,9 @@ function renderVistaLista() {
     const ult = c.gestiones && c.gestiones.length > 0 ? c.gestiones[c.gestiones.length-1] : {};
     const bg = idx % 2 === 0 ? '#fff' : '#F8F9FB';
     const td = 'padding:5px 10px;border-bottom:1px solid #ECEFF1;font-size:12px;white-space:nowrap';
+    const marcado = seleccionIds.has(c.id) ? 'checked' : '';
     return `<tr style="background:${bg};cursor:pointer" onclick="abrirFichaLista(${idx})">
+      <td style="${td};text-align:center" onclick="event.stopPropagation()"><input type="checkbox" ${marcado} onchange="toggleSeleccionFila(${c.id}, this.checked)" style="cursor:pointer"></td>
       <td style="${td};color:var(--azul);font-weight:700;text-decoration:underline">${c.id}</td>
       <td style="${td};font-weight:600">${c.nombre||'-'}</td>
       <td style="${td}">${c.rut_cliente||'-'}</td>
@@ -2258,10 +2269,16 @@ function renderVistaLista() {
       <td style="${td};max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${ult.comentario||''}">${ult.comentario||'-'}</td>
     </tr>`;
   }).join('');
+  const todosMarcados = lista.length > 0 && lista.every(c => seleccionIds.has(c.id));
+  const nSel = lista.filter(c => seleccionIds.has(c.id)).length;
   document.getElementById('panel-content').innerHTML = `
-    <div style="flex:1;overflow:auto;height:100%">
+    <div style="flex:1;overflow:auto;height:100%;display:flex;flex-direction:column">
+      <div style="padding:6px 10px;font-size:12px;color:var(--texto-sec);flex-shrink:0;background:#F8F9FB;border-bottom:1px solid #ECEFF1">
+        ${nSel > 0 ? `<b>${nSel}</b> seleccionado(s) — ` : ''}<a href="#" onclick="exportarDetalle();return false" style="color:var(--azul);font-weight:600;text-decoration:none">⬇️ Exportar ${nSel>0?'seleccionados':'todo'} a Excel</a>
+      </div>
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead><tr>
+          <th style="${thS};text-align:center;width:30px"><input type="checkbox" ${todosMarcados?'checked':''} onchange="toggleSeleccionarTodos(this.checked)" style="cursor:pointer"></th>
           <th style="${thS}">ID</th><th style="${thS}">Nombre</th><th style="${thS}">RUT</th>
           <th style="${thS}">Ejecutivo</th><th style="${thS}">Producto</th><th style="${thS}">Marca/Modelo</th>
           <th style="${thS}">F.Ingreso</th><th style="${thS}">Pagaré</th><th style="${thS}">Seg.</th>
@@ -2270,6 +2287,17 @@ function renderVistaLista() {
         <tbody>${filas}</tbody>
       </table>
     </div>`;
+}
+
+function toggleSeleccionFila(id, checked) {
+  if (checked) seleccionIds.add(id); else seleccionIds.delete(id);
+  renderVistaLista();
+}
+
+function toggleSeleccionarTodos(checked) {
+  const lista = busquedaActiva ? resultadosBusqueda : registrosFiltrados;
+  lista.forEach(c => { if (checked) seleccionIds.add(c.id); else seleccionIds.delete(c.id); });
+  renderVistaLista();
 }
 
 function abrirFichaLista(idx) {
@@ -2674,7 +2702,7 @@ const MANUAL_HTML = `<!DOCTYPE html>
   <div class="pantalla">
     <div class="pantalla-header">🖥️ Vista general de la aplicación</div>
     <div class="mock-header-bar">
-      <span>📋 Seguimiento de Créditos Aprobados v5.6</span>
+      <span>📋 Seguimiento de Créditos Aprobados v5.7</span>
       <span style="font-size:11px;opacity:0.8">Ejecutivo: JUAN PÉREZ (AFA) &nbsp;|&nbsp; 🔄 Actualizar &nbsp;|&nbsp; Cerrar sesión</span>
     </div>
     <div class="app-mock">
@@ -3183,7 +3211,7 @@ const MANUAL_HTML = `<!DOCTYPE html>
 <div style="text-align:center;padding:32px 0;color:#90A4AE;font-size:12px;border-top:2px solid #ECEFF1;margin-top:40px">
   <div style="font-size:24px;margin-bottom:8px">🏦</div>
   <strong>AutoFácil Chile</strong><br>
-  Manual de Usuario — Seguimiento de Créditos v5.6<br>
+  Manual de Usuario — Seguimiento de Créditos v5.7<br>
   Documento confidencial de uso interno · Mayo 2026
 </div>
 
