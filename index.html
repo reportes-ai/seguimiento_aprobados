@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seguimiento de Créditos v5.8</title>
+<title>Seguimiento de Créditos v6.0</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
@@ -107,10 +107,12 @@
 
   .resumen-container { overflow-y: auto; flex: 1; padding: 10px 12px; }
   .resumen-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  .resumen-table th { background: var(--azul); color: #fff; padding: 6px 8px; text-align: center; font-weight: 600; font-size: 11px; position: sticky; top: 0; z-index: 1; }
-  .resumen-table th:first-child { text-align: left; min-width: 100px; }
-  .resumen-table td { padding: 5px 8px; border-bottom: 1px solid var(--gris-claro); text-align: center; }
+  .resumen-table th { background: var(--azul); color: #fff; padding: 6px 6px; text-align: center; font-weight: 600; font-size: 11px; position: sticky; top: 0; z-index: 1; white-space: nowrap; }
+  .resumen-table th:first-child { text-align: left; min-width: 90px; }
+  .resumen-table td { padding: 4px 4px; border-bottom: 1px solid var(--gris-claro); text-align: center; }
   .resumen-table td:first-child { text-align: left; font-weight: 600; color: var(--texto); }
+  .celda-check-wrap { display: flex; align-items: center; justify-content: center; gap: 4px; }
+  .celda-check-wrap input[type=checkbox] { cursor: pointer; flex-shrink: 0; }
   .resumen-table tr:hover td { background: #F0F4FF; }
   .resumen-table .fila-total td { background: #EEF2FF; font-weight: 700; border-top: 2px solid var(--azul); }
   .celda-clic { cursor: pointer; border-radius: 4px; transition: background 0.15s; }
@@ -313,7 +315,7 @@
 <div id="app">
   <header id="app-header" style="background:var(--azul)">
     <div style="display:flex;align-items:center;gap:10px">
-      <h1 id="header-titulo">📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v5.8</small></h1>
+      <h1 id="header-titulo">📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v6.0</small></h1>
       <!-- SELECTOR MODO -->
       <div id="modo-selector-wrap" style="display:none;background:rgba(0,0,0,0.2);border-radius:20px;padding:3px;gap:2px;display:flex">
         <button id="modo-btn-aprobados" onclick="setModoCredito('aprobados')" style="padding:4px 14px;border-radius:16px;border:none;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:#1565C0;transition:all 0.2s">✅ Aprobados</button>
@@ -391,7 +393,6 @@
         <table class="resumen-table" id="resumen-table">
           <thead>
             <tr>
-              <th style="width:24px"></th>
               <th>Estado</th>
               <th>Créd.</th>
               <th>Sin Seg.</th>
@@ -400,7 +401,7 @@
             </tr>
           </thead>
           <tbody id="resumen-body">
-            <tr><td colspan="6" style="text-align:center;color:var(--texto-sec);padding:20px">Cargando...</td></tr>
+            <tr><td colspan="5" style="text-align:center;color:var(--texto-sec);padding:20px">Cargando...</td></tr>
           </tbody>
         </table>
       </div>
@@ -597,7 +598,7 @@
     <div style="background:#1565C0;color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-radius:12px 12px 0 0;flex-shrink:0">
       <div>
         <h3 style="font-size:16px;font-weight:700;margin:0">❓ Manual de Usuario — Seguimiento de Créditos</h3>
-        <div style="font-size:12px;opacity:0.8;margin-top:2px">AutoFácil Chile · v5.8</div>
+        <div style="font-size:12px;opacity:0.8;margin-top:2px">AutoFácil Chile · v6.0</div>
       </div>
       <button onclick="cerrarAyuda()" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:0 4px">✕</button>
     </div>
@@ -1170,12 +1171,12 @@ function setModoCredito(modo) {
 
   if (modo === 'rechazados') {
     header.style.background = '#B71C1C';
-    titulo.innerHTML = '❌ Seguimiento de Créditos Rechazados <small style="font-size:11px;opacity:0.7">v5.8</small>';
+    titulo.innerHTML = '❌ Seguimiento de Créditos Rechazados <small style="font-size:11px;opacity:0.7">v6.0</small>';
     btnAp.style.background = 'transparent'; btnAp.style.color = 'rgba(255,255,255,0.7)';
     btnRe.style.background = '#fff'; btnRe.style.color = '#B71C1C';
   } else {
     header.style.background = 'var(--azul)';
-    titulo.innerHTML = '📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v5.8</small>';
+    titulo.innerHTML = '📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v6.0</small>';
     btnAp.style.background = '#fff'; btnAp.style.color = '#1565C0';
     btnRe.style.background = 'transparent'; btnRe.style.color = 'rgba(255,255,255,0.7)';
   }
@@ -1273,37 +1274,53 @@ function renderResumen() {
     totales.alDia += contadores[e].alDia;
   });
 
-  // Limpiar selección del menú de estados que ya no existen en este modo (aprobados/rechazados)
-  Array.from(estadosMenuSeleccionados).forEach(e => { if (!estadosActivos.includes(e)) estadosMenuSeleccionados.delete(e); });
+  // Limpiar selección del menú de celdas que ya no existen en este modo (aprobados/rechazados)
+  Array.from(estadosMenuSeleccionados).forEach(k => { if (!estadosActivos.includes(k.split('::')[0])) estadosMenuSeleccionados.delete(k); });
+
+  const COLS = [
+    {key:'total',   claseSpan:null},
+    {key:'sinSeg',  claseSpan:'sin-seg'},
+    {key:'vencido', claseSpan:'vencido'},
+    {key:'alDia',   claseSpan:'al-dia'},
+  ];
 
   const tbody = document.getElementById('resumen-body');
   tbody.innerHTML = '';
   estadosActivos.forEach(est => {
     const c = contadores[est];
+    const valores = { total:c.total, sinSeg:c.sinSeg, vencido:c.vencido, alDia:c.alDia };
     const ia = filtroEstado===est;
-    const marcado = estadosMenuSeleccionados.has(est) ? 'checked' : '';
     const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td onclick="event.stopPropagation()"><input type="checkbox" ${marcado} onchange="toggleEstadoMenu('${est}', this.checked)" style="cursor:pointer"></td>
-      <td style="font-weight:600">${est}</td>
-      <td class="celda-clic ${ia&&filtroCol===null?'celda-activa':''}" onclick="selFiltro('${est}',null)">${c.total}</td>
-      <td class="celda-clic ${ia&&filtroCol==='sinSeg'?'celda-activa':''}" onclick="selFiltro('${est}','sinSeg')"><span class="${ia&&filtroCol==='sinSeg'?'':'sin-seg'}">${c.sinSeg}</span></td>
-      <td class="celda-clic ${ia&&filtroCol==='vencido'?'celda-activa':''}" onclick="selFiltro('${est}','vencido')"><span class="${ia&&filtroCol==='vencido'?'':'vencido'}">${c.vencido}</span></td>
-      <td class="celda-clic ${ia&&filtroCol==='alDia'?'celda-activa':''}" onclick="selFiltro('${est}','alDia')"><span class="${ia&&filtroCol==='alDia'?'':'al-dia'}">${c.alDia}</span></td>`;
+    const tdsNum = COLS.map(({key,claseSpan}) => {
+      const marcado = estadosMenuSeleccionados.has(`${est}::${key}`) ? 'checked' : '';
+      const activo = ia && (filtroCol===null && key==='total' || filtroCol===key);
+      const valorHTML = claseSpan ? `<span class="${activo?'':claseSpan}">${valores[key]}</span>` : valores[key];
+      return `<td class="celda-clic ${activo?'celda-activa':''}" onclick="selFiltro('${est}',${key==='total'?'null':`'${key}'`})">
+        <span class="celda-check-wrap">
+          <input type="checkbox" ${marcado} onclick="event.stopPropagation()" onchange="toggleCeldaMenu('${est}','${key}', this.checked)">
+          ${valorHTML}
+        </span>
+      </td>`;
+    }).join('');
+    tr.innerHTML = `<td style="font-weight:600">${est}</td>${tdsNum}`;
     tbody.appendChild(tr);
   });
   const trT = document.createElement('tr');
   trT.className = 'fila-total';
-  trT.innerHTML = `<td></td><td>TOTAL</td><td>${totales.total}</td><td>${totales.sinSeg}</td><td>${totales.vencido}</td><td>${totales.alDia}</td>`;
+  trT.innerHTML = `<td>TOTAL</td><td>${totales.total}</td><td>${totales.sinSeg}</td><td>${totales.vencido}</td><td>${totales.alDia}</td>`;
   tbody.appendChild(trT);
 
   actualizarBarraExportMenu();
 }
 
-function toggleEstadoMenu(estado, checked) {
-  if (checked) estadosMenuSeleccionados.add(estado); else estadosMenuSeleccionados.delete(estado);
+function toggleCeldaMenu(estado, col, checked) {
+  const key = `${estado}::${col}`;
+  if (checked) estadosMenuSeleccionados.add(key); else estadosMenuSeleccionados.delete(key);
   actualizarBarraExportMenu();
 }
+
+const COL_LABEL = { total:'Créd.', sinSeg:'Sin Seg.', vencido:'Vencido', alDia:'Al Día' };
+const COL_A_GESTION = { sinSeg:'SIN_SEG', vencido:'VENCIDO', alDia:'AL_DIA' };
 
 function actualizarBarraExportMenu() {
   const bar = document.getElementById('export-menu-bar');
@@ -1311,15 +1328,31 @@ function actualizarBarraExportMenu() {
   if (!bar || !label) return;
   const n = estadosMenuSeleccionados.size;
   if (n === 0) { bar.style.display = 'none'; return; }
-  label.innerHTML = `<b>${n}</b> estado(s) seleccionado(s): ${Array.from(estadosMenuSeleccionados).join(', ')}`;
+  const desc = Array.from(estadosMenuSeleccionados).map(k => {
+    const [est,col] = k.split('::');
+    return `${est} (${COL_LABEL[col]})`;
+  }).join(', ');
+  label.innerHTML = `<b>${n}</b> selección(es): ${desc}`;
   bar.style.display = 'block';
 }
 
 function exportarSeleccionMenu() {
   if (estadosMenuSeleccionados.size === 0) return;
-  const lista = getCreditosActivos().filter(c => estadosMenuSeleccionados.has(getEstadoComercial(c)));
+  const activos = getCreditosActivos();
+  const idsIncluidos = new Set();
+  const lista = [];
+  Array.from(estadosMenuSeleccionados).forEach(k => {
+    const [est, col] = k.split('::');
+    activos.forEach(c => {
+      if (idsIncluidos.has(c.id)) return;
+      if (getEstadoComercial(c) !== est) return;
+      if (col !== 'total' && getEstadoGestion(c) !== COL_A_GESTION[col]) return;
+      idsIncluidos.add(c.id);
+      lista.push(c);
+    });
+  });
   if (!lista || lista.length === 0) return;
-  const nombreArchivo = `Detalle_${Array.from(estadosMenuSeleccionados).join('_').replace(/\s/g,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`;
+  const nombreArchivo = `Detalle_Seleccion_${new Date().toISOString().slice(0,10)}.xlsx`;
   exportarListaAExcel(lista, nombreArchivo);
 }
 
@@ -2742,7 +2775,7 @@ const MANUAL_HTML = `<!DOCTYPE html>
   <div class="pantalla">
     <div class="pantalla-header">🖥️ Vista general de la aplicación</div>
     <div class="mock-header-bar">
-      <span>📋 Seguimiento de Créditos Aprobados v5.8</span>
+      <span>📋 Seguimiento de Créditos Aprobados v6.0</span>
       <span style="font-size:11px;opacity:0.8">Ejecutivo: JUAN PÉREZ (AFA) &nbsp;|&nbsp; 🔄 Actualizar &nbsp;|&nbsp; Cerrar sesión</span>
     </div>
     <div class="app-mock">
@@ -3251,7 +3284,7 @@ const MANUAL_HTML = `<!DOCTYPE html>
 <div style="text-align:center;padding:32px 0;color:#90A4AE;font-size:12px;border-top:2px solid #ECEFF1;margin-top:40px">
   <div style="font-size:24px;margin-bottom:8px">🏦</div>
   <strong>AutoFácil Chile</strong><br>
-  Manual de Usuario — Seguimiento de Créditos v5.8<br>
+  Manual de Usuario — Seguimiento de Créditos v6.0<br>
   Documento confidencial de uso interno · Mayo 2026
 </div>
 
