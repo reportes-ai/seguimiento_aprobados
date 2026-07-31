@@ -6,22 +6,27 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seguimiento de Créditos v6.0</title>
+<title>Gestión360 — AutoFácil v7.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
-    --azul: #1565C0; --azul-claro: #1976D2; --azul-bg: #E3F2FD;
-    --gris: #37474F; --gris-claro: #ECEFF1; --gris-medio: #B0BEC5;
-    --verde: #2E7D32; --verde-bg: #E8F5E9;
-    --amarillo: #F9A825; --amarillo-bg: #FFFDE7;
-    --rojo: #C62828; --rojo-bg: #FFEBEE;
-    --naranja: #E65100; --naranja-bg: #FFF3E0;
-    --blanco: #FFFFFF; --fondo: #F5F7FA;
-    --borde: #CFD8DC; --texto: #263238; --texto-sec: #546E7A;
-    --sombra: 0 1px 4px rgba(0,0,0,0.10); --radio: 8px;
+    /* v7.0 — paleta inspirada en el mockup de referencia (Gestión360), mismos
+       nombres de variable que ya usa el resto del CSS y del JS de la app real. */
+    --azul: #075CB8; --azul-claro: #0985D5; --azul-bg: #E9F2FE;
+    --gris: #17243A; --gris-claro: #EDF2F7; --gris-medio: #B7C2D0;
+    --verde: #2D9C52; --verde-bg: #E7F6EC;
+    --amarillo: #E4A033; --amarillo-bg: #FFF6E8;
+    --rojo: #D83D48; --rojo-bg: #FDE9EA;
+    --naranja: #E4A033; --naranja-bg: #FFF6E8;
+    --blanco: #FFFFFF; --fondo: #F4F7FB;
+    --borde: #DDE5EF; --texto: #17243A; --texto-sec: #738096;
+    --sombra: 0 5px 18px rgba(23,45,90,0.07); --radio: 12px;
+    --dark: #0D2D5A; --cyan: #079FE0;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--fondo); color: var(--texto); font-size: 14px; }
+  body { font-family: Inter, 'Segoe UI', Arial, sans-serif; background: var(--fondo); color: var(--texto); font-size: 14px; }
 
   /* CONFIG BANNER */
   #config-banner {
@@ -44,23 +49,120 @@
 
   /* LOGIN */
   #login-screen {
-    position: fixed; inset: 0; background: linear-gradient(135deg, #0D47A1 0%, #1565C0 60%, #1976D2 100%);
-    display: none; align-items: center; justify-content: center; z-index: 1000;
+    position: fixed; inset: 0; background: #fff; z-index: 1000;
+    display: none; grid-template-columns: 53% 47%;
   }
-  #login-screen.visible { display: flex; }
-  .login-card {
-    background: var(--blanco); border-radius: 16px; padding: 40px 36px;
-    width: 360px; box-shadow: 0 8px 40px rgba(0,0,0,0.25);
+  #login-screen.visible { display: grid; }
+  .login-intro {
+    padding: 45px 6vw; color: #fff; display: flex; flex-direction: column;
+    background: linear-gradient(140deg, #02357B, #0756B7 60%, #0985D5);
+    position: relative; overflow: hidden;
   }
-  .login-logo { text-align: center; margin-bottom: 28px; }
-  .login-logo h1 { color: var(--azul); font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
-  .login-logo p { color: var(--texto-sec); font-size: 13px; margin-top: 4px; }
-  .login-card label { display: block; font-size: 12px; font-weight: 600; color: var(--texto-sec); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .login-card input { width: 100%; padding: 10px 12px; border: 1.5px solid var(--borde); border-radius: var(--radio); font-size: 14px; margin-bottom: 16px; outline: none; transition: border-color 0.2s; }
-  .login-card input:focus { border-color: var(--azul); }
-  .btn-login { width: 100%; padding: 12px; background: var(--azul); color: #fff; border: none; border-radius: var(--radio); font-size: 15px; font-weight: 600; cursor: pointer; }
-  .btn-login:hover { background: #0D47A1; }
+  .login-intro:after {
+    content: ""; position: absolute; width: 650px; height: 650px; border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 50%; right: -300px; top: -280px;
+    box-shadow: 0 0 0 100px rgba(255,255,255,0.035), 0 0 0 210px rgba(255,255,255,0.025);
+  }
+  .login-brand { display: flex; align-items: center; gap: 10px; position: relative; z-index: 1; }
+  .login-brand-icon { width: 42px; height: 42px; border-radius: 12px; background: #fff; color: var(--azul); display: grid; place-items: center; font-size: 21px; font-weight: 900; }
+  .login-brand strong { display: block; font-size: 20px; letter-spacing: -0.7px; }
+  .login-brand em { color: #77D4FF; font-style: normal; }
+  .login-brand small { display: block; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: #BEE2FF; margin-top: 2px; }
+  .login-intro-copy { margin: auto 0; max-width: 560px; position: relative; z-index: 1; }
+  .login-eyebrow { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: 1.5px; padding: 8px 13px; border: 1px solid rgba(255,255,255,0.17); border-radius: 99px; color: #C8E9FF; background: rgba(255,255,255,0.06); }
+  .login-intro-copy h1 { font-size: 44px; line-height: 1.1; letter-spacing: -1.6px; margin: 24px 0 16px; }
+  .login-intro-copy p { font-size: 15px; line-height: 1.7; color: #D5E9FB; }
+  .login-intro-copy ul { list-style: none; margin: 24px 0; display: grid; gap: 12px; font-size: 13px; color: #E8F4FF; }
+  .login-intro-copy li:before { content: "✓"; display: inline-grid; place-items: center; width: 22px; height: 22px; background: #38C777; border-radius: 50%; margin-right: 10px; font-weight: 900; }
+  .login-form-wrap { display: grid; place-items: center; padding: 50px; }
+  .login-card { width: min(380px, 100%); background: transparent; padding: 0; box-shadow: none; }
+  .login-welcome { font-size: 11px; color: var(--azul-claro); font-weight: 900; letter-spacing: 1.4px; }
+  .login-logo { text-align: left; margin-bottom: 8px; }
+  .login-logo h1 { font-size: 32px; letter-spacing: -1.2px; color: var(--gris); font-weight: 800; }
+  .login-logo p { color: var(--texto-sec); font-size: 13px; margin: 6px 0 22px; }
+  .login-card label { display: block; font-size: 11px; font-weight: 800; color: var(--texto-sec); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.6px; }
+  .login-card input { width: 100%; height: 48px; padding: 0 14px; border: 1.5px solid var(--borde); border-radius: 10px; font-size: 14px; margin-bottom: 16px; outline: none; transition: border-color 0.2s; }
+  .login-card input:focus { border-color: var(--azul); box-shadow: 0 0 0 4px rgba(7,92,184,0.08); }
+  .btn-login { width: 100%; height: 50px; border: 0; border-radius: 10px; background: linear-gradient(90deg, #064DA7, #0875D5); color: #fff; font-weight: 800; font-size: 14px; cursor: pointer; box-shadow: 0 11px 25px rgba(7,92,184,0.18); }
+  .btn-login:hover { filter: brightness(1.05); }
   .login-error { color: var(--rojo); font-size: 13px; margin-top: -8px; margin-bottom: 12px; display: none; }
+  @media(max-width:980px) { #login-screen.visible { grid-template-columns: 1fr; } .login-intro { display: none; } }
+
+  /* INICIO (v7.0) */
+  #home { min-height: 100vh; background: var(--fondo); }
+  .top { height: 68px; background: #fff; border-bottom: 1px solid var(--line, var(--borde)); display: flex; align-items: center; justify-content: space-between; padding: 0 4vw; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-icon { width: 38px; height: 38px; border-radius: 11px; background: linear-gradient(145deg,#0877E4,#023D91); color: #fff; display: grid; place-items: center; font-size: 19px; font-weight: 900; box-shadow: 0 8px 18px rgba(7,92,184,0.16); }
+  .brand strong { display: block; font-size: 18px; letter-spacing: -0.6px; color: var(--gris); }
+  .brand em { color: var(--cyan); font-style: normal; }
+  .brand small { display: block; font-size: 9px; letter-spacing: 0.6px; text-transform: uppercase; color: var(--texto-sec); margin-top: 1px; }
+  .user { display: flex; align-items: center; gap: 10px; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--azul-bg); color: var(--azul); display: grid; place-items: center; font-size: 11px; font-weight: 900; }
+  .user strong, .user small { display: block; }
+  .user strong { font-size: 11px; color: var(--gris); }
+  .user small { font-size: 9px; color: var(--texto-sec); }
+  .user button { margin-left: 8px; border: 0; background: var(--gris-claro); border-radius: 8px; padding: 9px 14px; font-size: 11px; font-weight: 700; color: var(--texto-sec); cursor: pointer; }
+  .home-inner { width: min(1080px, 91vw); margin: auto; padding: 46px 0; }
+  .greeting { text-align: center; }
+  .greeting span { font-size: 10px; color: var(--azul-claro); font-weight: 900; letter-spacing: 1.4px; }
+  .greeting h1 { font-size: 34px; letter-spacing: -1.3px; margin: 10px 0 6px; color: var(--gris); }
+  .greeting p { color: var(--texto-sec); font-size: 13px; }
+  .menu { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 34px 0 24px; }
+  .menu button { min-height: 100px; background: #fff; border: 1px solid var(--borde); border-radius: 15px; padding: 19px; display: flex; align-items: center; gap: 14px; text-align: left; box-shadow: var(--sombra); transition: .2s; cursor: pointer; }
+  .menu button:hover { transform: translateY(-3px); border-color: #9DBDDD; box-shadow: 0 13px 30px rgba(20,47,80,0.12); }
+  .menu-icon { width: 48px; height: 48px; border-radius: 13px; background: var(--azul-bg); color: var(--azul); display: grid; place-items: center; font-size: 24px; flex-shrink: 0; }
+  .menu button div { display: grid; gap: 4px; }
+  .menu button strong { font-size: 13px; color: var(--gris); }
+  .menu button small { font-size: 10px; color: var(--texto-sec); }
+  .menu button b { margin-left: auto; color: var(--gris-medio); font-size: 22px; font-weight: 400; }
+  .today { background: linear-gradient(100deg, #06479E, #086BCA); border-radius: 14px; color: #fff; padding: 18px 23px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .today > div { display: flex; gap: 26px; flex-wrap: wrap; }
+  .today span { display: grid; font-size: 9px; color: #C5DFF7; }
+  .today b { font-size: 18px; color: #fff; font-weight: 800; }
+  @media(max-width:980px) { .menu { grid-template-columns: 1fr 1fr; } }
+  @media(max-width:600px) { .menu { grid-template-columns: 1fr; } .today { display: none; } }
+
+  /* v7.1 — módulo Seguimiento sin panel lateral: filtros arriba, contenido a todo el ancho */
+  .module-content { padding: 16px 20px; height: calc(100vh - 52px); overflow: hidden; display: flex; flex-direction: column; }
+  .filters-bar { display: flex; gap: 10px; align-items: flex-start; background: #fff; border: 1px solid var(--borde); border-radius: var(--radio); padding: 12px; margin-bottom: 12px; flex-wrap: wrap; box-shadow: var(--sombra); }
+  .filters-bar label { display: grid; gap: 5px; font-size: 9px; text-transform: uppercase; color: var(--texto-sec); font-weight: 800; }
+  .filters-bar input, .filters-bar select { height: 34px; min-width: 140px; border: 1px solid var(--borde); border-radius: 7px; background: #fff; padding: 0 9px; font-size: 12px; color: var(--texto); }
+  .filters-bar select[multiple] { padding: 4px; height: auto; }
+  .filters-bar select[multiple] option { padding: 3px 6px; border-radius: 4px; font-size: 11px; }
+  .filters-bar select[multiple] option:checked { background: var(--azul-bg); color: var(--azul); }
+
+  /* v7.4 — filtro estilo tabla dinámica de Excel: casilla "(Todos)" arriba,
+     casillas individuales debajo, dentro de un cuadro con scroll. */
+  /* v7.5 — corregido: tamaño de casilla fijo y pequeño (antes sin límite, se
+     renderizaba enorme en algunos navegadores/dispositivos), y la lista se
+     despliega completa en vez de vivir dentro de un cuadro con scroll. */
+  /* v7.6 — el panel de casillas ahora es un desplegable real: oculto por
+     defecto, se muestra solo al hacer clic en el cuadro (mismo alto que un
+     campo de fecha), y se cierra solo al hacer clic afuera o volver a hacer clic. */
+  .pivot-filter { position: relative; }
+  .pivot-trigger { width: 210px; height: 34px; border: 1px solid var(--borde); border-radius: 7px; background: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; font-size: 12px; color: var(--texto); cursor: pointer; text-align: left; }
+  .pivot-trigger:hover, .pivot-trigger.abierto { border-color: var(--azul); }
+  .pivot-trigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pivot-trigger b { color: var(--texto-sec); font-weight: 400; margin-left: 6px; flex-shrink: 0; }
+  .pivot-dropdown { display: none; position: absolute; top: calc(100% + 4px); left: 0; width: 260px; max-height: 320px; overflow-y: auto; background: #fff; border: 1px solid var(--borde); border-radius: 8px; box-shadow: 0 14px 34px rgba(16,34,59,0.18); z-index: 50; padding: 4px; }
+  .pivot-dropdown.visible { display: block; }
+  .pivot-list { width: 210px; border: 1px solid var(--borde); border-radius: 7px; background: #fff; }
+  .pivot-item { display: flex; align-items: center; gap: 7px; padding: 4px 9px; font-size: 12px; line-height: 16px; cursor: pointer; }
+  .pivot-item:hover { background: var(--fondo); }
+  .pivot-item input[type="checkbox"] { cursor: pointer; flex-shrink: 0; width: 13px; height: 13px; min-width: 13px; margin: 0; accent-color: var(--azul); }
+  .pivot-item-all { font-weight: 700; border-bottom: 1px solid var(--gris-claro); }
+  .pivot-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .btn-consultar { padding: 0 18px; height: 34px; background: var(--azul); color: #fff; border: none; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .btn-consultar:hover { background: #0D47A1; }
+  .estado-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .estado-pill { padding: 7px 13px; border-radius: 20px; border: 1.5px solid var(--borde); background: #fff; font-size: 11px; font-weight: 700; cursor: pointer; color: var(--texto-sec); white-space: nowrap; transition: all .15s; }
+  .estado-pill.activa { border-color: transparent; color: #fff; }
+  .estado-pill[data-est="Todos"].activa { background: var(--gris); }
+  .estado-pill[data-est="APROBADO"].activa { background: #2BA459; }
+  .estado-pill[data-est="EN PROCESO"].activa { background: #E4A033; }
+  .estado-pill[data-est="CERRADO"].activa { background: #667486; }
+  .estado-pill[data-est="OTORGADO"].activa { background: #1889D0; }
+  .estado-pill[data-est="RECHAZADO"].activa { background: #D43A49; }
 
   /* LOADING */
   #loading-overlay {
@@ -107,12 +209,10 @@
 
   .resumen-container { overflow-y: auto; flex: 1; padding: 10px 12px; }
   .resumen-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  .resumen-table th { background: var(--azul); color: #fff; padding: 6px 6px; text-align: center; font-weight: 600; font-size: 11px; position: sticky; top: 0; z-index: 1; white-space: nowrap; }
-  .resumen-table th:first-child { text-align: left; min-width: 90px; }
-  .resumen-table td { padding: 4px 4px; border-bottom: 1px solid var(--gris-claro); text-align: center; }
+  .resumen-table th { background: var(--azul); color: #fff; padding: 6px 8px; text-align: center; font-weight: 600; font-size: 11px; position: sticky; top: 0; z-index: 1; }
+  .resumen-table th:first-child { text-align: left; min-width: 100px; }
+  .resumen-table td { padding: 5px 8px; border-bottom: 1px solid var(--gris-claro); text-align: center; }
   .resumen-table td:first-child { text-align: left; font-weight: 600; color: var(--texto); }
-  .celda-check-wrap { display: flex; align-items: center; justify-content: center; gap: 4px; }
-  .celda-check-wrap input[type=checkbox] { cursor: pointer; flex-shrink: 0; }
   .resumen-table tr:hover td { background: #F0F4FF; }
   .resumen-table .fila-total td { background: #EEF2FF; font-weight: 700; border-top: 2px solid var(--azul); }
   .celda-clic { cursor: pointer; border-radius: 4px; transition: background 0.15s; }
@@ -174,6 +274,13 @@
   /* MODAL */
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 500; }
   .modal-overlay.visible { display: flex; }
+
+  /* v7.0 — ficha rápida como drawer lateral (estilo mockup), en vez de modal centrado */
+  #modal-ficha-lista { justify-content: flex-end; background: rgba(16,34,59,0.45); }
+  #modal-ficha-lista .modal { width: min(760px, 96vw); max-width: none; height: 100%; max-height: 100%;
+    border-radius: 0; margin: 0; box-shadow: -15px 0 50px rgba(16,34,59,0.2);
+    animation: drawerIn 0.22s ease-out; }
+  @keyframes drawerIn { from { transform: translateX(24px); opacity: 0.6; } to { transform: translateX(0); opacity: 1; } }
   .modal { background: var(--blanco); border-radius: 12px; width: 520px; max-width: 95vw; box-shadow: 0 8px 40px rgba(0,0,0,0.22); overflow: hidden; max-height: 90vh; display: flex; flex-direction: column; }
   .modal-header { background: var(--azul); color: #fff; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; }
   .modal-header h3 { font-size: 15px; font-weight: 700; }
@@ -239,12 +346,14 @@
   .edit-msg.err { background:var(--rojo-bg);color:var(--rojo);display:block; }
 
   /* ADMIN PANEL */
-  #admin-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.55);display:none;align-items:center;justify-content:center;z-index:600; }
-  #admin-overlay.visible { display:flex; }
-  .admin-modal { background:#fff;border-radius:14px;width:1000px;max-width:97vw;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 12px 60px rgba(0,0,0,0.28);overflow:hidden; }
-  .admin-header { background:var(--azul);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0; }
-  .admin-header h2 { font-size:15px;font-weight:700; }
-  .admin-body { display:flex;flex:1;overflow:hidden; }
+  /* v7.8 — Administración deja de ser un modal superpuesto sobre Seguimiento
+     (se veía la pantalla de fondo, como reportaste) y pasa a ser un módulo
+     independiente de pantalla completa, igual que Reportes y Seguimiento. */
+  #admin-overlay { display:none; background:var(--fondo); }
+  .admin-modal { background:#fff; width:100%; height:calc(100vh - 52px); max-width:none; max-height:none; display:flex; flex-direction:column; box-shadow:none; overflow:hidden; border-radius:0; }
+  .admin-header { background:var(--azul); color:#fff; padding:0 20px; height:52px; display:flex; align-items:center; gap:10px; justify-content:flex-start; flex-shrink:0; }
+  .admin-header h2 { font-size:16px; font-weight:700; }
+  .admin-body { display:flex; flex:1; overflow:hidden; }
   .admin-list { width:340px;min-width:280px;border-right:1px solid var(--borde);display:flex;flex-direction:column;overflow:hidden; }
   .admin-list-header { padding:12px 14px;border-bottom:1px solid var(--borde);display:flex;align-items:center;justify-content:space-between;flex-shrink:0; }
   .admin-list-header span { font-size:12px;font-weight:700;color:var(--texto-sec);text-transform:uppercase;letter-spacing:0.5px; }
@@ -297,128 +406,266 @@
 
 <!-- LOGIN -->
 <div id="login-screen">
-  <div class="login-card">
-    <div class="login-logo">
-      <h1>🏦 Seguimiento Créditos</h1>
-      <p>Plataforma de gestión comercial</p>
+  <div class="login-intro">
+    <div class="login-brand">
+      <span class="login-brand-icon">G</span>
+      <div><strong>Gestión<em>360</em></strong><small>AutoFácil — Seguimiento comercial</small></div>
     </div>
-    <label>Usuario</label>
-    <input type="email" id="login-user" placeholder="usuario@autofacilchile.cl" autocomplete="username">
-    <label>Contraseña</label>
-    <input type="password" id="login-pass" placeholder="••••••" autocomplete="current-password">
-    <div class="login-error" id="login-error">Usuario o contraseña incorrectos</div>
-    <button class="btn-login" onclick="doLogin()">Ingresar</button>
+    <div class="login-intro-copy">
+      <span class="login-eyebrow">CRM COMERCIAL</span>
+      <h1>Toda tu cartera, en un solo lugar.</h1>
+      <p>Créditos aprobados y rechazados en una sola vista, con seguimiento, bitácora e indicadores en tiempo real.</p>
+      <ul>
+        <li>Vista única de operaciones con los 5 estados</li>
+        <li>Bitácora trazable en cada cambio de estado</li>
+        <li>Indicadores de recuperación y reactivación</li>
+      </ul>
+    </div>
+  </div>
+  <div class="login-form-wrap">
+    <div class="login-card">
+      <span class="login-welcome">BIENVENIDO</span>
+      <div class="login-logo">
+        <h1>Ingresa a tu cuenta</h1>
+        <p>Utiliza tus credenciales corporativas.</p>
+      </div>
+      <label>Usuario</label>
+      <input type="email" id="login-user" placeholder="usuario@autofacilchile.cl" autocomplete="username">
+      <label>Contraseña</label>
+      <input type="password" id="login-pass" placeholder="••••••" autocomplete="current-password">
+      <div class="login-error" id="login-error">Usuario o contraseña incorrectos</div>
+      <button class="btn-login" onclick="doLogin()">Ingresar →</button>
+    </div>
   </div>
 </div>
 
-<!-- APP -->
-<div id="app">
-  <header id="app-header" style="background:var(--azul)">
-    <div style="display:flex;align-items:center;gap:10px">
-      <h1 id="header-titulo">📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v6.0</small></h1>
-      <!-- SELECTOR MODO -->
-      <div id="modo-selector-wrap" style="display:none;background:rgba(0,0,0,0.2);border-radius:20px;padding:3px;gap:2px;display:flex">
-        <button id="modo-btn-aprobados" onclick="setModoCredito('aprobados')" style="padding:4px 14px;border-radius:16px;border:none;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:#1565C0;transition:all 0.2s">✅ Aprobados</button>
-        <button id="modo-btn-rechazados" onclick="setModoCredito('rechazados')" style="padding:4px 14px;border-radius:16px;border:none;font-size:12px;font-weight:700;cursor:pointer;background:transparent;color:rgba(255,255,255,0.7);transition:all 0.2s">❌ Rechazados</button>
-      </div>
+<!-- INICIO (v7.0) — pantalla de aterrizaje tras el login, mismo patrón que el mockup -->
+<div id="home" style="display:none">
+  <header class="top">
+    <div class="brand">
+      <span class="brand-icon">G</span>
+      <div><strong>Gestión<em>360</em></strong><small>AutoFácil — Seguimiento comercial</small></div>
     </div>
-    <div class="header-right">
-      <span id="header-ejecutivo"></span>
-      <button class="btn-sm" id="btn-informe" style="display:none;background:rgba(255,255,255,0.28);font-weight:600" onclick="abrirInforme()">📊 Informe Consolidado</button>
-      <button class="btn-sm" id="btn-admin" style="display:none;background:rgba(255,255,255,0.18);font-weight:600" onclick="abrirAdmin()">⚙️ Usuarios</button>
-      <button class="btn-sm" id="btn-edit-credito" style="display:none;background:rgba(255,255,255,0.18);font-weight:600" onclick="abrirEditCredito()">✏️ Editar Crédito</button>
-      <button class="btn-sm" id="btn-eliminar" style="display:none;background:rgba(220,53,69,0.28);font-weight:600;border-color:rgba(220,53,69,0.5);color:#fff" onclick="abrirModalEliminar()" title="Eliminar registros por rango de fechas">🗑️ Eliminar Registros</button>
-      <button class="btn-sm" onclick="recargarDatos()" title="Actualizar datos desde el servidor">🔄 Actualizar</button>
-      <button class="btn-sm" onclick="abrirAyuda()" style="background:rgba(255,255,255,0.18);font-weight:600">❓ Ayuda</button>
-      <button class="btn-sm" onclick="doLogout()">Cerrar sesión</button>
+    <div class="user">
+      <span class="avatar" id="home-avatar">–</span>
+      <div><strong id="home-user-nombre">—</strong><small id="home-user-perfil">—</small></div>
+      <button onclick="doLogout()">Salir</button>
     </div>
   </header>
-
-  <div class="main-layout">
-    <div class="panel-left">
-      <div class="panel-left-header">
-        <div class="ejecutivo-nombre" id="panel-ejecutivo">-</div>
-        <div class="fecha-hoy" id="panel-fecha"></div>
+  <div class="home-inner">
+    <div class="greeting">
+      <span>INICIO</span>
+      <h1 id="home-saludo">Hola 👋</h1>
+      <p>¿Qué quieres hacer hoy?</p>
+    </div>
+    <div class="menu">
+      <button onclick="goToReportes()" id="home-btn-reportes">
+        <span class="menu-icon">📊</span>
+        <div><strong>Reportes</strong><small>Resumen de estados, indicadores y metas</small></div>
+        <b>›</b>
+      </button>
+      <button onclick="goToApp()">
+        <span class="menu-icon">📋</span>
+        <div><strong>Seguimiento de Operaciones</strong><small>Aprobados y rechazados en una sola vista</small></div>
+        <b>›</b>
+      </button>
+      <button onclick="goToAdmin()" id="home-btn-admin" style="display:none">
+        <span class="menu-icon">👤</span>
+        <div><strong>Administración</strong><small>Usuarios y permisos</small></div>
+        <b>›</b>
+      </button>
+      <button onclick="abrirCargaModal()" id="home-btn-carga" style="display:none">
+        <span class="menu-icon">📂</span>
+        <div><strong>Cargar Archivos</strong><small>Excel de aprobados y rechazados</small></div>
+        <b>›</b>
+      </button>
+      <button onclick="abrirAyuda()">
+        <span class="menu-icon">❓</span>
+        <div><strong>Ayuda</strong><small>Manual de uso del sistema</small></div>
+        <b>›</b>
+      </button>
+    </div>
+    <div class="today">
+      <div>
+        <span>Total operaciones<b id="home-total">—</b></span>
+        <span>Sin seguimiento<b id="home-sinseg">—</b></span>
+        <span>Vencidos<b id="home-vencidos">—</b></span>
+        <span>Reactivados<b id="home-reactivados">—</b></span>
       </div>
+      <span id="home-fecha" style="font-size:11px;opacity:0.85"></span>
+    </div>
+  </div>
+</div>
 
-      <div id="filtro-ejecutivo-wrap" style="display:none">
-        <!-- Checkboxes modo vista ejecutivos -->
-        <div style="display:flex;gap:12px;padding:6px 16px 4px;font-size:12px">
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:600;color:var(--texto-sec)">
-            <input type="radio" name="modo-ejecutivo" id="modo-todos" value="todos" onchange="cambiarModoEjecutivo('todos')" style="cursor:pointer">
-            Todos los Ejecutivos
+<!-- REPORTES (v7.1) — resumen de operaciones + indicadores + metas -->
+<div id="reportes" style="display:none">
+  <header id="reportes-header" style="background:var(--azul);height:52px;display:flex;align-items:center;gap:10px;padding:0 20px;color:#fff">
+    <button class="btn-sm" onclick="showHome()" style="background:rgba(255,255,255,0.18);font-weight:600">🏠 Inicio</button>
+    <h1 style="font-size:16px;font-weight:700">📊 Reportes</h1>
+  </header>
+  <div class="module-content" style="height:calc(100vh - 52px);overflow-y:auto;display:block">
+
+    <!-- FILTROS DEL DASHBOARD (v7.4) — panel de casillas estilo tabla dinámica de
+         Excel: "(Todos)" arriba, casillas individuales debajo. No se aplican en
+         vivo: se quedan "armados" hasta presionar Consultar, que actualiza tabla,
+         gráficos e informe todos juntos. -->
+    <div class="filters-bar" style="max-width:1100px;margin:0 auto 16px">
+      <div class="pivot-filter" id="pivot-filter-ejecutivos">
+        <label>Usuario <small style="text-transform:none;font-weight:400">(múltiple)</small></label>
+        <button type="button" class="pivot-trigger" id="pivot-trigger-ejecutivos" onclick="togglePivotDropdown('ejecutivos')">
+          <span id="pivot-summary-ejecutivos">Todos</span><b>▾</b>
+        </button>
+        <div class="pivot-dropdown" id="pivot-dropdown-ejecutivos">
+          <label class="pivot-item pivot-item-all">
+            <input type="checkbox" id="pivot-all-ejecutivos" checked onchange="togglePivotAll('ejecutivos', this.checked)">
+            <span>(Todos)</span>
           </label>
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:600;color:var(--texto-sec)">
-            <input type="radio" name="modo-ejecutivo" id="modo-agrupado" value="agrupado" checked onchange="cambiarModoEjecutivo('agrupado')" style="cursor:pointer">
-            Ejecutivo Agrupado
+          <div id="pivot-items-ejecutivos"></div>
+        </div>
+      </div>
+      <div class="pivot-filter" id="pivot-filter-productos">
+        <label>Producto <small style="text-transform:none;font-weight:400">(múltiple)</small></label>
+        <button type="button" class="pivot-trigger" id="pivot-trigger-productos" onclick="togglePivotDropdown('productos')">
+          <span id="pivot-summary-productos">Todos</span><b>▾</b>
+        </button>
+        <div class="pivot-dropdown" id="pivot-dropdown-productos">
+          <label class="pivot-item pivot-item-all">
+            <input type="checkbox" id="pivot-all-productos" checked onchange="togglePivotAll('productos', this.checked)">
+            <span>(Todos)</span>
           </label>
-        </div>
-        <select class="sel-ejecutivo" id="sel-ejecutivo-gerente" onchange="filtrarPorEjecutivo(this.value)" oninput="filtrarPorEjecutivo(this.value)">
-          <option value="">Todos los ejecutivos</option>
-        </select>
-      </div>
-
-      <div style="display:flex;gap:8px;align-items:flex-end;padding:6px 16px 0">
-        <div style="flex:1">
-          <div style="font-size:10px;font-weight:700;color:var(--texto-sec);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:3px">Desde</div>
-          <input type="date" id="filtro-fecha-desde" style="width:100%;padding:6px 8px;border:1.5px solid var(--borde);border-radius:var(--radio);font-size:12px;outline:none" onchange="aplicarFiltroFecha()">
-        </div>
-        <div style="flex:1">
-          <div style="font-size:10px;font-weight:700;color:var(--texto-sec);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:3px">Hasta</div>
-          <input type="date" id="filtro-fecha-hasta" style="width:100%;padding:6px 8px;border:1.5px solid var(--borde);border-radius:var(--radio);font-size:12px;outline:none" onchange="aplicarFiltroFecha()">
+          <div id="pivot-items-productos"></div>
         </div>
       </div>
-
-      <div id="upload-section" style="display:none">
-        <label class="upload-area" for="file-input">
-          <span class="icon">📂</span>
-          <div>
-            <p>Cargar Aprobados (TRISolicitud)</p>
-            <small>Solo se importarán operaciones nuevas</small>
-          </div>
-        </label>
-        <input type="file" id="file-input" accept=".xlsx,.xls" onchange="loadExcel(event, 'aprobados')">
-        <label class="upload-area" for="file-input-rechazados" style="border-color:#E53935;background:#FFEBEE;margin-top:4px">
-          <span class="icon">📂</span>
-          <div>
-            <p style="color:#C62828">Cargar Rechazados (TRISolicitud)</p>
-            <small>Solo se importarán operaciones nuevas</small>
-          </div>
-        </label>
-        <input type="file" id="file-input-rechazados" accept=".xlsx,.xls" onchange="loadExcel(event, 'rechazados')">
-        <div class="estado-carga" id="estado-carga"></div>
+      <div>
+        <label>Desde</label>
+        <input type="date" id="rep-fecha-desde">
       </div>
+      <div>
+        <label>Hasta</label>
+        <input type="date" id="rep-fecha-hasta">
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <div style="display:flex;gap:8px">
+          <button class="btn-consultar" onclick="onFiltrosReporteChange()">🔍 Consultar</button>
+          <button class="btn-sm" onclick="limpiarFiltrosReporte()" style="background:var(--gris-claro);color:var(--texto);height:34px">Limpiar filtros</button>
+        </div>
+      </div>
+      <div style="margin-left:auto;max-width:200px">
+        <label>&nbsp;</label>
+        <div style="font-size:10px;color:var(--texto-sec)">
+          Sin selección de fechas, se usa el mes vigente por defecto. Los filtros se aplican al presionar Consultar.
+        </div>
+      </div>
+    </div>
 
-      <div class="resumen-container">
-        <table class="resumen-table" id="resumen-table">
+    <div class="panel" style="background:#fff;border:1px solid var(--borde);border-radius:var(--radio);box-shadow:var(--sombra);overflow:hidden;max-width:1100px;margin:0 auto 16px">
+      <header style="height:48px;padding:0 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--gris-claro)">
+        <h2 style="font-size:13px">Estado del seguimiento</h2>
+        <span style="font-size:9px;color:var(--texto-sec);text-transform:uppercase">Un clic en una fila lleva al detalle en Seguimiento</span>
+      </header>
+      <div style="padding:8px 12px">
+        <table class="resumen-table" id="resumen-table" style="width:100%">
           <thead>
-            <tr>
-              <th>Estado</th>
-              <th>Créd.</th>
-              <th>Sin Seg.</th>
-              <th>Vencido</th>
-              <th>Al Día</th>
-            </tr>
+            <tr><th>Estado</th><th>Créd.</th><th>Sin Seg.</th><th>Vencido</th><th>Al Día</th></tr>
           </thead>
           <tbody id="resumen-body">
             <tr><td colspan="5" style="text-align:center;color:var(--texto-sec);padding:20px">Cargando...</td></tr>
           </tbody>
         </table>
       </div>
-      <div id="export-menu-bar" style="display:none;padding:8px 16px;font-size:12px;color:var(--texto-sec);border-top:1px solid var(--gris-claro)">
-        <span id="export-menu-label"></span> —
-        <a href="#" onclick="exportarSeleccionMenu();return false" style="color:var(--azul);font-weight:600;text-decoration:none">⬇️ Exportar seleccionados a Excel</a>
-      </div>
-
-      <button class="btn-nueva-gestion" id="btn-nueva-gestion" onclick="abrirModal()" disabled>
-        ➕ Ingresar Nueva Gestión
-      </button>
-      <button class="btn-nueva-gestion" id="btn-exportar-detalle" onclick="exportarDetalle()" disabled style="background:var(--verde);margin-top:0">
-        ⬇️ Exportar Detalle Excel
-      </button>
+      <div id="indicadores-recuperacion" style="font-size:11px;color:var(--texto-sec);padding:6px 16px 14px;line-height:1.6"></div>
     </div>
 
-    <div class="panel-right">
+    <!-- GRÁFICOS DE DONA (v7.3) — reemplazan la sección de Metas; reactivos a los
+         filtros de arriba. Un clic en un segmento del gráfico de estados abre el
+         detalle de seguimiento recompuesto solo para ese estado. -->
+    <div class="panel" style="background:#fff;border:1px solid var(--borde);border-radius:var(--radio);box-shadow:var(--sombra);overflow:hidden;max-width:1100px;margin:0 auto 16px;padding:20px">
+      <h2 style="font-size:13px;margin-bottom:14px">Composición de operaciones</h2>
+      <div style="display:flex;gap:32px;flex-wrap:wrap;justify-content:center">
+        <div>
+          <h3 style="text-align:center;font-size:11px;color:var(--texto-sec);margin-bottom:8px;text-transform:uppercase">Por estado — clic para ver detalle</h3>
+          <div id="donut-estado"></div>
+        </div>
+        <div>
+          <h3 style="text-align:center;font-size:11px;color:var(--texto-sec);margin-bottom:8px;text-transform:uppercase">Por seguimiento</h3>
+          <div id="donut-seguimiento"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INFORME POR EJECUTIVO (v7.3) — ahora es parte del dashboard, ya no un
+         modal aparte; usa los mismos filtros de arriba. -->
+    <div class="panel" style="background:#fff;border:1px solid var(--borde);border-radius:var(--radio);box-shadow:var(--sombra);overflow:hidden;max-width:1100px;margin:0 auto 24px;padding:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <h2 style="font-size:13px">📄 Informe por ejecutivo</h2>
+        <button class="btn-nueva-gestion" id="btn-exportar-informe" style="display:none;margin:0;width:auto;padding:0 16px;height:32px;background:var(--verde)" onclick="exportarExcel()">⬇️ Exportar Excel</button>
+      </div>
+      <div id="informe-resultado-inline"></div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <header id="app-header" style="background:var(--azul)">
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="btn-sm" onclick="showHome()" style="background:rgba(255,255,255,0.18);font-weight:600">🏠 Inicio</button>
+      <h1 id="header-titulo">📋 Seguimiento de Operaciones <small style="font-size:11px;opacity:0.7">v7.1</small></h1>
+    </div>
+    <div class="header-right">
+      <span id="header-ejecutivo"></span>
+      <button class="btn-sm" onclick="recargarDatos()" title="Actualizar datos desde el servidor">🔄 Actualizar</button>
+    </div>
+  </header>
+
+  <div class="module-content">
+    <div class="filters-bar">
+      <div id="filtro-ejecutivo-wrap" style="display:none">
+        <label>Usuario <small style="text-transform:none;font-weight:400">(múltiple)</small></label>
+        <div class="pivot-filter" id="pivot-filter-seg-usuario">
+          <button type="button" class="pivot-trigger" id="pivot-trigger-seg-usuario" onclick="togglePivotDropdown('seg-usuario')">
+            <span id="pivot-summary-seg-usuario">Todos</span><b>▾</b>
+          </button>
+          <div class="pivot-dropdown" id="pivot-dropdown-seg-usuario">
+            <label class="pivot-item pivot-item-all">
+              <input type="checkbox" id="pivot-all-seg-usuario" checked onchange="onSegFiltroToggleAll('seg-usuario', this.checked)">
+              <span>(Todos)</span>
+            </label>
+            <div id="pivot-items-seg-usuario"></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <label>Estado <small style="text-transform:none;font-weight:400">(múltiple)</small></label>
+        <div class="pivot-filter" id="pivot-filter-seg-estado">
+          <button type="button" class="pivot-trigger" id="pivot-trigger-seg-estado" onclick="togglePivotDropdown('seg-estado')">
+            <span id="pivot-summary-seg-estado">Todos</span><b>▾</b>
+          </button>
+          <div class="pivot-dropdown" id="pivot-dropdown-seg-estado">
+            <label class="pivot-item pivot-item-all">
+              <input type="checkbox" id="pivot-all-seg-estado" checked onchange="onSegFiltroToggleAll('seg-estado', this.checked)">
+              <span>(Todos)</span>
+            </label>
+            <div id="pivot-items-seg-estado"></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <label>Desde</label>
+        <input type="date" id="filtro-fecha-desde" onchange="aplicarFiltroFecha()">
+      </div>
+      <div>
+        <label>Hasta</label>
+        <input type="date" id="filtro-fecha-hasta" onchange="aplicarFiltroFecha()">
+      </div>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn-nueva-gestion" id="btn-nueva-gestion" onclick="abrirModal()" disabled style="margin:0;width:auto;padding:0 16px;height:34px">➕ Nueva Gestión</button>
+        <button class="btn-nueva-gestion" id="btn-exportar-detalle" onclick="exportarDetalle()" disabled style="margin:0;width:auto;padding:0 16px;height:34px;background:var(--verde)">⬇️ Exportar</button>
+      </div>
+    </div>
+
+    <div class="panel-right" style="border:1px solid var(--borde);border-radius:var(--radio);overflow:hidden;box-shadow:var(--sombra)">
       <div class="panel-right-header" id="right-header" style="display:none">
         <span class="estado-badge" id="badge-estado"></span>
         <input type="text" id="inp-buscar-nombre" placeholder="BUSCAR NOMBRE" style="margin-left:auto;padding:8px 12px;border:1.5px solid var(--borde);border-radius:var(--radio);font-size:13px;outline:none;background:var(--blanco);color:var(--texto);width:180px" oninput="buscarPorNombre(this.value)">
@@ -426,6 +673,7 @@
         <div id="toggle-vista-wrap" style="display:flex;background:#ECEFF1;border-radius:20px;padding:3px;gap:2px;flex-shrink:0">
           <button id="toggle-ficha" onclick="setVista('ficha')" style="padding:5px 14px;border-radius:16px;border:none;font-size:12px;font-weight:600;cursor:pointer;background:var(--azul);color:#fff;transition:all 0.2s">🪪 Ficha</button>
           <button id="toggle-lista" onclick="setVista('lista')" style="padding:5px 14px;border-radius:16px;border:none;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--texto-sec);transition:all 0.2s">☰ Lista</button>
+          <button id="toggle-tablero" onclick="setVista('tablero')" style="padding:5px 14px;border-radius:16px;border:none;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--texto-sec);transition:all 0.2s">🗂️ Tablero</button>
         </div>
         <div class="nav-registros" id="nav-registros-wrap">
           <span id="nav-label">Registro: — de —</span>
@@ -436,7 +684,7 @@
       <div class="panel-content" id="panel-content">
         <div class="empty-state">
           <div class="icon-big">📊</div>
-          <p>Seleccione un estado en la tabla para ver los registros</p>
+          <p>Cargando operaciones…</p>
         </div>
       </div>
     </div>
@@ -483,10 +731,11 @@
           <label>Nuevo Estado</label>
           <select id="sel-estado" onchange="actualizarMotivos()">
             <option value="">-- Seleccione --</option>
-            <option>DESISTIDO</option><option>POSPUESTO</option>
-            <option>OTROS</option>
+            <option>APROBADO</option>
+            <option>EN PROCESO</option>
             <option>CERRADO</option>
             <option>OTORGADO</option>
+            <option>RECHAZADO</option>
           </select>
         </div>
         <div class="form-group">
@@ -531,7 +780,7 @@
         </div>
       </div>
       <div class="form-group" style="margin-bottom:0">
-        <label>Comentario</label>
+        <label>Comentario * (obligatorio)</label>
         <textarea id="inp-comentario" placeholder="Ingrese observaciones de la gestión..."></textarea>
       </div>
     </div>
@@ -543,36 +792,7 @@
 </div>
 
 <!-- MODAL ELIMINAR REGISTROS -->
-<div class="modal-overlay" id="modal-eliminar">
-  <div class="modal" style="width:500px">
-    <div class="modal-header" style="background:#C62828">
-      <div>
-        <h3>🗑️ ELIMINAR REGISTROS</h3>
-        <div class="modal-fecha-hora">Seleccione rango de fechas</div>
-      </div>
-    </div>
-    <div class="modal-body">
-      <div class="form-row">
-        <div class="form-group">
-          <label>Desde</label>
-          <input type="date" id="del-fecha-desde">
-        </div>
-        <div class="form-group">
-          <label>Hasta</label>
-          <input type="date" id="del-fecha-hasta">
-        </div>
-      </div>
-      <div style="background:#FFEBEE;border:1.5px solid #C62828;border-radius:var(--radio);padding:12px;margin-bottom:16px;color:#C62828;font-size:12px">
-        <strong>⚠️ Advertencia:</strong> Esta acción eliminará TODOS los registros en el rango seleccionado. No se puede deshacer.
-      </div>
-      <div id="del-resultado" style="font-size:12px;color:var(--texto-sec);margin-bottom:12px;display:none"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-cancelar" onclick="cerrarModalEliminar()">CANCELAR</button>
-      <button class="btn-grabar" style="background:#C62828" onclick="confirmarEliminar()">ELIMINAR</button>
-    </div>
-  </div>
-</div>
+<!-- Modal "Eliminar Registros" retirado (Fase 3.5 regla 15, BLOQUE 5) -->
 
 
 <!-- MODAL FICHA DESDE LISTA -->
@@ -592,13 +812,58 @@
   </div>
 </div>
 
+<!-- MODAL DETALLE DE GRÁFICO (v7.3) — seguimiento recompuesto al hacer clic en un estado -->
+<div class="modal-overlay" id="modal-donut-detalle">
+  <div class="modal" style="width:400px">
+    <div class="modal-header">
+      <div><h3 id="donut-detalle-titulo">Seguimiento</h3></div>
+      <button onclick="cerrarDonutDetalle()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;justify-content:center;padding:24px">
+      <div id="donut-detalle-contenido"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CARGA DE ARCHIVOS (v7.1) — antes vivía embebido en el panel lateral de Operaciones -->
+<div class="modal-overlay" id="modal-carga">
+  <div class="modal" style="width:480px">
+    <div class="modal-header">
+      <div>
+        <h3>📂 CARGAR ARCHIVOS</h3>
+        <div class="modal-fecha-hora">Excel de aprobados y rechazados (TRISolicitud)</div>
+      </div>
+      <button onclick="cerrarCargaModal()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="upload-area" for="file-input">
+        <span class="icon">📂</span>
+        <div>
+          <p>Cargar Aprobados (TRISolicitud)</p>
+          <small>Solo se importarán operaciones nuevas</small>
+        </div>
+      </label>
+      <input type="file" id="file-input" accept=".xlsx,.xls" onchange="loadExcel(event, 'aprobados')">
+      <label class="upload-area" for="file-input-rechazados" style="border-color:#E53935;background:#FFEBEE;margin-top:4px">
+        <span class="icon">📂</span>
+        <div>
+          <p style="color:#C62828">Cargar Rechazados (TRISolicitud)</p>
+          <small>Solo se importarán operaciones nuevas</small>
+        </div>
+      </label>
+      <input type="file" id="file-input-rechazados" accept=".xlsx,.xls" onchange="loadExcel(event, 'rechazados')">
+      <div class="estado-carga" id="estado-carga" style="margin:10px 16px 4px"></div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL AYUDA -->
 <div class="modal-overlay" id="modal-ayuda" style="z-index:700;align-items:flex-start;padding:20px 0">
   <div style="background:#fff;border-radius:12px;width:96vw;max-width:1000px;max-height:94vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.25);margin:auto">
     <div style="background:#1565C0;color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-radius:12px 12px 0 0;flex-shrink:0">
       <div>
         <h3 style="font-size:16px;font-weight:700;margin:0">❓ Manual de Usuario — Seguimiento de Créditos</h3>
-        <div style="font-size:12px;opacity:0.8;margin-top:2px">AutoFácil Chile · v6.0</div>
+        <div style="font-size:12px;opacity:0.8;margin-top:2px">AutoFácil Chile · v7.0</div>
       </div>
       <button onclick="cerrarAyuda()" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:0 4px">✕</button>
     </div>
@@ -672,27 +937,129 @@ async function sbDelete(table, id) {
 // ============================================================
 // Los usuarios se cargan desde la tabla 'usuarios' en Supabase.
 
+// ============================================================
+// ESTADOS FUNCIONALES (Fase 3.5 / Fase 4 — BLOQUE 1)
+// ============================================================
+// Los únicos 5 estados vigentes y seleccionables para nuevas gestiones.
+const ESTADOS_VALIDOS = ['APROBADO', 'EN PROCESO', 'CERRADO', 'OTORGADO', 'RECHAZADO'];
+
+// Catálogo de motivos por estado (Fase 3.5 §6). APROBADO y RECHAZADO no tienen
+// catálogo: solo comentario obligatorio.
 const MOTIVOS = {
+  // v7.12 — motivos fijos por estado. RECHAZADO se retiró de este catálogo
+  // interactivo: ya no exige elegir motivo (se fija automáticamente al guardar,
+  // ver grabarGestion). "Obtuvo otro Financiamiento" homologa el antiguo "Ya
+  // compró" con una descripción más precisa para una financiera.
+  'EN PROCESO': ['Lo está pensando', 'Consiguiendo más pie', 'Viene a ver el vehículo', 'A la espera de documentos para validar'],
+  'CERRADO': ['Falta de pie', 'Compró en otra automotora', 'Solo cotizaba', 'Se arrepintió', 'Obtuvo otro Financiamiento', 'Otros'],
+  'OTORGADO': ['Unidad', 'Autofin'],
+};
+// Motivo fijo que se guarda automáticamente al rechazar — no se ofrece como
+// selección, no es parte de MOTIVOS (que solo contiene catálogos elegibles).
+const MOTIVO_RECHAZADO_FIJO = 'Desde Origen';
+
+// Catálogo histórico — se conserva únicamente para poder LEER motivos ya
+// guardados en gestiones antiguas. Nunca se ofrece para gestiones nuevas.
+const MOTIVOS_HISTORICOS = {
   'DESISTIDO': ['FALTA PIE','CUOTA ALTA','ARREPINTIO','CAMBIO AUTO','BUSCARA OTRO AUTO','TOMO OTRO CRÉDITO','SOLO COTIZABA','OTROS'],
   'POSPUESTO': ['ARREPINTIO','CUOTA ALTA','FALTA PIE','CAMBIO AUTO','BUSCARA OTRO AUTO','COTIZARA OTRO CRÉDITO','VENDRA OTRO DÍA','FALTAN ANTECEDENTES','OTROS'],
   'OTROS': ['OTROS'],
-  'CERRADO': ['CRÉDITO CURSADO','FALTA PIE','CUOTA ALTA','ARREPINTIO','COMPRO OTRO AUTO','BUSCARA OTRO AUTO','TOMO OTRO CRÉDITO','SOLO COTIZABA','OTROS'],
-  'OTORGADO': ['AUTOFIN','UNIDAD'],
+  'CERRADO_LEGACY': ['CRÉDITO CURSADO','FALTA PIE','CUOTA ALTA','ARREPINTIO','COMPRO OTRO AUTO','BUSCARA OTRO AUTO','TOMO OTRO CRÉDITO','SOLO COTIZABA','OTROS'],
+  'OTORGADO_LEGACY': ['AUTOFIN','UNIDAD'],
 };
 
-const ESTADOS_ORDEN = ['APROBADOS','DESISTIDO','POSPUESTO','OTROS','CERRADO','OTORGADO'];
+// Normaliza cualquier valor histórico de estado al modelo funcional de 5 estados.
+// DESISTIDO / POSPUESTO / OTROS -> EN PROCESO (Fase 3.5 §4). El valor original
+// nunca se modifica en el dato guardado; esto es solo para cálculo/visualización.
+// v7.13 — caso especial confirmado: CERRADO con motivo "CRÉDITO CURSADO" se
+// reclasifica como OTORGADO (el crédito se otorgó realmente, aunque la gestión
+// histórica haya quedado registrada como cierre). Tampoco toca el dato guardado.
+function normalizarEstado(valor, motivo) {
+  const v = (valor || '').toString().trim().toUpperCase();
+  const m = (motivo || '').toString().trim().toUpperCase();
+  if (v === 'CERRADO' && m === 'CRÉDITO CURSADO') return 'OTORGADO';
+
+  // v7.14 — homologación de motivos (aprobada): estos motivos históricos,
+  // vinieran de DESISTIDO, POSPUESTO o ya de CERRADO, representan un cierre
+  // real y reclasifican el estado completo a CERRADO. Los catálogos nuevos
+  // (creados a partir de esta versión) nunca usan estas cadenas exactas, así
+  // que esta regla solo afecta datos históricos, nunca gestiones nuevas.
+  const motivosQueCierran = new Set(['CUOTA ALTA', 'ARREPINTIO', 'CAMBIO AUTO', 'TOMO OTRO CRÉDITO', 'SOLO COTIZABA', 'COTIZARA OTRO CRÉDITO']);
+  if (motivosQueCierran.has(m)) return 'CERRADO';
+
+  const mapa = {
+    'APROBADOS': 'APROBADO',
+    'APROBADO': 'APROBADO',
+    'APROBADA': 'APROBADO',
+    'DESISTIDO': 'EN PROCESO',
+    'POSPUESTO': 'EN PROCESO',
+    'OTROS': 'EN PROCESO',
+    'EN PROCESO': 'EN PROCESO',
+    'CERRADO': 'CERRADO',
+    'OTORGADO': 'OTORGADO',
+    'RECHAZADO': 'RECHAZADO',
+    'RECHAZADOS': 'RECHAZADO',
+  };
+  return mapa[v] || 'EN PROCESO';
+}
+
+// v7.14 — homologación de MOTIVO (no de estado) para reportes que agrupen por
+// motivo — ningún reporte actual lo usa todavía, queda listo para cuando se
+// necesite. Recibe el motivo original y el estado YA normalizado (resultado
+// de normalizarEstado) y devuelve el motivo homologado según la tabla
+// aprobada. Si no hay equivalencia definida, devuelve el original tal cual
+// — nunca inventa uno nuevo.
+function homologarMotivo(motivoOriginal, estadoNormalizado) {
+  const m = (motivoOriginal || '').toString().trim().toUpperCase();
+  if (!m) return motivoOriginal;
+  const mapaPorEstado = {
+    'EN PROCESO': {
+      'FALTA PIE': 'Consiguiendo más pie',
+      'BUSCARA OTRO AUTO': 'Lo está pensando',
+      'FALTAN ANTECEDENTES': 'A la espera de documentos para validar',
+      'VENDRA OTRO DÍA': 'Lo está pensando',
+      'OTROS': 'Lo está pensando',
+    },
+    'CERRADO': {
+      'FALTA PIE': 'Falta de pie',
+      'ARREPINTIO': 'Se arrepintió',
+      'CAMBIO AUTO': 'Se arrepintió',
+      'COMPRO OTRO AUTO': 'Compró en otra automotora',
+      'BUSCARA OTRO AUTO': 'Compró en otra automotora',
+      'TOMO OTRO CRÉDITO': 'Obtuvo otro Financiamiento',
+      'CUOTA ALTA': 'Obtuvo otro Financiamiento',
+      'SOLO COTIZABA': 'Solo cotizaba',
+      'COTIZARA OTRO CRÉDITO': 'Obtuvo otro Financiamiento',
+      'OTROS': 'Otros',
+    },
+    'OTORGADO': {
+      'AUTOFIN': 'Autofin',
+      'UNIDAD': 'Unidad',
+    },
+  };
+  const tabla = mapaPorEstado[estadoNormalizado];
+  if (!tabla) return motivoOriginal;
+  return tabla[m] || motivoOriginal;
+}
+
+// Mantenido por compatibilidad con código legado que aún referencie ESTADOS_ORDEN
+// (colores CSS, informes). Ya no se usa para decidir el selector de gestión.
+const ESTADOS_ORDEN = ESTADOS_VALIDOS;
+
 
 // Estado global
 let currentUser = null;
-let modoCredito = 'aprobados'; // 'aprobados' o 'rechazados'
-let creditos = [];      // Array de créditos con gestiones embebidas
-let rechazados = [];    // Array de rechazados
-let filtroEstado = null;
+let filtroRepUsuarios = []; // v7.7 — Reportes: selección múltiple por USUARIO consolidado (Administración), [] = todos
+let filtroRepProductos = []; // v7.3 — Reportes: selección múltiple, [] = todos
+let filtroSegUsuarios = []; // v7.9 — Seguimiento: selección múltiple por USUARIO consolidado, [] = todos
+let _reportesFiltrosInit = false; // controla el prellenado de fechas solo la primera vez
+let creditos = [];      // Array crudo de aprobados (compatibilidad con import/dedup)
+let rechazados = [];    // Array crudo de rechazados (compatibilidad con import/dedup)
+let operaciones = [];   // Vista única combinada: creditos + rechazados, cada uno con .origen
+let filtroEstados = []; // v7.9 — antes filtroEstado (un solo valor); ahora array, [] = todos
 let filtroCol = null;
 let registrosFiltrados = [];
 let idxActual = 0;
-let seleccionIds = new Set(); // IDs seleccionados en vista Lista para exportar
-let estadosMenuSeleccionados = new Set(); // Estados marcados con checkbox en el resumen (menu izquierdo) para exportar
 
 // Variables para búsqueda por nombre
 let busquedaActiva = false;
@@ -722,8 +1089,8 @@ async function doLogin() {
     // Registrar ultimo_acceso en background (no bloquea login)
     sbUpdate('usuarios_seguimiento', usr.id, { ultimo_acceso: new Date().toISOString() }).catch(()=>{});
     document.getElementById('login-screen').classList.remove('visible');
-    document.getElementById('app').style.display = 'block';
-    initApp();
+    await initApp();
+    showHome();
   } catch(e) {
     errEl.textContent = 'Error de conexión: ' + e.message;
     errEl.style.display = 'block';
@@ -736,32 +1103,515 @@ document.getElementById('login-user').addEventListener('keydown', e => { if(e.ke
 function doLogout() {
   currentUser = null;
   creditos = [];
-  filtroEstado = null;
+  rechazados = [];
+  operaciones = [];
+  filtroEstados = [];
+  filtroSegUsuarios = [];
   busquedaActiva = false;
   resultadosBusqueda = [];
+  document.getElementById('home').style.display = 'none';
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').classList.add('visible');
   document.getElementById('login-user').value = '';
   document.getElementById('login-pass').value = '';
 }
 
-let filtroEjecutivo = ''; // '' = todos
-let modoEjecutivo = 'agrupado'; // 'todos' o 'agrupado'
-let filtroEjecutivoAgrupado = ''; // nombre formateado del usuario agrupado
+// ============================================================
+// NAVEGACIÓN INICIO (v7.0)
+// ============================================================
+// v7.2 — helper único: oculta las tres pantallas de nivel superior y muestra
+// solo la solicitada. Corrige el bug donde Inicio y Reportes quedaban visibles
+// al mismo tiempo (cada función anterior solo ocultaba una pantalla, no las tres).
+function mostrarPantalla(id) {
+  ['home', 'app', 'reportes', 'admin-overlay'].forEach(s => {
+    document.getElementById(s).style.display = (s === id) ? 'block' : 'none';
+  });
+}
+
+// Operaciones cuya fecha de ingreso cae dentro del mes calendario actual —
+// usada solo para el recuadro de totales de Inicio (no afecta Reportes ni Seguimiento).
+function operacionesDelMesActual() {
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  return operaciones.filter(c => {
+    const f = parseFechaIngreso(c.fecha_ingreso || c.fecha_curse);
+    return f && f >= inicioMes && f <= hoy;
+  });
+}
+
+function showHome() {
+  mostrarPantalla('home');
+
+  const nombre = currentUser.usuario || '';
+  const label = currentUser.perfil === 'gerente' ? 'Gerente' : currentUser.perfil === 'supervisor' ? 'Supervisor' : 'Ejecutivo';
+  document.getElementById('home-avatar').textContent = nombre ? nombre[0].toUpperCase() : '?';
+  document.getElementById('home-user-nombre').textContent = nombre;
+  document.getElementById('home-user-perfil').textContent = label;
+  document.getElementById('home-saludo').textContent = `Hola, ${nombre.split('@')[0]} 👋`;
+  document.getElementById('home-fecha').textContent = new Date().toLocaleDateString('es-CL', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+  document.getElementById('home-btn-carga').style.display = currentUser.perfil === 'gerente' ? 'flex' : 'none';
+  document.getElementById('home-btn-admin').style.display = currentUser.perfil === 'gerente' ? 'flex' : 'none';
+
+  // v7.2 — el recuadro de totales muestra solo el mes calendario actual, no el histórico completo.
+  const delMes = operacionesDelMesActual();
+  let total = 0, sinSeg = 0, vencido = 0;
+  delMes.forEach(c => {
+    total++;
+    const es = getEstadoGestion(c);
+    if (es === 'SIN_SEG') sinSeg++;
+    else if (es === 'VENCIDO') vencido++;
+  });
+  document.getElementById('home-total').textContent = total;
+  document.getElementById('home-sinseg').textContent = sinSeg;
+  document.getElementById('home-vencidos').textContent = vencido;
+  let reactivados = 0;
+  delMes.forEach(c => {
+    let prev = c.origen === 'rechazados' ? 'RECHAZADO' : 'APROBADO';
+    (c.gestiones||[]).forEach(g => {
+      const nuevo = normalizarEstado(g.nuevo_estado, g.motivo_estado);
+      if (prev === 'RECHAZADO' && nuevo === 'EN PROCESO') reactivados++;
+      prev = nuevo;
+    });
+  });
+  document.getElementById('home-reactivados').textContent = reactivados;
+}
+
+function goToApp() {
+  mostrarPantalla('app');
+  poblarFiltrosSeguimiento();
+  aplicarFiltro();
+}
+
+function abrirCargaModal() {
+  document.getElementById('estado-carga').innerHTML = '';
+  document.getElementById('modal-carga').classList.add('visible');
+}
+function cerrarCargaModal() {
+  document.getElementById('modal-carga').classList.remove('visible');
+}
+document.getElementById('modal-carga').addEventListener('click', function(e) {
+  if (e.target === this) cerrarCargaModal();
+});
+
+function goToReportes() {
+  mostrarPantalla('reportes');
+  poblarFiltrosReporte();
+  if (!_reportesFiltrosInit) {
+    prefillFechasReporte();
+    _reportesFiltrosInit = true;
+  }
+  onFiltrosReporteChange();
+}
+
+// v7.4 — Reportes: filtros propios estilo tabla dinámica de Excel. Las casillas
+// se pueblan siempre marcadas por defecto (equivalente a "Todos"); se leen recién
+// al presionar Consultar (onFiltrosReporteChange), no en cada clic.
+// v7.7 — Devuelve los nombres "ejecutivo" crudos (tal como llegan en los créditos)
+// que un USUARIO de Administración consolida, según su lista "Ejecutivos asignados".
+// Si el usuario no tiene entrada en USUARIOS_CACHE (o no es gerente y no se cargó
+// el cache), se trata el propio valor como su único "ejecutivo" — así el filtro
+// sigue funcionando aunque no haya consolidación definida.
+function ejecutivosDeUsuario(valorUsuario) {
+  const u = USUARIOS_CACHE.find(x => x.usuario === valorUsuario);
+  if (u && Array.isArray(u.ejecutivos)) return u.ejecutivos.map(e => (e||'').toUpperCase().trim());
+  return [(valorUsuario||'').toUpperCase().trim()];
+}
+
+// Nombre consolidado a mostrar para una operación, según qué usuario tiene ese
+// "ejecutivo" crudo entre sus asignados (Administración). Si ninguno lo tiene
+// asignado, se muestra el valor crudo tal cual, sin inventar una consolidación.
+function nombreUsuarioDeEjecutivo(ejecutivoRaw) {
+  const ej = (ejecutivoRaw || '').toUpperCase().trim();
+  if (!ej) return 'Sin usuario';
+  const u = USUARIOS_CACHE.find(x => Array.isArray(x.ejecutivos) && x.ejecutivos.some(e => (e||'').toUpperCase().trim() === ej));
+  return u ? formatearNombreUsuario(u.usuario) : ejecutivoRaw;
+}
+
+// v7.9 — Seguimiento: mismo criterio de consolidación por Usuario que Reportes
+// (reutiliza ejecutivosDeUsuario/USUARIOS_CACHE), y Estado como multi-selección.
+function poblarFiltrosSeguimiento() {
+  let opcionesUsuario;
+  if (USUARIOS_CACHE.length > 0) {
+    opcionesUsuario = USUARIOS_CACHE.filter(u => u.usuario).map(u => ({ value: u.usuario, label: formatearNombreUsuario(u.usuario) }))
+      .sort((a,b) => a.label.localeCompare(b.label));
+  } else {
+    opcionesUsuario = [...new Set(operaciones.map(c => c.ejecutivo).filter(Boolean))].sort().map(e => ({ value: e, label: e }));
+  }
+  renderPivotItems('seg-usuario', opcionesUsuario, 'onSegFiltroChange');
+
+  const opcionesEstado = ESTADOS_VALIDOS.map(e => ({ value: e, label: e }));
+  renderPivotItems('seg-estado', opcionesEstado, 'onSegFiltroChange');
+}
+
+function poblarFiltrosReporte() {
+  let opcionesUsuario;
+  if (USUARIOS_CACHE.length > 0) {
+    // Un ítem por USUARIO consolidado (Administración → "Ejecutivos asignados"),
+    // no por cada variante cruda de nombre — esa es la consolidación que pediste mantener.
+    opcionesUsuario = USUARIOS_CACHE.filter(u => u.usuario).map(u => ({ value: u.usuario, label: formatearNombreUsuario(u.usuario) }))
+      .sort((a,b) => a.label.localeCompare(b.label));
+  } else {
+    // Sin cache de usuarios disponible (por ejemplo, perfil no gerente): se cae
+    // de vuelta a los valores crudos, para que el filtro nunca quede vacío.
+    opcionesUsuario = [...new Set(operaciones.map(c => c.ejecutivo).filter(Boolean))].sort().map(e => ({ value: e, label: e }));
+  }
+  const opcionesProducto = [...new Set(operaciones.map(c => c.producto).filter(Boolean))].sort().map(p => ({ value: p, label: p }));
+  renderPivotItems('ejecutivos', opcionesUsuario);
+  renderPivotItems('productos', opcionesProducto);
+}
+
+// v7.9 — registro genérico: cada "tipo" de filtro pivot mapea a su propia
+// variable de estado real, para que renderPivotItems/actualizarCasillaTodos
+// funcionen igual sin importar en qué pantalla vivan (Reportes o Seguimiento).
+const PIVOT_FILTROS = {
+  'ejecutivos': () => filtroRepUsuarios,
+  'productos': () => filtroRepProductos,
+  'seg-usuario': () => filtroSegUsuarios,
+  'seg-estado': () => filtroEstados,
+};
+
+function renderPivotItems(tipo, opciones, onChangeFn) {
+  // Conserva la selección ya aplicada; si estaba vacío ([] = Todos), todas las
+  // casillas nuevas parten marcadas.
+  const aplicados = PIVOT_FILTROS[tipo] ? PIVOT_FILTROS[tipo]() : [];
+  const marcarTodo = aplicados.length === 0;
+  const cont = document.getElementById('pivot-items-' + tipo);
+  const handler = onChangeFn || 'onPivotItemChange';
+  cont.innerHTML = opciones.map(o => `
+    <label class="pivot-item">
+      <input type="checkbox" value="${o.value}" ${(marcarTodo || aplicados.includes(o.value)) ? 'checked' : ''} onchange="${handler}('${tipo}')">
+      <span>${o.label}</span>
+    </label>`).join('');
+  actualizarCasillaTodos(tipo);
+}
+
+// Casilla "(Todos)": marca/desmarca todas las individuales de golpe.
+function togglePivotAll(tipo, marcado) {
+  document.querySelectorAll(`#pivot-items-${tipo} input[type="checkbox"]`).forEach(cb => cb.checked = marcado);
+  actualizarResumenPivot(tipo);
+}
+
+// Cambiar una casilla individual actualiza el estado (marcado/indeterminado) de "(Todos)".
+function onPivotItemChange(tipo) {
+  actualizarCasillaTodos(tipo);
+}
+
+// v7.9 — Seguimiento aplica los filtros EN VIVO (a diferencia de Reportes, que
+// requiere el botón Consultar) — así se mantiene la misma interacción que ya
+// tenían las píldoras de estado que reemplaza este componente.
+function onSegFiltroChange(tipo) {
+  actualizarCasillaTodos(tipo);
+  aplicarFiltrosSegLive();
+}
+function onSegFiltroToggleAll(tipo, marcado) {
+  togglePivotAll(tipo, marcado);
+  aplicarFiltrosSegLive();
+}
+function aplicarFiltrosSegLive() {
+  const itemsUsr = Array.from(document.querySelectorAll('#pivot-items-seg-usuario input[type="checkbox"]'));
+  const itemsEst = Array.from(document.querySelectorAll('#pivot-items-seg-estado input[type="checkbox"]'));
+  const marcadosUsr = itemsUsr.filter(cb => cb.checked).map(cb => cb.value);
+  const marcadosEst = itemsEst.filter(cb => cb.checked).map(cb => cb.value);
+  filtroSegUsuarios = (itemsUsr.length === 0 || marcadosUsr.length === itemsUsr.length) ? [] : marcadosUsr;
+  filtroEstados = (marcadosEst.length === itemsEst.length) ? [] : marcadosEst;
+  filtroCol = null; idxActual = 0;
+  aplicarFiltro();
+}
+
+function actualizarCasillaTodos(tipo) {
+  const items = Array.from(document.querySelectorAll(`#pivot-items-${tipo} input[type="checkbox"]`));
+  const marcados = items.filter(cb => cb.checked).length;
+  const todos = document.getElementById('pivot-all-' + tipo);
+  todos.checked = items.length > 0 && marcados === items.length;
+  todos.indeterminate = marcados > 0 && marcados < items.length;
+  actualizarResumenPivot(tipo);
+}
+
+// v7.6 — etiqueta del cuadro colapsado: "Todos" / el nombre único / "Varios (N)",
+// para poder identificar de un vistazo qué hay seleccionado sin abrir el desplegable.
+// v7.7 — el nombre único ahora es la etiqueta visible (nombre de usuario), no el
+// valor interno (email), que es lo que antes se mostraba cuando había un solo marcado.
+function actualizarResumenPivot(tipo) {
+  const span = document.getElementById('pivot-summary-' + tipo);
+  if (!span) return;
+  const items = Array.from(document.querySelectorAll(`#pivot-items-${tipo} input[type="checkbox"]`));
+  const marcados = items.filter(cb => cb.checked);
+  if (items.length === 0 || marcados.length === items.length) {
+    span.textContent = 'Todos';
+  } else if (marcados.length === 0) {
+    span.textContent = 'Ninguno';
+  } else if (marcados.length === 1) {
+    const label = marcados[0].parentElement.querySelector('span');
+    span.textContent = label ? label.textContent : marcados[0].value;
+  } else {
+    span.textContent = `Varios (${marcados.length})`;
+  }
+}
+
+// v7.6 — abrir/cerrar el desplegable de filtros (auto-oculto por defecto).
+function togglePivotDropdown(tipo) {
+  const dd = document.getElementById('pivot-dropdown-' + tipo);
+  const yaAbierto = dd.classList.contains('visible');
+  // v7.9 — genérico: cierra CUALQUIER desplegable pivot abierto (Reportes,
+  // Seguimiento, o los que se agreguen después), no solo los dos de Reportes.
+  document.querySelectorAll('.pivot-dropdown.visible').forEach(el => el.classList.remove('visible'));
+  document.querySelectorAll('.pivot-trigger.abierto').forEach(el => el.classList.remove('abierto'));
+  if (!yaAbierto) {
+    dd.classList.add('visible');
+    document.getElementById('pivot-trigger-' + tipo).classList.add('abierto');
+  }
+}
+document.addEventListener('click', function(e) {
+  document.querySelectorAll('.pivot-filter').forEach(filtro => {
+    if (!filtro.contains(e.target)) {
+      const dd = filtro.querySelector('.pivot-dropdown');
+      const trigger = filtro.querySelector('.pivot-trigger');
+      if (dd) dd.classList.remove('visible');
+      if (trigger) trigger.classList.remove('abierto');
+    }
+  });
+});
+
+function prefillFechasReporte() {
+  const hoy = new Date();
+  const fmtISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  document.getElementById('rep-fecha-desde').value = fmtISO(inicioMes);
+  document.getElementById('rep-fecha-hasta').value = fmtISO(hoy);
+}
+
+function limpiarFiltrosReporte() {
+  filtroRepUsuarios = [];
+  filtroRepProductos = [];
+  document.getElementById('pivot-all-ejecutivos').checked = true;
+  document.getElementById('pivot-all-productos').checked = true;
+  togglePivotAll('ejecutivos', true);
+  togglePivotAll('productos', true);
+  prefillFechasReporte();
+  onFiltrosReporteChange();
+}
+
+// v7.4 — Único punto donde los filtros armados (casillas + fechas) se "aplican"
+// de verdad y disparan la actualización conjunta de tabla, gráficos e informe.
+function onFiltrosReporteChange() {
+  const itemsEj = Array.from(document.querySelectorAll('#pivot-items-ejecutivos input[type="checkbox"]'));
+  const itemsPr = Array.from(document.querySelectorAll('#pivot-items-productos input[type="checkbox"]'));
+  const marcadosEj = itemsEj.filter(cb => cb.checked).map(cb => cb.value);
+  const marcadosPr = itemsPr.filter(cb => cb.checked).map(cb => cb.value);
+  // Todas marcadas (o ninguna existente todavía) equivale a "sin filtro" ([]).
+  filtroRepUsuarios = (marcadosEj.length === itemsEj.length) ? [] : marcadosEj;
+  filtroRepProductos = (marcadosPr.length === itemsPr.length) ? [] : marcadosPr;
+
+  renderResumen();
+  renderDonutsReporte();
+  renderInformeInline();
+}
+
+// Colección de Reportes: aplica usuario (consolidado, multi) / producto (multi) +
+// rango de fechas (por defecto, mes calendario vigente si no se seleccionó nada).
+function getOperacionesReporte() {
+  let lista = operaciones;
+  if (filtroRepUsuarios.length > 0) {
+    // v7.7 — cada "usuario" seleccionado representa uno o varios nombres crudos
+    // de ejecutivo (Administración → "Ejecutivos asignados"); se consolidan todos.
+    const ejecsPermitidos = new Set();
+    filtroRepUsuarios.forEach(u => ejecutivosDeUsuario(u).forEach(e => ejecsPermitidos.add(e)));
+    lista = lista.filter(c => ejecsPermitidos.has((c.ejecutivo||'').toUpperCase().trim()));
+  }
+  if (filtroRepProductos.length > 0) lista = lista.filter(c => filtroRepProductos.includes(c.producto));
+
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  const desdeVal = document.getElementById('rep-fecha-desde')?.value;
+  const hastaVal = document.getElementById('rep-fecha-hasta')?.value;
+  const desde = desdeVal ? new Date(desdeVal + 'T00:00:00') : inicioMes;
+  const hasta = hastaVal ? new Date(hastaVal + 'T23:59:59') : new Date(hoy.getTime() + 86399999);
+
+  return lista.filter(c => {
+    const f = parseFechaIngreso(c.fecha_ingreso || c.fecha_curse);
+    return f && f >= desde && f <= hasta;
+  });
+}
+
+// ============================================================
+// GRÁFICOS DE DONA (v7.3)
+// ============================================================
+const COLOR_ESTADO = { 'APROBADO':'#2BA459', 'EN PROCESO':'#E4A033', 'CERRADO':'#667486', 'OTORGADO':'#1889D0', 'RECHAZADO':'#D43A49' };
+const COLOR_SEGUIMIENTO = { SIN_SEG:'#90A4AE', VENCIDO:'#D43A49', AL_DIA:'#2BA459' };
+const LABEL_SEGUIMIENTO = { SIN_SEG:'Sin Seguimiento', VENCIDO:'Vencido', AL_DIA:'Al Día' };
+
+// Dona genérica en SVG (stroke-dasharray por segmento). segments = [{label,value,color}]
+function renderDonutChart(containerId, segments, opts = {}) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const total = segments.reduce((s, x) => s + x.value, 0);
+  const size = opts.size || 170;
+  const stroke = opts.stroke || 24;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const cx = size / 2, cy = size / 2;
+  let offsetAcc = 0;
+
+  let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="transform:rotate(-90deg);overflow:visible">`;
+  svg += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--gris-claro)" stroke-width="${stroke}"></circle>`;
+  segments.forEach(seg => {
+    if (seg.value <= 0) return;
+    const frac = total > 0 ? seg.value / total : 0;
+    const dash = frac * c;
+    const gap = c - dash;
+    const clickAttr = opts.onClickFn ? ` onclick="${opts.onClickFn}('${seg.label}')" style="cursor:pointer"` : '';
+    svg += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${seg.color}" stroke-width="${stroke}" stroke-dasharray="${dash} ${gap}" stroke-dashoffset="${-offsetAcc}"${clickAttr}><title>${seg.label}: ${seg.value} (${Math.round(frac*100)}%)</title></circle>`;
+    offsetAcc += dash;
+  });
+  svg += `</svg>`;
+
+  el.innerHTML = `
+    <div style="position:relative;width:${size}px;height:${size}px;margin:auto">
+      ${svg}
+      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none">
+        <b style="font-size:22px;color:var(--gris)">${total}</b>
+        <span style="font-size:9px;color:var(--texto-sec);text-align:center">${opts.centerSub || 'Operaciones'}</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px 12px;justify-content:center;margin-top:12px;max-width:${size+60}px">
+      ${segments.map(s => `<span style="font-size:10px;color:var(--texto-sec)"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${s.color};margin-right:4px"></i>${s.label} — ${total>0?Math.round(s.value/total*100):0}%</span>`).join('')}
+    </div>`;
+}
+
+function renderDonutsReporte() {
+  const datos = getOperacionesReporte();
+  const segEstado = ESTADOS_VALIDOS.map(est => ({ label: est, value: datos.filter(c => getEstadoComercial(c) === est).length, color: COLOR_ESTADO[est] }));
+  renderDonutChart('donut-estado', segEstado, { centerSub: 'Operaciones', onClickFn: 'onClickDonutEstado' });
+
+  const conteo = { SIN_SEG: 0, VENCIDO: 0, AL_DIA: 0 };
+  datos.forEach(c => conteo[getEstadoGestion(c)]++);
+  const segSeg = Object.keys(conteo).map(k => ({ label: LABEL_SEGUIMIENTO[k], value: conteo[k], color: COLOR_SEGUIMIENTO[k] }));
+  renderDonutChart('donut-seguimiento', segSeg, { centerSub: 'Operaciones' });
+}
+
+// Clic en un segmento del gráfico de estado -> modal con el gráfico de
+// seguimiento recompuesto solo para ese estado (mismos filtros superiores).
+function onClickDonutEstado(estado) {
+  const datos = getOperacionesReporte().filter(c => getEstadoComercial(c) === estado);
+  const conteo = { SIN_SEG: 0, VENCIDO: 0, AL_DIA: 0 };
+  datos.forEach(c => conteo[getEstadoGestion(c)]++);
+  const seg = Object.keys(conteo).map(k => ({ label: LABEL_SEGUIMIENTO[k], value: conteo[k], color: COLOR_SEGUIMIENTO[k] }));
+  document.getElementById('donut-detalle-titulo').textContent = `Seguimiento — ${estado}`;
+  renderDonutChart('donut-detalle-contenido', seg, { centerSub: estado });
+  document.getElementById('modal-donut-detalle').classList.add('visible');
+}
+function cerrarDonutDetalle() {
+  document.getElementById('modal-donut-detalle').classList.remove('visible');
+}
+document.getElementById('modal-donut-detalle').addEventListener('click', function(e) {
+  if (e.target === this) cerrarDonutDetalle();
+});
+
+// ============================================================
+// INFORME POR EJECUTIVO — integrado al dashboard (v7.3), usa los filtros de arriba
+// ============================================================
+function renderInformeInline() {
+  const datos = getOperacionesReporte();
+  const contenedor = document.getElementById('informe-resultado-inline');
+  const btnExp = document.getElementById('btn-exportar-informe');
+  if (!contenedor) return;
+
+  if (datos.length === 0) {
+    contenedor.innerHTML = '<p style="color:var(--texto-sec);text-align:center;padding:20px">No hay operaciones para los filtros seleccionados</p>';
+    if (btnExp) btnExp.style.display = 'none';
+    informeData = [];
+    return;
+  }
+
+  const resumen = {};
+  datos.forEach(c => {
+    // v7.7 — se agrupa por USUARIO consolidado (Administración → "Ejecutivos
+    // asignados"), no por cada variante cruda de nombre, para que el informe
+    // realmente consolide como pide el negocio.
+    const ejec = nombreUsuarioDeEjecutivo(c.ejecutivo);
+    const estado = getEstadoComercial(c);
+    if (!resumen[ejec]) resumen[ejec] = {};
+    if (!resumen[ejec][estado]) resumen[ejec][estado] = { cantidad: 0, monto: 0 };
+    resumen[ejec][estado].cantidad++;
+    resumen[ejec][estado].monto += Number(c.monto_pagare) || 0;
+  });
+
+  const estados = ESTADOS_VALIDOS;
+  const ejecutivos = Object.keys(resumen).sort();
+  const desde = document.getElementById('rep-fecha-desde').value;
+  const hasta = document.getElementById('rep-fecha-hasta').value;
+  informeData = { resumen, ejecutivos, estados, desde, hasta, total: datos.length };
+
+  let html = `<div style="font-size:11px;color:var(--texto-sec);margin-bottom:8px">
+    Período: <strong>${desde}</strong> al <strong>${hasta}</strong> — Total operaciones: <strong>${datos.length}</strong>
+  </div>`;
+
+  html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
+  html += '<thead><tr>';
+  html += '<th style="background:var(--azul);color:#fff;padding:7px 10px;text-align:left;position:sticky;top:0;white-space:nowrap">Usuario</th>';
+  estados.forEach(e => {
+    html += `<th colspan="2" style="background:var(--azul);color:#fff;padding:7px 6px;text-align:center;position:sticky;top:0;white-space:nowrap;border-left:1px solid rgba(255,255,255,0.2)">${e}</th>`;
+  });
+  html += '<th colspan="2" style="background:#0D47A1;color:#fff;padding:7px 6px;text-align:center;position:sticky;top:0;white-space:nowrap;border-left:1px solid rgba(255,255,255,0.2)">TOTAL</th>';
+  html += '</tr><tr>';
+  html += '<th style="background:#E8EAF6;padding:4px 10px;font-size:10px;text-align:left"></th>';
+  estados.forEach(() => {
+    html += '<th style="background:#E8EAF6;padding:4px 5px;font-size:10px;text-align:center;border-left:1px solid #CFD8DC">N°</th>';
+    html += '<th style="background:#E8EAF6;padding:4px 5px;font-size:10px;text-align:right">Monto</th>';
+  });
+  html += '<th style="background:#C5CAE9;padding:4px 5px;font-size:10px;text-align:center;border-left:1px solid #CFD8DC">N°</th>';
+  html += '<th style="background:#C5CAE9;padding:4px 5px;font-size:10px;text-align:right">Monto</th>';
+  html += '</tr></thead><tbody>';
+
+  const totalesGen = {};
+  estados.forEach(e => totalesGen[e] = { cantidad: 0, monto: 0 });
+
+  ejecutivos.forEach((ejec, idx) => {
+    const bg = idx % 2 === 0 ? '#fff' : '#F8F9FB';
+    html += `<tr style="background:${bg}">`;
+    html += `<td style="padding:6px 10px;font-weight:600;white-space:nowrap;border-bottom:1px solid #ECEFF1">${ejec}</td>`;
+    let totalEjec = { cantidad: 0, monto: 0 };
+    estados.forEach(e => {
+      const d = resumen[ejec][e] || { cantidad: 0, monto: 0 };
+      totalesGen[e].cantidad += d.cantidad;
+      totalesGen[e].monto += d.monto;
+      totalEjec.cantidad += d.cantidad;
+      totalEjec.monto += d.monto;
+      const cantStyle = d.cantidad > 0 ? 'font-weight:600;color:var(--azul)' : 'color:#ccc';
+      html += `<td style="padding:6px 5px;text-align:center;border-left:1px solid #ECEFF1;border-bottom:1px solid #ECEFF1;${cantStyle}">${d.cantidad || '-'}</td>`;
+      html += `<td style="padding:6px 5px;text-align:right;border-bottom:1px solid #ECEFF1;font-size:11px;color:var(--verde)">${d.monto > 0 ? '$'+d.monto.toLocaleString('es-CL') : ''}</td>`;
+    });
+    html += `<td style="padding:6px 5px;text-align:center;font-weight:700;border-left:1px solid #CFD8DC;border-bottom:1px solid #ECEFF1;color:var(--azul)">${totalEjec.cantidad}</td>`;
+    html += `<td style="padding:6px 5px;text-align:right;font-weight:700;border-bottom:1px solid #ECEFF1;font-size:11px;color:var(--verde)">$${totalEjec.monto.toLocaleString('es-CL')}</td>`;
+    html += '</tr>';
+  });
+
+  let totalGenCant = 0, totalGenMonto = 0;
+  html += '<tr style="background:#EEF2FF;font-weight:700">';
+  html += '<td style="padding:7px 10px;border-top:2px solid var(--azul)">TOTAL</td>';
+  estados.forEach(e => {
+    totalGenCant += totalesGen[e].cantidad;
+    totalGenMonto += totalesGen[e].monto;
+    html += `<td style="padding:7px 5px;text-align:center;border-left:1px solid #CFD8DC;border-top:2px solid var(--azul);color:var(--azul)">${totalesGen[e].cantidad||'-'}</td>`;
+    html += `<td style="padding:7px 5px;text-align:right;border-top:2px solid var(--azul);font-size:11px;color:var(--verde)">${totalesGen[e].monto>0?'$'+totalesGen[e].monto.toLocaleString('es-CL'):''}</td>`;
+  });
+  html += `<td style="padding:7px 5px;text-align:center;border-left:1px solid #CFD8DC;border-top:2px solid var(--azul);color:var(--azul)">${totalGenCant}</td>`;
+  html += `<td style="padding:7px 5px;text-align:right;border-top:2px solid var(--azul);font-size:11px;color:var(--verde)">$${totalGenMonto.toLocaleString('es-CL')}</td>`;
+  html += '</tr></tbody></table></div>';
+
+  contenedor.innerHTML = html;
+  if (btnExp) btnExp.style.display = 'inline-block';
+}
+
+function goToAdmin() {
+  mostrarPantalla('admin-overlay');
+  cargarAdminUsuarios();
+}
 
 async function initApp() {
-  filtroEjecutivo = '';
   const label = currentUser.perfil === 'gerente' ? 'Gerente' : currentUser.perfil === 'supervisor' ? 'Supervisor' : 'Ejecutivo';
   const nombre = currentUser.ejecutivos[0] === 'todos' ? 'Todos los ejecutivos' : currentUser.ejecutivos[0];
   document.getElementById('header-ejecutivo').textContent = `${label}: ${nombre}`;
-  document.getElementById('panel-ejecutivo').textContent = nombre;
-  document.getElementById('panel-fecha').textContent = new Date().toLocaleDateString('es-CL', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  document.getElementById('upload-section').style.display = currentUser.perfil === 'gerente' ? 'block' : 'none';
-  document.getElementById('modo-selector-wrap').style.display = currentUser.perfil === 'gerente' ? 'flex' : 'none';
-  document.getElementById('btn-informe').style.display = currentUser.perfil === 'gerente' ? 'inline-block' : 'none';
-  document.getElementById('btn-eliminar').style.display = currentUser.perfil === 'gerente' ? 'inline-block' : 'none';
-  document.getElementById('btn-admin').style.display = currentUser.perfil === 'gerente' ? 'inline-block' : 'none';
-  document.getElementById('btn-edit-credito').style.display = currentUser.perfil === 'gerente' ? 'inline-block' : 'none';
   document.getElementById('filtro-ejecutivo-wrap').style.display = currentUser.perfil === 'gerente' ? 'block' : 'none';
 
   // Fechas por default: desde = mismo día mes anterior, hasta = hoy
@@ -772,24 +1622,7 @@ async function initApp() {
   document.getElementById('filtro-fecha-hasta').value = fmtISO(hoy);
 
   await recargarDatos();
-}
-
-function filtrarPorEjecutivo(val) {
-  filtroEjecutivo = val;
-  filtroEstado = null;
-  idxActual = 0;
-  busquedaActiva = false;
-  resultadosBusqueda = [];
-  const inpBuscar = document.getElementById('inp-buscar-nombre');
-  if (inpBuscar) inpBuscar.value = '';
-  const resBusqueda = document.getElementById('resultado-busqueda');
-  if (resBusqueda) resBusqueda.style.display = 'none';
-  document.getElementById('panel-ejecutivo').textContent = val || 'Todos los ejecutivos';
-  renderResumen();
-  document.getElementById('right-header').style.display = 'none';
-  document.getElementById('btn-nueva-gestion').disabled = true;
-  document.getElementById('btn-exportar-detalle').disabled = true;
-  document.getElementById('panel-content').innerHTML = '<div class="empty-state"><div class="icon-big">📊</div><p>Seleccione un estado en la tabla para ver los registros</p></div>';
+  poblarFiltrosSeguimiento();
 }
 
 function buscarPorNombre(termino) {
@@ -804,13 +1637,7 @@ function buscarPorNombre(termino) {
     return;
   }
 
-  // Si no hay estado seleccionado, no buscar
-  if (!filtroEstado) {
-    document.getElementById('inp-buscar-nombre').value = '';
-    return;
-  }
-
-  // Buscar dentro de los registros filtrados por estado
+  // Buscar dentro de los registros ya filtrados (por estado, origen, ejecutivo y fecha)
   resultadosBusqueda = registrosFiltrados.filter(c => {
     const nombre = (c.nombre || '').toLowerCase();
     return nombre.includes(termino);
@@ -877,54 +1704,83 @@ async function recargarDatos() {
       } catch(e) { console.warn('No se pudo cargar cache usuarios:', e); }
     }
 
-    // Cargar rechazados si existe la tabla
+    // v7.10 — jerarquía de perfiles: el supervisor ve su propio equipo (todos los
+    // usuarios que en Administración lo tienen asignado como "Supervisor asignado"),
+    // no solo su propio nombre. El gerente sigue viendo todo ('todos'); un usuario
+    // común sigue viendo solo lo suyo. Esto se resuelve UNA vez aquí y se reutiliza
+    // para filtrar tanto aprobados como rechazados.
+    let ejecutivosPermitidos = currentUser.ejecutivos;
+    if (currentUser.perfil === 'supervisor' && ejecutivosPermitidos[0] !== 'todos') {
+      try {
+        const equipoRaw = await sbGet('usuarios_seguimiento', 'supervisor=eq.' + encodeURIComponent(currentUser.usuario));
+        const nombresPermitidos = new Set((currentUser.ejecutivos || []).map(e => (e||'').toUpperCase().trim()));
+        equipoRaw.forEach(miembro => {
+          let ejs = miembro.ejecutivos;
+          if (typeof ejs === 'string') { try { ejs = JSON.parse(ejs); } catch(e) { ejs = []; } }
+          if (Array.isArray(ejs)) ejs.forEach(e => nombresPermitidos.add((e||'').toUpperCase().trim()));
+        });
+        ejecutivosPermitidos = [...nombresPermitidos];
+      } catch(e) {
+        console.warn('No se pudo cargar el equipo del supervisor, se usa solo su propio acceso:', e);
+      }
+    }
+
+    // Cargar rechazados si existe la tabla (BLOQUE 2 — se etiqueta el origen)
+    let rechazadosRaw = [];
     try {
-      let rechazadosRaw = await sbGet('creditos_rechazados', 'order=id.desc&limit=5000');
-      if (currentUser.ejecutivos[0] !== 'todos') {
+      rechazadosRaw = await sbGet('creditos_rechazados', 'order=id.desc&limit=5000');
+      if (ejecutivosPermitidos[0] !== 'todos') {
         rechazadosRaw = rechazadosRaw.filter(c => {
           const cej = (c.ejecutivo || '').toUpperCase().trim();
-          return currentUser.ejecutivos.some(e => cej === e.toUpperCase().trim());
+          return ejecutivosPermitidos.some(e => cej === e.toUpperCase().trim());
         });
       }
-      rechazados = rechazadosRaw.map(c => ({...c, gestiones: []}));
-    } catch(e) { rechazados = []; }
+    } catch(e) { rechazadosRaw = []; }
 
-    // Traer TODOS los créditos y filtrar en el cliente (más robusto)
+    // Traer TODOS los créditos aprobados y filtrar en el cliente (más robusto)
     let creditosRaw = await sbGet('creditos', 'order=id.desc&limit=5000');
 
     // Filtrar por ejecutivo si no es gerente
-    if (currentUser.ejecutivos[0] !== 'todos') {
+    if (ejecutivosPermitidos[0] !== 'todos') {
       creditosRaw = creditosRaw.filter(c => {
         const cej = (c.ejecutivo || '').toUpperCase().trim();
-        return currentUser.ejecutivos.some(e => cej === e.toUpperCase().trim());
+        return ejecutivosPermitidos.some(e => cej === e.toUpperCase().trim());
       });
     }
 
-    // Traer gestiones de esos créditos
-    const ids = creditosRaw.map(c => c.id);
+    // BLOQUE 1/2 (Fase 4) — traer gestiones de AMBOS orígenes (antes, rechazados
+    // se cargaba siempre con gestiones:[] y nunca consultaba su historial real).
+    const idsAprobados = creditosRaw.map(c => c.id);
+    const idsRechazados = rechazadosRaw.map(c => c.id);
+    const idsTodos = [...idsAprobados, ...idsRechazados];
     let gestionesRaw = [];
-    if (ids.length > 0) {
-      // Supabase permite filtro IN con 'in'
-      const inList = `(${ids.join(',')})`;
+    if (idsTodos.length > 0) {
+      const inList = `(${idsTodos.join(',')})`;
       gestionesRaw = await sbGet('gestiones', `credito_id=in.${inList}&order=created_at.asc`);
     }
 
-    // Combinar créditos con sus gestiones
     const gesMap = {};
     gestionesRaw.forEach(g => {
       if (!gesMap[g.credito_id]) gesMap[g.credito_id] = [];
       gesMap[g.credito_id].push(g);
     });
 
-    creditos = creditosRaw.map(c => ({...c, gestiones: gesMap[c.id] || []}));
+    creditos = creditosRaw.map(c => ({...c, gestiones: gesMap[c.id] || [], origen: 'aprobados'}));
+    rechazados = rechazadosRaw.map(c => ({...c, gestiones: gesMap[c.id] || [], origen: 'rechazados'}));
 
-    // Poblar selector de ejecutivos para gerentes
-    if (currentUser.perfil === 'gerente') {
-      poblarSelectorEjecutivos(creditosRaw);
-    }
+    // Vista visual única (BLOQUE 2): combina ambos orígenes en una sola colección,
+    // sin fusionar físicamente nada en Supabase — solo en el cliente.
+    operaciones = [...creditos, ...rechazados];
 
-    renderResumen();
-    if (filtroEstado) aplicarFiltro();
+    // Poblar filtros de Usuario/Estado de Seguimiento (con ambos orígenes) —
+    // se repuebla en cada recarga, no solo al iniciar sesión, por si aparecen
+    // ejecutivos nuevos tras una carga de Excel. El filtro de Estado aplica a
+    // todos los perfiles; el de Usuario solo es visible para gerente, pero
+    // poblarFiltrosSeguimiento() arma ambos igual (el wrapper de Usuario ya
+    // se oculta aparte según el perfil).
+    poblarFiltrosSeguimiento();
+
+    aplicarFiltro();
   } catch(err) {
     mostrarCarga(`❌ Error al cargar datos: ${err.message}`, true);
   } finally {
@@ -975,76 +1831,77 @@ async function loadExcel(event, tipo = 'aprobados') {
       if (headerRow<0) { loading(false); mostrarCarga('❌ No se encontró fila de encabezados (ID)', true); return; }
 
       const headers = raw[headerRow].map(h => String(h).trim());
-      const rows = raw.slice(headerRow+1);
+      const rows = raw.slice(headerRow+1).filter(r => r.some(v => String(v).trim() !== ''));
 
-      if (tipo === 'rechazados') {
-        // Cargar rechazados a tabla separada
-        const idsExistentes = new Set(rechazados.map(c => String(c.id)));
-        const nuevos = [];
-        rows.forEach(row => {
-          const rec = {};
-          headers.forEach((h,i) => rec[h] = row[i] ?? '');
-          const id = String(rec['ID']).trim();
-          if (!id || isNaN(id) || idsExistentes.has(id)) return;
-          nuevos.push({
-            id,
-            categoria: rec['Categoría']||'',
-            estado: rec['Estado']||'RECHAZADO',
-            nombre: rec['Nombre']||'',
-            rut_cliente: rec['Rut Cliente']||'',
-            ejecutivo: rec['Ejecutivo']||'',
-            producto: rec['Producto']||rec['Producto admisión']||'',
-            dealer: rec['Dealer']||'',
-            sucursal: rec['Sucursal']||'',
-            marca: rec['Marca']||'',
-            modelo: rec['Modelo']||'',
-            precio: Number(rec['Precio'])||0,
-            pie: Number(rec['Pie'])||0,
-            saldo_precio: Number(rec['Saldo Precio'])||0,
-            monto_pagare: Number(rec['Monto Pagare'])||0,
-            riesgo_cliente: rec['Riesgo Cliente']||'',
-            fecha_ingreso: rec['Fecha Ingreso'] ? fmtFechaExcel(rec['Fecha Ingreso']) : '',
-            fecha_curse: rec['Fecha Curse'] ? fmtFechaExcel(rec['Fecha Curse']) : '',
-            nom_evaluador: rec['Nom Evaluador']||'',
-            canal: rec['Canal']||'',
-            puntaje_scoring: rec['Puntaje Scoring']||'',
-            modulo: rec['Módulo']||'',
-            comentario_rechazo: rec['Comentario Rechazo']||'',
-            vendedor: rec['Vendedor']||'',
-          });
-        });
-        if (nuevos.length === 0) {
-          loading(false);
-          mostrarCarga(`✅ Sin rechazados nuevos. Todos ya existen (${idsExistentes.size} cargados).`);
-          return;
-        }
-        loading(true, `Importando ${nuevos.length} rechazados nuevos...`);
-        for (let i=0; i<nuevos.length; i+=100) {
-          await sbInsert('creditos_rechazados', nuevos.slice(i, i+100));
-        }
+      // BLOQUE 6 (Fase 3.5 reglas 7-8) — la columna Estado solo VALIDA que el
+      // archivo corresponda al proceso elegido. No fija el estado inicial.
+      if (!headers.includes('Estado')) {
         loading(false);
-        mostrarCarga(`✅ Importados ${nuevos.length} rechazados nuevos.`);
-        await recargarDatos();
+        mostrarCarga('❌ Carga bloqueada: el archivo no tiene columna "Estado". No se importó ninguna fila.', true);
+        return;
+      }
+      const patronEsperado = tipo === 'rechazados' ? 'RECHAZ' : 'APROB';
+      let hayEstadoVacio = false, hayEstadoIncompatible = false;
+      rows.forEach(row => {
+        const idxEstado = headers.indexOf('Estado');
+        const v = String(row[idxEstado] ?? '').trim();
+        if (!v) hayEstadoVacio = true;
+        else if (!v.toUpperCase().includes(patronEsperado)) hayEstadoIncompatible = true;
+      });
+      if (hayEstadoVacio) {
+        loading(false);
+        mostrarCarga('❌ Carga bloqueada: hay al menos una celda "Estado" vacía. No se importó ninguna fila.', true);
+        return;
+      }
+      if (hayEstadoIncompatible) {
+        loading(false);
+        mostrarCarga(`❌ Carga bloqueada: el archivo no corresponde al proceso "${tipo}" (valores de "Estado" incompatibles). No se importó ninguna fila.`, true);
         return;
       }
 
-      // IDs ya existentes en Supabase (aprobados)
-      const idsExistentes = new Set(creditos.map(c => String(c.id)));
+      // BLOQUE 6 (Fase 3.5 regla 1/12/13) — regla única, sin excepción por archivo
+      // de origen: si el ID ya existe (en aprobados O en rechazados), se omite.
+      // Si el mismo ID existe con RUT incompatible, queda observado (posible colisión).
+      const existentesPorId = new Map();
+      creditos.forEach(c => existentesPorId.set(String(c.id), c));
+      rechazados.forEach(c => existentesPorId.set(String(c.id), c));
 
       const nuevos = [];
+      const gestionesIniciales = [];
+      let cuentaOmitidos = 0;
+      const observados = []; // {id, motivo}
+
       rows.forEach(row => {
         const rec = {};
         headers.forEach((h,i) => rec[h] = row[i] ?? '');
         const id = String(rec['ID']).trim();
-        if (!id || isNaN(id) || idsExistentes.has(id)) return;
-        nuevos.push({
+
+        if (!id || isNaN(id)) {
+          observados.push({ id: id || '(vacío)', motivo: 'ID vacío o inválido' });
+          return;
+        }
+
+        const existente = existentesPorId.get(id);
+        if (existente) {
+          const rutNuevo = String(rec['Rut Cliente']||'').trim().toUpperCase();
+          const rutExistente = String(existente.rut_cliente||'').trim().toUpperCase();
+          if (rutNuevo && rutExistente && rutNuevo !== rutExistente) {
+            observados.push({ id, motivo: 'ID existente con RUT incompatible (posible colisión)' });
+          } else {
+            cuentaOmitidos++; // existente omitido — sin alerta, no se actualiza nada
+          }
+          return;
+        }
+
+        // Fila nueva y válida -> se arma el registro (mismos campos que ya usaba el código)
+        const base = {
           id,
           categoria: rec['Categoría']||'',
           estado: rec['Estado']||'',
           nombre: rec['Nombre']||'',
           rut_cliente: rec['Rut Cliente']||'',
           ejecutivo: rec['Ejecutivo']||'',
-          producto: rec['Producto']||'',
+          producto: rec['Producto']||rec['Producto admisión']||'',
           dealer: rec['Dealer']||'',
           sucursal: rec['Sucursal']||'',
           marca: rec['Marca']||'',
@@ -1058,24 +1915,52 @@ async function loadExcel(event, tipo = 'aprobados') {
           fecha_curse: rec['Fecha Curse'] ? fmtFechaExcel(rec['Fecha Curse']) : '',
           nom_evaluador: rec['Nom Evaluador']||'',
           canal: rec['Canal']||'',
+        };
+        if (tipo === 'rechazados') {
+          base.puntaje_scoring = rec['Puntaje Scoring']||'';
+          base.modulo = rec['Módulo']||'';
+          base.comentario_rechazo = rec['Comentario Rechazo']||'';
+          base.vendedor = rec['Vendedor']||'';
+        }
+        nuevos.push(base);
+
+        // BLOQUE 6 / trazabilidad inicial (Fase 3.5 regla 16) — una gestión
+        // automática al importar, reutilizando la misma estructura de bitácora.
+        gestionesIniciales.push({
+          credito_id: id,
+          nuevo_estado: tipo === 'rechazados' ? 'RECHAZADO' : 'APROBADO',
+          motivo_estado: null,
+          seguimiento: null,
+          fecha_seguimiento: null,
+          contacto: null,
+          comentario: `Carga inicial — operación importada desde el archivo de ${tipo === 'rechazados' ? 'rechazados' : 'aprobados'}.`,
+          concesionario: null,
+          vendedor: null,
+          tel_vendedor: null,
+          usuario: currentUser ? currentUser.usuario : 'sistema',
         });
       });
 
-      if (nuevos.length === 0) {
-        loading(false);
-        mostrarCarga(`✅ Sin registros nuevos. Todos ya existen (${idsExistentes.size} cargados).`);
-        return;
-      }
-
-      // Insertar en lotes de 100
-      loading(true, `Importando ${nuevos.length} registros nuevos...`);
-      const loteSize = 100;
-      for (let i=0; i<nuevos.length; i+=loteSize) {
-        await sbInsert('creditos', nuevos.slice(i, i+loteSize));
+      if (nuevos.length > 0) {
+        loading(true, `Importando ${nuevos.length} registros nuevos...`);
+        const tablaDestino = tipo === 'rechazados' ? 'creditos_rechazados' : 'creditos';
+        const loteSize = 100;
+        for (let i=0; i<nuevos.length; i+=loteSize) {
+          await sbInsert(tablaDestino, nuevos.slice(i, i+loteSize));
+        }
+        // Gestión inicial de trazabilidad — no bloquea la carga si falla (se registra en consola)
+        try {
+          for (let i=0; i<gestionesIniciales.length; i+=loteSize) {
+            await sbInsert('gestiones', gestionesIniciales.slice(i, i+loteSize));
+          }
+        } catch(e) { console.warn('No se pudo registrar la gestión inicial de trazabilidad:', e); }
       }
 
       loading(false);
-      mostrarCarga(`✅ Importados ${nuevos.length} registros nuevos. ${idsExistentes.size} ya existían.`);
+      const resumenObservados = observados.length > 0
+        ? ` | Observados: ${observados.length} (${observados.slice(0,5).map(o=>o.id+': '+o.motivo).join('; ')}${observados.length>5?'…':''})`
+        : ' | Observados: 0';
+      mostrarCarga(`✅ Insertados: ${nuevos.length} | Existentes omitidos: ${cuentaOmitidos}${resumenObservados}`);
       await recargarDatos();
     } catch(err) {
       loading(false);
@@ -1097,49 +1982,7 @@ function formatearNombreUsuario(email) {
   return parte.split('.').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
 }
 
-function poblarSelectorEjecutivos(creditosRaw) {
-  const sel = document.getElementById('sel-ejecutivo-gerente');
-  sel.innerHTML = '<option value="">Todos los ejecutivos</option>';
-
-  if (modoEjecutivo === 'todos') {
-    const ejecs = [...new Set(creditosRaw.map(c => c.ejecutivo).filter(Boolean))].sort();
-    ejecs.forEach(e => {
-      const o = document.createElement('option');
-      o.value = e; o.textContent = e;
-      if (e === filtroEjecutivo) o.selected = true;
-      sel.appendChild(o);
-    });
-  } else {
-    // Modo agrupado: un entry por usuario (raíz del email)
-    // Cargar usuarios para obtener la lista
-    if (typeof USUARIOS_CACHE !== 'undefined' && USUARIOS_CACHE.length > 0) {
-      USUARIOS_CACHE.forEach(u => {
-        if (!u.usuario) return;
-        const nombre = formatearNombreUsuario(u.usuario);
-        const o = document.createElement('option');
-        o.value = '__agrupado__' + u.usuario; // prefijo para identificar
-        o.textContent = nombre;
-        if (filtroEjecutivo === '__agrupado__' + u.usuario) o.selected = true;
-        sel.appendChild(o);
-      });
-    }
-  }
-}
-
 let USUARIOS_CACHE = [];
-
-function cambiarModoEjecutivo(modo) {
-  modoEjecutivo = modo;
-  filtroEjecutivo = '';
-  filtroEstado = null;
-  idxActual = 0;
-  poblarSelectorEjecutivos(creditos);
-  renderResumen();
-  document.getElementById('right-header').style.display = 'none';
-  document.getElementById('btn-nueva-gestion').disabled = true;
-  document.getElementById('btn-exportar-detalle') && (document.getElementById('btn-exportar-detalle').disabled = true);
-  document.getElementById('panel-content').innerHTML = '<div class="empty-state"><div class="icon-big">📊</div><p>Seleccione un estado en la tabla para ver los registros</p></div>';
-}
 
 function parseFechaIngreso(fi) {
   if (!fi) return null;
@@ -1152,61 +1995,21 @@ function parseFechaIngreso(fi) {
 }
 
 function aplicarFiltroFecha() {
-  filtroEstado = null; filtroCol = null; idxActual = 0;
-  seleccionIds.clear();
-  renderResumen();
-  document.getElementById('right-header').style.display = 'none';
-  document.getElementById('btn-nueva-gestion').disabled = true;
-  const btnExp = document.getElementById('btn-exportar-detalle');
-  if (btnExp) btnExp.disabled = true;
-  document.getElementById('panel-content').innerHTML = '<div class="empty-state"><div class="icon-big">📊</div><p>Seleccione un estado en la tabla para ver los registros</p></div>';
-}
-
-function setModoCredito(modo) {
-  modoCredito = modo;
-  const header = document.getElementById('app-header');
-  const titulo = document.getElementById('header-titulo');
-  const btnAp = document.getElementById('modo-btn-aprobados');
-  const btnRe = document.getElementById('modo-btn-rechazados');
-
-  if (modo === 'rechazados') {
-    header.style.background = '#B71C1C';
-    titulo.innerHTML = '❌ Seguimiento de Créditos Rechazados <small style="font-size:11px;opacity:0.7">v6.0</small>';
-    btnAp.style.background = 'transparent'; btnAp.style.color = 'rgba(255,255,255,0.7)';
-    btnRe.style.background = '#fff'; btnRe.style.color = '#B71C1C';
-  } else {
-    header.style.background = 'var(--azul)';
-    titulo.innerHTML = '📋 Seguimiento de Créditos Aprobados <small style="font-size:11px;opacity:0.7">v6.0</small>';
-    btnAp.style.background = '#fff'; btnAp.style.color = '#1565C0';
-    btnRe.style.background = 'transparent'; btnRe.style.color = 'rgba(255,255,255,0.7)';
-  }
-
-  // Reset filtros
-  filtroEstado = null; filtroCol = null; idxActual = 0;
-  seleccionIds.clear();
-  renderResumen();
-  document.getElementById('right-header').style.display = 'none';
-  document.getElementById('btn-nueva-gestion').disabled = true;
-  const btnExp = document.getElementById('btn-exportar-detalle');
-  if (btnExp) btnExp.disabled = true;
-  document.getElementById('panel-content').innerHTML = '<div class="empty-state"><div class="icon-big">📊</div><p>Seleccione un estado en la tabla para ver los registros</p></div>';
+  filtroCol = null; idxActual = 0;
+  aplicarFiltro();
 }
 
 function getCreditosActivos() {
-  // Usar rechazados o aprobados según el modo
-  let lista = modoCredito === 'rechazados' ? rechazados : creditos;
+  // BLOQUE 2 — vista visual única: parte siempre de la colección combinada.
+  // v7.9 — se retiró el filtro de Origen (siempre se usa la base "todos", ya
+  // no hace falta elegir aprobados/rechazados por separado).
+  let lista = operaciones;
 
-  if (filtroEjecutivo) {
-    if (filtroEjecutivo.startsWith('__agrupado__')) {
-      const email = filtroEjecutivo.replace('__agrupado__', '');
-      const usr = USUARIOS_CACHE.find(u => u.usuario === email);
-      if (usr) {
-        const ejecs = Array.isArray(usr.ejecutivos) ? usr.ejecutivos : [];
-        lista = lista.filter(c => ejecs.some(e => (c.ejecutivo||'').toUpperCase().trim() === e.toUpperCase().trim()));
-      }
-    } else {
-      lista = lista.filter(c => (c.ejecutivo||'').toUpperCase().trim() === filtroEjecutivo.toUpperCase().trim());
-    }
+  // v7.9 — Usuario consolidado (multi), mismo criterio que Reportes.
+  if (filtroSegUsuarios.length > 0) {
+    const ejecsPermitidos = new Set();
+    filtroSegUsuarios.forEach(u => ejecutivosDeUsuario(u).forEach(e => ejecsPermitidos.add(e)));
+    lista = lista.filter(c => ejecsPermitidos.has((c.ejecutivo||'').toUpperCase().trim()));
   }
 
   // Filtro por rango de fecha_ingreso
@@ -1238,25 +2041,29 @@ function getEstadoGestion(credito) {
 }
 
 function getEstadoComercial(credito) {
-  // En modo rechazados, todos son RECHAZADOS
-  if (modoCredito === 'rechazados') return 'RECHAZADOS';
+  // BLOQUE 1 (Fase 4) — ya no depende de modoCredito. El estado inicial lo fija
+  // el origen de la carga (regla 6/7 Fase 3.5); con gestiones, se toma la última
+  // y se normaliza (DESISTIDO/POSPUESTO/OTROS -> EN PROCESO).
   const gs = credito.gestiones;
-  if (!gs || gs.length===0) return 'APROBADOS';
-  const ultimo = gs[gs.length-1];
-  const est = (ultimo.nuevo_estado||'').toUpperCase();
-  if (ESTADOS_ORDEN.includes(est)) return est;
-  return 'APROBADOS';
+  if (!gs || gs.length === 0) {
+    return credito.origen === 'rechazados' ? 'RECHAZADO' : 'APROBADO';
+  }
+  const ultimo = gs[gs.length - 1];
+  return normalizarEstado(ultimo.nuevo_estado, ultimo.motivo_estado);
 }
 
 // ============================================================
 // RESUMEN
 // ============================================================
 function renderResumen() {
-  const estadosActivos = modoCredito === 'rechazados' ? ['RECHAZADOS'] : ESTADOS_ORDEN;
+  const estadosActivos = ESTADOS_VALIDOS; // BLOQUE 1/2 — siempre los 5 estados, vista única
   const contadores = {};
   estadosActivos.forEach(e => contadores[e] = {total:0,sinSeg:0,vencido:0,alDia:0});
 
-  getCreditosActivos().forEach(c => {
+  // v7.6 — corregido: esta tabla vive solo en Reportes, debe usar los filtros de
+  // Reportes (getOperacionesReporte), no los de Seguimiento (getCreditosActivos)
+  // que causaban que mostrara un total distinto al de las donas y el informe.
+  getOperacionesReporte().forEach(c => {
     const ec = getEstadoComercial(c);
     const es = getEstadoGestion(c);
     if (!contadores[ec]) contadores[ec] = {total:0,sinSeg:0,vencido:0,alDia:0};
@@ -1274,103 +2081,99 @@ function renderResumen() {
     totales.alDia += contadores[e].alDia;
   });
 
-  // Limpiar selección del menú de celdas que ya no existen en este modo (aprobados/rechazados)
-  Array.from(estadosMenuSeleccionados).forEach(k => { if (!estadosActivos.includes(k.split('::')[0])) estadosMenuSeleccionados.delete(k); });
-
-  const COLS = [
-    {key:'total',   claseSpan:null},
-    {key:'sinSeg',  claseSpan:'sin-seg'},
-    {key:'vencido', claseSpan:'vencido'},
-    {key:'alDia',   claseSpan:'al-dia'},
-  ];
-
   const tbody = document.getElementById('resumen-body');
   tbody.innerHTML = '';
+  const colorPunto = { 'APROBADO':'#2BA459', 'EN PROCESO':'#E4A033', 'CERRADO':'#667486', 'OTORGADO':'#1889D0', 'RECHAZADO':'#D43A49' };
   estadosActivos.forEach(est => {
     const c = contadores[est];
-    const valores = { total:c.total, sinSeg:c.sinSeg, vencido:c.vencido, alDia:c.alDia };
-    const ia = filtroEstado===est;
+    // v7.9 — esta tabla vive en Reportes y no tiene "estado activo" propio (no es
+    // un filtro, solo navega a Seguimiento al hacer clic); se quitó el resaltado
+    // que antes leía por error el filtro de estado de Seguimiento.
     const tr = document.createElement('tr');
-    const tdsNum = COLS.map(({key,claseSpan}) => {
-      const marcado = estadosMenuSeleccionados.has(`${est}::${key}`) ? 'checked' : '';
-      const activo = ia && (filtroCol===null && key==='total' || filtroCol===key);
-      const valorHTML = claseSpan ? `<span class="${activo?'':claseSpan}">${valores[key]}</span>` : valores[key];
-      return `<td class="celda-clic ${activo?'celda-activa':''}" onclick="selFiltro('${est}',${key==='total'?'null':`'${key}'`})">
-        <span class="celda-check-wrap">
-          <input type="checkbox" ${marcado} onclick="event.stopPropagation()" onchange="toggleCeldaMenu('${est}','${key}', this.checked)">
-          ${valorHTML}
-        </span>
-      </td>`;
-    }).join('');
-    tr.innerHTML = `<td style="font-weight:600">${est}</td>${tdsNum}`;
+    tr.innerHTML = `
+      <td style="font-weight:600"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;background:${colorPunto[est]||'#999'}"></i>${est}</td>
+      <td class="celda-clic" onclick="resumenClick('${est}',null)">${c.total}</td>
+      <td class="celda-clic" onclick="resumenClick('${est}','sinSeg')"><span class="sin-seg">${c.sinSeg}</span></td>
+      <td class="celda-clic" onclick="resumenClick('${est}','vencido')"><span class="vencido">${c.vencido}</span></td>
+      <td class="celda-clic" onclick="resumenClick('${est}','alDia')"><span class="al-dia">${c.alDia}</span></td>`;
     tbody.appendChild(tr);
   });
   const trT = document.createElement('tr');
   trT.className = 'fila-total';
   trT.innerHTML = `<td>TOTAL</td><td>${totales.total}</td><td>${totales.sinSeg}</td><td>${totales.vencido}</td><td>${totales.alDia}</td>`;
   tbody.appendChild(trT);
-
-  actualizarBarraExportMenu();
+  calcularIndicadoresRecuperacion();
 }
 
-function toggleCeldaMenu(estado, col, checked) {
-  const key = `${estado}::${col}`;
-  if (checked) estadosMenuSeleccionados.add(key); else estadosMenuSeleccionados.delete(key);
-  actualizarBarraExportMenu();
-}
+// BLOQUE 7 (Fase 4) — indicadores aprobados en Fase 3.5 (RN-031 a RN-034), calculados
+// sobre la colección combinada. Reconstruye la secuencia de estados de cada crédito
+// (estado inicial por origen + cada gestión normalizada) para detectar la transición
+// RECHAZADO -> EN PROCESO exacta, sin asumir la existencia de una columna estado_anterior
+// (pendiente de confirmar en Supabase, según Fase 3.5).
+function calcularIndicadoresRecuperacion() {
+  let creditosReactivados = 0, eventosReactivacion = 0;
+  let recuperado = 0, recuperadoOtorgado = 0, cerradoTrasRechazo = 0;
 
-const COL_LABEL = { total:'Créd.', sinSeg:'Sin Seg.', vencido:'Vencido', alDia:'Al Día' };
-const COL_A_GESTION = { sinSeg:'SIN_SEG', vencido:'VENCIDO', alDia:'AL_DIA' };
-
-function actualizarBarraExportMenu() {
-  const bar = document.getElementById('export-menu-bar');
-  const label = document.getElementById('export-menu-label');
-  if (!bar || !label) return;
-  const n = estadosMenuSeleccionados.size;
-  if (n === 0) { bar.style.display = 'none'; return; }
-  const desc = Array.from(estadosMenuSeleccionados).map(k => {
-    const [est,col] = k.split('::');
-    return `${est} (${COL_LABEL[col]})`;
-  }).join(', ');
-  label.innerHTML = `<b>${n}</b> selección(es): ${desc}`;
-  bar.style.display = 'block';
-}
-
-function exportarSeleccionMenu() {
-  if (estadosMenuSeleccionados.size === 0) return;
-  const activos = getCreditosActivos();
-  const idsIncluidos = new Set();
-  const lista = [];
-  Array.from(estadosMenuSeleccionados).forEach(k => {
-    const [est, col] = k.split('::');
-    activos.forEach(c => {
-      if (idsIncluidos.has(c.id)) return;
-      if (getEstadoComercial(c) !== est) return;
-      if (col !== 'total' && getEstadoGestion(c) !== COL_A_GESTION[col]) return;
-      idsIncluidos.add(c.id);
-      lista.push(c);
+  getCreditosActivos().forEach(c => {
+    let prev = c.origen === 'rechazados' ? 'RECHAZADO' : 'APROBADO';
+    let tuvoRechazo = prev === 'RECHAZADO';
+    let reactivoAlgunaVez = false;
+    (c.gestiones||[]).forEach(g => {
+      const nuevo = normalizarEstado(g.nuevo_estado, g.motivo_estado);
+      if (prev === 'RECHAZADO' && nuevo === 'EN PROCESO') {
+        eventosReactivacion++;
+        reactivoAlgunaVez = true;
+      }
+      if (nuevo === 'RECHAZADO') tuvoRechazo = true;
+      prev = nuevo;
     });
+    if (reactivoAlgunaVez) creditosReactivados++;
+    const vigente = getEstadoComercial(c);
+    if (tuvoRechazo && vigente === 'APROBADO') recuperado++;
+    if (tuvoRechazo && vigente === 'OTORGADO') recuperadoOtorgado++;
+    if (tuvoRechazo && vigente === 'CERRADO') cerradoTrasRechazo++;
   });
-  if (!lista || lista.length === 0) return;
-  const nombreArchivo = `Detalle_Seleccion_${new Date().toISOString().slice(0,10)}.xlsx`;
-  exportarListaAExcel(lista, nombreArchivo);
+
+  const el = document.getElementById('indicadores-recuperacion');
+  if (el) {
+    el.innerHTML = `<strong>Indicadores:</strong> `
+      + `Créditos reactivados <strong>${creditosReactivados}</strong> `
+      + `(eventos de reactivación: ${eventosReactivacion}) · `
+      + `Recuperados: ${recuperado} · Recuperados y otorgados: ${recuperadoOtorgado} · `
+      + `Cerrados tras rechazo: ${cerradoTrasRechazo}`;
+  }
 }
 
 function selFiltro(estado, col) {
   busquedaActiva = false;
   resultadosBusqueda = [];
   idxBusqueda = 0;
-  document.getElementById('inp-buscar-nombre').value = '';
+  const inpBuscar = document.getElementById('inp-buscar-nombre');
+  if (inpBuscar) inpBuscar.value = '';
 
-  filtroEstado = estado; filtroCol = col; idxActual = 0;
-  seleccionIds.clear();
-  renderResumen(); aplicarFiltro();
+  filtroEstados = estado ? [estado] : []; filtroCol = col; idxActual = 0;
+  renderEstadoPills();
+  aplicarFiltro();
+}
+
+// v7.9 — ya no son píldoras: sincroniza las casillas del desplegable "Estado"
+// de Seguimiento con filtroEstados actual (por ejemplo, tras llegar desde un
+// clic en el resumen de Reportes, que fija un solo estado).
+function renderEstadoPills() {
+  if (!document.getElementById('pivot-items-seg-estado')) return;
+  const opciones = ESTADOS_VALIDOS.map(e => ({ value: e, label: e }));
+  renderPivotItems('seg-estado', opciones, 'onSegFiltroChange');
+}
+
+// Navega desde el resumen de Reportes hacia Seguimiento, con el estado ya filtrado
+function resumenClick(estado, col) {
+  goToApp(); // asegura que Usuario/Estado estén poblados, sin importar desde dónde se navegue
+  selFiltro(estado, col);
 }
 
 function aplicarFiltro() {
-  if (!filtroEstado) return;
   registrosFiltrados = getCreditosActivos().filter(c => {
-    if (getEstadoComercial(c) !== filtroEstado) return false;
+    if (filtroEstados.length > 0 && !filtroEstados.includes(getEstadoComercial(c))) return false;
     if (!filtroCol) return true;
     const es = getEstadoGestion(c);
     if (filtroCol==='sinSeg') return es==='SIN_SEG';
@@ -1389,31 +2192,41 @@ function renderPanelDerecho() {
   const content = document.getElementById('panel-content');
   const btnNG = document.getElementById('btn-nueva-gestion');
 
-  if (!filtroEstado || registrosFiltrados.length===0) {
+  if (registrosFiltrados.length===0) {
     header.style.display = 'none'; btnNG.disabled = true;
     document.getElementById('btn-exportar-detalle').disabled = true;
-    content.innerHTML = `<div class="empty-state"><div class="icon-big">📋</div><p>${filtroEstado?'No hay registros en este estado':'Seleccione un estado en la tabla'}</p></div>`;
+    content.innerHTML = `<div class="empty-state"><div class="icon-big">📋</div><p>No hay registros que coincidan con los filtros actuales</p></div>`;
     return;
   }
 
   header.style.display = 'flex'; btnNG.disabled = false;
   document.getElementById('btn-exportar-detalle').disabled = false;
   const colLabel = filtroCol==='sinSeg'?'SIN SEGUIMIENTO':filtroCol==='vencido'?'SEG. VENCIDO':filtroCol==='alDia'?'SEG. AL DÍA':'';
-  badgeBase = colLabel ? `${filtroEstado} — ${colLabel}` : filtroEstado;
+  const nombreEstado = filtroEstados.length === 0 ? 'TODOS' : filtroEstados.length === 1 ? filtroEstados[0] : `${filtroEstados.length} ESTADOS`;
+  badgeBase = colLabel ? `${nombreEstado} — ${colLabel}` : nombreEstado;
   const badge = document.getElementById('badge-estado');
   badge.textContent = `${badgeBase} (${registrosFiltrados.length})`;
-  badge.className = `estado-badge estado-${filtroEstado.replace(/\s/g,'_').replace(/Á/g,'A').replace(/á/g,'a').replace(/É/g,'E').replace(/é/g,'e')}`;
+  const claseEstado = filtroEstados.length === 1
+    ? filtroEstados[0].replace(/\s/g,'_').replace(/Á/g,'A').replace(/á/g,'a').replace(/É/g,'E').replace(/é/g,'e')
+    : 'VARIOS';
+  badge.className = `estado-badge estado-${claseEstado}`;
 
   // Actualizar toggle visual
   const btnFicha = document.getElementById('toggle-ficha');
   const btnLista = document.getElementById('toggle-lista');
-  if (btnFicha) { btnFicha.style.background = vistaActual==='ficha'?'var(--azul)':'transparent'; btnFicha.style.color = vistaActual==='ficha'?'#fff':'var(--texto-sec)'; }
-  if (btnLista) { btnLista.style.background = vistaActual==='lista'?'var(--azul)':'transparent'; btnLista.style.color = vistaActual==='lista'?'#fff':'var(--texto-sec)'; }
+  const btnTablero = document.getElementById('toggle-tablero');
+  [btnFicha, btnLista, btnTablero].forEach(b => { if (b) { b.style.background = 'transparent'; b.style.color = 'var(--texto-sec)'; } });
+  const btnActivo = vistaActual==='ficha'?btnFicha:vistaActual==='lista'?btnLista:btnTablero;
+  if (btnActivo) { btnActivo.style.background = 'var(--azul)'; btnActivo.style.color = '#fff'; }
 
   if (vistaActual === 'lista') {
     const navWrap = document.getElementById('nav-registros-wrap');
     if (navWrap) navWrap.style.display = 'none';
     renderVistaLista();
+  } else if (vistaActual === 'tablero') {
+    const navWrap = document.getElementById('nav-registros-wrap');
+    if (navWrap) navWrap.style.display = 'none';
+    renderVistaTablero();
   } else {
     const navWrap = document.getElementById('nav-registros-wrap');
     if (navWrap) navWrap.style.display = 'flex';
@@ -1578,10 +2391,16 @@ function actualizarContacto() {
 function actualizarMotivos() {
   const est = document.getElementById('sel-estado').value;
   const sel = document.getElementById('sel-motivo');
-  sel.innerHTML = '<option value="">-- Seleccione --</option>';
-  (MOTIVOS[est]||[]).forEach(m => {
-    const opt = document.createElement('option'); opt.value=m; opt.textContent=m; sel.appendChild(opt);
-  });
+  const catalogo = MOTIVOS[est] || [];
+  if (catalogo.length === 0) {
+    // APROBADO y RECHAZADO no tienen catálogo de motivos (Fase 3.5 §6) — solo comentario.
+    sel.innerHTML = '<option value="">-- Sin motivo, explique en el comentario --</option>';
+  } else {
+    sel.innerHTML = '<option value="">-- Seleccione --</option>';
+    catalogo.forEach(m => {
+      const opt = document.createElement('option'); opt.value=m; opt.textContent=m; sel.appendChild(opt);
+    });
+  }
   // Si es CERRADO u OTORGADO, fecha automática = hoy + 365 días
   if (est === 'CERRADO' || est === 'OTORGADO') {
     const fechaCierre = new Date();
@@ -1594,21 +2413,31 @@ async function grabarGestion() {
   const estado = document.getElementById('sel-estado').value;
   const motivo = document.getElementById('sel-motivo').value;
   const seguimiento = document.getElementById('sel-seguimiento').value;
-  if (!estado || !motivo || !seguimiento) { alert('Complete: Nuevo Estado, Motivo y Seguimiento'); return; }
+  const comentario = document.getElementById('inp-comentario').value.trim();
+  const requiereMotivo = (MOTIVOS[estado] || []).length > 0;
+
+  if (!estado || !seguimiento) { alert('Complete: Nuevo Estado y Seguimiento'); return; }
+  if (requiereMotivo && !motivo) { alert('Seleccione un Motivo para el estado ' + estado); return; }
+  // BLOQUE 1 (Fase 4) — comentario explicativo obligatorio en todo cambio de estado (Fase 3.5, regla 4).
+  if (!comentario) { alert('El comentario es obligatorio para registrar la gestión.'); return; }
 
   const credito = registrosFiltrados[idxActual];
   const btn = document.getElementById('btn-grabar');
   btn.disabled = true; btn.textContent = 'Guardando...';
 
   try {
+    // v7.12 — RECHAZADO no ofrece selección de motivo (ver MOTIVOS), pero el
+    // registro siempre guarda "Desde Origen" para mantener trazabilidad, sin
+    // pedirle al ejecutivo que elija nada.
+    const motivoFinal = estado === 'RECHAZADO' ? MOTIVO_RECHAZADO_FIJO : (motivo || null);
     const gestion = {
       credito_id: credito.id,
       nuevo_estado: estado,
-      motivo_estado: motivo,
+      motivo_estado: motivoFinal,
       seguimiento,
       contacto: document.getElementById('inp-contacto').value,
       fecha_seguimiento: document.getElementById('inp-fecha-seg').value || null,
-      comentario: document.getElementById('inp-comentario').value,
+      comentario,
       concesionario: document.getElementById('inp-concesionario').value || null,
       vendedor: document.getElementById('inp-vendedor').value || null,
       tel_vendedor: document.getElementById('inp-tel-vendedor').value || null,
@@ -1650,7 +2479,7 @@ function abrirInforme() {
   };
 
   let masAntigua = null, masNueva = null;
-  creditos.forEach(c => {
+  operaciones.forEach(c => {
     const d = parseFecha(c.fecha_ingreso || c.fecha_curse);
     if (!d) return;
     if (!masAntigua || d < masAntigua) masAntigua = d;
@@ -1687,8 +2516,8 @@ function generarInforme() {
     return isNaN(d) ? null : d;
   };
 
-  // Filtrar créditos por fecha_ingreso dentro del rango
-  const creditosFiltrados = creditos.filter(c => {
+  // BLOQUE 7 (Fase 4) — el informe ya incluye ambos orígenes (antes solo `creditos`)
+  const creditosFiltrados = operaciones.filter(c => {
     const d = parseFecha(c.fecha_ingreso || c.fecha_curse);
     return d && d >= desdeDate && d <= hastaDate;
   });
@@ -1710,8 +2539,8 @@ function generarInforme() {
     resumen[ejec][estado].monto += Number(c.monto_pagare) || 0;
   });
 
-  // Construir tabla
-  const estados = ['APROBADOS','DESISTIDO','POSPUESTO','OTROS','CERRADO','OTORGADO'];
+  // Construir tabla — BLOQUE 1/7: los 5 estados vigentes (históricos ya normalizados por getEstadoComercial)
+  const estados = ESTADOS_VALIDOS;
   const ejecutivos = Object.keys(resumen).sort();
   informeData = { resumen, ejecutivos, estados, desde, hasta, total: creditosFiltrados.length };
 
@@ -1843,147 +2672,28 @@ document.getElementById('informe-overlay').addEventListener('click', function(e)
 
 
 // ============================================================
-// ELIMINAR REGISTROS POR RANGO DE FECHAS
+// ELIMINAR REGISTROS — RETIRADO (Fase 3.5 regla 15 / Fase 4 Brecha 2, BLOQUE 5)
+// No se elimina ninguna operación ni gestión, bajo ningún perfil.
 // ============================================================
-function abrirModalEliminar() {
-  const hoy = new Date();
-  const fmtISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-
-  const parseFecha = fi => {
-    if (!fi) return null;
-    const s = String(fi).trim();
-    const p = s.split('-');
-    if (p.length === 3 && p[0].length === 4) return new Date(`${p[0]}-${p[1]}-${p[2]}T00:00:00`);
-    if (p.length === 3 && p[0].length === 2) return new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
-    const d = new Date(s + ' ' + hoy.getFullYear());
-    return isNaN(d) ? null : d;
-  };
-
-  // HASTA: último día hábil del mes anterior
-  const hasta = new Date(hoy.getFullYear(), hoy.getMonth(), 0);
-  while (hasta.getDay() === 0) hasta.setDate(hasta.getDate() - 1);
-  while (hasta.getDay() === 6) hasta.setDate(hasta.getDate() - 1);
-
-  // DESDE: fecha_ingreso más antigua en la BD
-  let desde = new Date(hoy.getFullYear(), 0, 1);
-  if (creditos && creditos.length > 0) {
-    let masAntigua = null;
-    creditos.forEach(c => {
-      const d = parseFecha(c.fecha_ingreso || c.fecha_curse);
-      if (d && (!masAntigua || d < masAntigua)) masAntigua = d;
-    });
-    if (masAntigua) desde = masAntigua;
-  }
-
-  document.getElementById('del-fecha-desde').value = fmtISO(desde);
-  document.getElementById('del-fecha-hasta').value = fmtISO(hasta);
-  document.getElementById('del-resultado').style.display = 'none';
-  document.getElementById('modal-eliminar').classList.add('visible');
-}
-
-function cerrarModalEliminar() {
-  document.getElementById('modal-eliminar').classList.remove('visible');
-}
-
-async function confirmarEliminar() {
-  const desde = document.getElementById('del-fecha-desde').value;
-  const hasta = document.getElementById('del-fecha-hasta').value;
-
-  if (!desde || !hasta) { alert('Seleccione ambas fechas'); return; }
-  if (desde > hasta) { alert('La fecha "desde" no puede ser mayor a "hasta"'); return; }
-
-  const desdeDate = new Date(desde + 'T00:00:00');
-  const hastaDate = new Date(hasta + 'T23:59:59');
-
-  // Parser de fecha robusto: soporta "Mon Mar 09", "dd-mm-yyyy", "yyyy-mm-dd"
-  const parseFecha = fi => {
-    if (!fi) return null;
-    const s = String(fi).trim();
-    const p = s.split('-');
-    if (p.length === 3 && p[0].length === 4) return new Date(`${p[0]}-${p[1]}-${p[2]}T00:00:00`);
-    if (p.length === 3 && p[0].length === 2) return new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
-    // Formato "Mon Mar 09" — asumir año actual
-    const d = new Date(s + ' ' + new Date().getFullYear());
-    return isNaN(d) ? null : d;
-  };
-
-  const creditosAEliminar = creditos.filter(c => {
-    const d = parseFecha(c.fecha_ingreso || c.fecha_curse);
-    return d && d >= desdeDate && d <= hastaDate;
-  });
-
-  if (creditosAEliminar.length === 0) {
-    alert(`⚠️ No se encontraron registros entre ${desde} y ${hasta}.\n\nEjemplo fecha_ingreso en BD: "${creditos[0]?.fecha_ingreso || 'sin datos'}"`);
-    return;
-  }
-
-  const ok = confirm(`¿Está seguro?\n\nSe eliminarán ${creditosAEliminar.length} créditos (y sus gestiones) entre ${desde} y ${hasta}.\n\nEsta acción NO se puede deshacer.`);
-  if (!ok) return;
-
-  try {
-    loading(true, `Eliminando ${creditosAEliminar.length} registros...`);
-    const ids = creditosAEliminar.map(c => c.id);
-
-    for (let i = 0; i < ids.length; i += 100) {
-      const batch = ids.slice(i, i + 100);
-      const inList = `(${batch.join(',')})`;
-
-      const resGest = await fetch(`${SUPABASE_URL}/rest/v1/gestiones?credito_id=in.${inList}`, {
-        method: 'DELETE',
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
-      });
-      if (!resGest.ok) throw new Error('Gestiones: ' + await resGest.text());
-
-      const resCred = await fetch(`${SUPABASE_URL}/rest/v1/creditos?id=in.${inList}`, {
-        method: 'DELETE',
-        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' }
-      });
-      if (!resCred.ok) throw new Error('Créditos: ' + await resCred.text());
-    }
-
-    loading(false);
-    document.getElementById('del-resultado').style.color = 'var(--verde)';
-    document.getElementById('del-resultado').textContent = `✅ Se eliminaron ${creditosAEliminar.length} registros correctamente`;
-    document.getElementById('del-resultado').style.display = 'block';
-    setTimeout(() => { cerrarModalEliminar(); recargarDatos(); }, 2000);
-
-  } catch(err) {
-    loading(false);
-    document.getElementById('del-resultado').style.color = '#C62828';
-    document.getElementById('del-resultado').textContent = `❌ Error: ${err.message}`;
-    document.getElementById('del-resultado').style.display = 'block';
-  }
-}
-
-document.getElementById('modal-eliminar').addEventListener('click', function(e) {
-  if (e.target === this) cerrarModalEliminar();
-});
 
 // ============================================================
 // EXPORTAR DETALLE
 // ============================================================
 function exportarDetalle() {
-  let lista = busquedaActiva ? resultadosBusqueda : registrosFiltrados;
-  if (!lista || lista.length === 0) return;
-
-  const haySeleccion = vistaActual === 'lista' && seleccionIds.size > 0;
-  if (haySeleccion) lista = lista.filter(c => seleccionIds.has(c.id));
+  const lista = busquedaActiva ? resultadosBusqueda : registrosFiltrados;
   if (!lista || lista.length === 0) return;
 
   const colLabel = filtroCol==='sinSeg'?'SIN_SEG':filtroCol==='vencido'?'VENCIDO':filtroCol==='alDia'?'AL_DIA':'TODOS';
-  const sufijo = haySeleccion ? 'Seleccion' : colLabel;
-  const nombreArchivo = `Detalle_${(filtroEstado||'todos').replace(/\s/g,'_')}_${sufijo}_${new Date().toISOString().slice(0,10)}.xlsx`;
+  const nombreEstadoArchivo = filtroEstados.length === 0 ? 'todos' : filtroEstados.length === 1 ? filtroEstados[0] : 'varios_estados';
+  const nombreArchivo = `Detalle_${nombreEstadoArchivo.replace(/\s/g,'_')}_${colLabel}_${new Date().toISOString().slice(0,10)}.xlsx`;
 
-  exportarListaAExcel(lista, nombreArchivo);
-}
-
-function exportarListaAExcel(lista, nombreArchivo) {
   const rows = lista.map(c => {
     const gs = getEstadoGestion(c);
     const ec = getEstadoComercial(c);
     const ult = c.gestiones && c.gestiones.length > 0 ? c.gestiones[c.gestiones.length-1] : {};
     return {
       'ID': c.id,
+      'Origen': c.origen === 'rechazados' ? 'Rechazados' : 'Aprobados',
       'Nombre': c.nombre,
       'RUT': c.rut_cliente,
       'Ejecutivo': c.ejecutivo,
@@ -2021,86 +2731,13 @@ function exportarListaAExcel(lista, nombreArchivo) {
 }
 
 // ============================================================
-// EDITAR CRÉDITO
+// EDITAR CRÉDITO — RETIRADO (Fase 3.5 regla 14 / Fase 4 Brecha 1, BLOQUE 5)
+// Todo cambio de estado o de datos comerciales se hace exclusivamente
+// mediante una gestión trazable (grabarGestion), nunca por edición directa.
 // ============================================================
-let editCreditoData = null;
-
-function abrirEditCredito() {
-  document.getElementById('edit-credito-overlay').classList.add('visible');
-  document.getElementById('ec-id-input').value = '';
-  document.getElementById('ec-form').classList.remove('visible');
-  document.getElementById('ec-msg').className = 'edit-msg';
-  editCreditoData = null;
-}
-
-function cerrarEditCredito() {
-  document.getElementById('edit-credito-overlay').classList.remove('visible');
-}
-
-async function buscarCreditoEdit() {
-  const id = document.getElementById('ec-id-input').value.trim();
-  if (!id) return;
-  const msg = document.getElementById('ec-msg');
-  msg.className = 'edit-msg';
-  try {
-    const rows = await sbGet('creditos', 'id=eq.' + encodeURIComponent(id) + '&limit=1');
-    if (!rows || rows.length === 0) {
-      msg.textContent = 'No se encontró ningún crédito con ese ID.';
-      msg.className = 'edit-msg err';
-      document.getElementById('ec-form').classList.remove('visible');
-      return;
-    }
-    editCreditoData = rows[0];
-    rellenarFormCredito(editCreditoData);
-    document.getElementById('ec-form').classList.add('visible');
-  } catch(e) {
-    msg.textContent = 'Error: ' + e.message;
-    msg.className = 'edit-msg err';
-  }
-}
-
-function rellenarFormCredito(c) {
-  const fields = ['categoria','estado','nombre','rut_cliente','ejecutivo','producto','dealer','sucursal','marca','modelo','precio','pie','saldo_precio','monto_pagare','riesgo_cliente','fecha_ingreso','fecha_curse','nom_evaluador','canal'];
-  fields.forEach(f => {
-    const el = document.getElementById('ec-' + f);
-    if (el) el.value = c[f] != null ? c[f] : '';
-  });
-  document.getElementById('ec-id-display').textContent = c.id;
-}
-
-async function guardarCreditoEdit() {
-  if (!editCreditoData) return;
-  const msg = document.getElementById('ec-msg');
-  msg.className = 'edit-msg';
-  const fields = ['categoria','estado','nombre','rut_cliente','ejecutivo','producto','dealer','sucursal','marca','modelo','precio','pie','saldo_precio','monto_pagare','riesgo_cliente','fecha_ingreso','fecha_curse','nom_evaluador','canal'];
-  const data = {};
-  fields.forEach(f => {
-    const el = document.getElementById('ec-' + f);
-    if (el) {
-      const v = el.value.trim();
-      // numeric fields
-      if (['precio','pie','saldo_precio','monto_pagare'].includes(f)) {
-        data[f] = v === '' ? null : Number(v);
-      } else {
-        data[f] = v === '' ? null : v;
-      }
-    }
-  });
-  try {
-    await sbUpdate('creditos', editCreditoData.id, data);
-    msg.textContent = 'Crédito actualizado correctamente.';
-    msg.className = 'edit-msg ok';
-    // Recargar datos de la app en background
-    recargarDatos().catch(()=>{});
-  } catch(e) {
-    msg.textContent = 'Error guardando: ' + e.message;
-    msg.className = 'edit-msg err';
-  }
-}
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
-    cerrarEditCredito();
     cerrarAdmin();
   }
 });
@@ -2118,7 +2755,7 @@ async function abrirAdmin() {
 }
 
 function cerrarAdmin() {
-  document.getElementById('admin-overlay').classList.remove('visible');
+  showHome();
   adminSelIdx = null;
   adminModo = null;
 }
@@ -2170,11 +2807,6 @@ function renderAdminFormEditar(u) {
   const ejs = Array.isArray(u.ejecutivos) ? u.ejecutivos : (u.ejecutivos ? JSON.parse(u.ejecutivos) : []);
   const last = u.ultimo_acceso ? new Date(u.ultimo_acceso).toLocaleString('es-CL', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : 'Nunca';
   const ejsFiltered = ejs.filter(e=>e!=='todos');
-  let ejHtml = ejsFiltered.map((e,i) =>
-    '<div class="admin-ej-item" id="af-ej-' + i + '">' +
-    '<input type="text" style="flex:1;padding:5px 8px;border:1.5px solid var(--borde);border-radius:6px;font-size:12px" value="' + e.replace(/"/g,'&quot;') + '" id="af-ej-val-' + i + '">' +
-    '<button class="btn-remove-ej" onclick="this.parentElement.remove()">×</button></div>'
-  ).join('');
 
   document.getElementById('admin-form-area').innerHTML =
     '<div class="admin-form">' +
@@ -2202,10 +2834,25 @@ function renderAdminFormEditar(u) {
         '<input type="checkbox" id="af-permite-cambio" style="width:16px;height:16px;cursor:pointer"' + (u.permite_cambio_vista!==false?' checked':'') + '>' +
         '<label for="af-permite-cambio" style="font-weight:600;font-size:12px;cursor:pointer;text-transform:none;letter-spacing:0">Permitir al usuario cambiar de vista</label>' +
       '</div>' +
+      '<div class="form-group" id="af-supervisor-group" style="' + (u.perfil==='usuario'?'':'display:none') + '">' +
+        '<label>Supervisor asignado</label>' +
+        '<select id="af-supervisor">' +
+          '<option value="">(Sin supervisor asignado)</option>' +
+          adminUsuarios.filter(x => x.perfil === 'supervisor').map(x =>
+            '<option value="' + x.usuario + '"' + (u.supervisor === x.usuario ? ' selected' : '') + '>' + formatearNombreUsuario(x.usuario) + '</option>'
+          ).join('') +
+        '</select>' +
+      '</div>' +
       '<div class="form-group" id="af-ej-group" style="' + (u.perfil==='gerente'?'display:none':'') + '">' +
-        '<label>Ejecutivos asignados</label>' +
-        '<div class="admin-ejecutivos-list" id="af-ej-list">' + ejHtml + '</div>' +
-        '<button class="btn-add-ej" onclick="addEjecutivo()">+ Agregar ejecutivo</button>' +
+        '<label>Ejecutivos asignados <small style="text-transform:none;font-weight:400">(múltiple — consolida variantes de nombre de la misma persona)</small></label>' +
+        '<div class="pivot-filter" id="af-ej-filter">' +
+          '<button type="button" class="pivot-trigger" id="af-ej-trigger" onclick="toggleAfEjDropdown()" style="width:100%">' +
+            '<span id="af-ej-summary">Ninguno</span><b>▾</b>' +
+          '</button>' +
+          '<div class="pivot-dropdown" id="af-ej-dropdown" style="width:100%">' +
+            '<div id="af-ej-items"></div>' +
+          '</div>' +
+        '</div>' +
       '</div>' +
       '<div class="admin-log-section">' +
         '<div class="admin-log-title">Último acceso</div>' +
@@ -2216,29 +2863,61 @@ function renderAdminFormEditar(u) {
         '<button class="btn-guardar-user" onclick="guardarUser()">Guardar</button>' +
       '</div>' +
     '</div>';
+
+  renderAfEjecutivosDropdown(ejsFiltered);
 }
 
 function onPerfilChange() {
   const p = document.getElementById('af-perfil').value;
   document.getElementById('af-ej-group').style.display = p === 'gerente' ? 'none' : '';
+  document.getElementById('af-supervisor-group').style.display = p === 'usuario' ? '' : 'none';
 }
 
-let _ejCount = 0;
-function addEjecutivo() {
-  _ejCount++;
-  const li = document.getElementById('af-ej-list');
-  const div = document.createElement('div');
-  div.className = 'admin-ej-item';
-  div.innerHTML = '<input type="text" style="flex:1;padding:5px 8px;border:1.5px solid var(--borde);border-radius:6px;font-size:12px" value="" placeholder="Nombre ejecutivo (AFA)">' +
-    '<button class="btn-remove-ej" onclick="this.parentElement.remove()">×</button>';
-  li.appendChild(div);
+// v7.8 — "Ejecutivos asignados" pasa de texto libre a un desplegable de casillas
+// (mismo componente visual que el filtro de Reportes), poblado con los nombres
+// crudos de ejecutivo que ya existen en los datos reales — evita errores de tipeo
+// y mantiene la misma operatoria de consolidación que ya tenía la v6.0.
+function renderAfEjecutivosDropdown(seleccionados) {
+  const disponiblesSet = new Set([...operaciones.map(c => c.ejecutivo).filter(Boolean), ...seleccionados]);
+  const disponibles = [...disponiblesSet].sort();
+  const cont = document.getElementById('af-ej-items');
+  cont.innerHTML = disponibles.map(e => `
+    <label class="pivot-item">
+      <input type="checkbox" value="${e.replace(/"/g,'&quot;')}" ${seleccionados.includes(e) ? 'checked' : ''} onchange="actualizarAfEjResumen()">
+      <span>${e}</span>
+    </label>`).join('');
+  actualizarAfEjResumen();
 }
+
+function actualizarAfEjResumen() {
+  const span = document.getElementById('af-ej-summary');
+  if (!span) return;
+  const marcados = Array.from(document.querySelectorAll('#af-ej-items input:checked'));
+  if (marcados.length === 0) span.textContent = 'Ninguno';
+  else if (marcados.length === 1) span.textContent = marcados[0].value;
+  else span.textContent = `Varios (${marcados.length})`;
+}
+
+function toggleAfEjDropdown() {
+  const dd = document.getElementById('af-ej-dropdown');
+  const trigger = document.getElementById('af-ej-trigger');
+  const abierto = dd.classList.contains('visible');
+  dd.classList.toggle('visible', !abierto);
+  trigger.classList.toggle('abierto', !abierto);
+}
+document.addEventListener('click', function(e) {
+  const filtro = document.getElementById('af-ej-filter');
+  const dd = document.getElementById('af-ej-dropdown');
+  if (filtro && dd && !filtro.contains(e.target)) {
+    dd.classList.remove('visible');
+    document.getElementById('af-ej-trigger').classList.remove('abierto');
+  }
+});
 
 function getEjecutivosForm() {
   const perfil = document.getElementById('af-perfil').value;
   if (perfil === 'gerente') return ['todos'];
-  const inputs = document.querySelectorAll('#af-ej-list input');
-  return Array.from(inputs).map(i=>i.value.trim()).filter(Boolean);
+  return Array.from(document.querySelectorAll('#af-ej-items input:checked')).map(cb => cb.value);
 }
 
 async function guardarUser() {
@@ -2250,7 +2929,10 @@ async function guardarUser() {
   if (ejecutivos.length === 0 && perfil !== 'gerente') { alert('Agrega al menos un ejecutivo'); return; }
   const vistaDefault = document.getElementById('af-vista')?.value || 'ficha';
   const permiteCambio = document.getElementById('af-permite-cambio')?.checked !== false;
-  const data = { usuario: email, clave, perfil, ejecutivos, vista_default: vistaDefault, permite_cambio_vista: permiteCambio };
+  // v7.10 — jerarquía de supervisión: solo aplica a perfil "usuario". El supervisor
+  // que ve un usuario se define aquí; el propio supervisor no tiene supervisor.
+  const supervisorAsignado = perfil === 'usuario' ? (document.getElementById('af-supervisor')?.value || null) : null;
+  const data = { usuario: email, clave, perfil, ejecutivos, vista_default: vistaDefault, permite_cambio_vista: permiteCambio, supervisor: supervisorAsignado };
   try {
     if (adminModo === 'nuevo') {
       await sbInsert('usuarios_seguimiento', data);
@@ -2299,12 +2981,15 @@ function setVista(v) {
   vistaActual = v;
   const btnFicha = document.getElementById('toggle-ficha');
   const btnLista = document.getElementById('toggle-lista');
-  if (btnFicha) { btnFicha.style.background = v==='ficha'?'var(--azul)':'transparent'; btnFicha.style.color = v==='ficha'?'#fff':'var(--texto-sec)'; }
-  if (btnLista) { btnLista.style.background = v==='lista'?'var(--azul)':'transparent'; btnLista.style.color = v==='lista'?'#fff':'var(--texto-sec)'; }
+  const btnTablero = document.getElementById('toggle-tablero');
+  [btnFicha, btnLista, btnTablero].forEach(b => { if (b) { b.style.background = 'transparent'; b.style.color = 'var(--texto-sec)'; } });
+  const activo = v==='ficha'?btnFicha:v==='lista'?btnLista:btnTablero;
+  if (activo) { activo.style.background = 'var(--azul)'; activo.style.color = '#fff'; }
   const navWrap = document.getElementById('nav-registros-wrap');
   if (navWrap) navWrap.style.display = v==='ficha'?'flex':'none';
-  if (filtroEstado && registrosFiltrados.length > 0) {
+  if (registrosFiltrados.length > 0) {
     if (v === 'lista') renderVistaLista();
+    else if (v === 'tablero') renderVistaTablero();
     else {
       document.getElementById('nav-label').textContent = `Registro: ${idxActual+1} de ${registrosFiltrados.length}`;
       document.getElementById('btn-prev').disabled = idxActual===0;
@@ -2314,6 +2999,23 @@ function setVista(v) {
   }
 }
 
+// v7.12 — color de la "bolita" de estado, compartido entre Lista y Tablero.
+// Colores fijados explícitamente por el usuario para EN PROCESO/CERRADO/OTORGADO;
+// APROBADO y RECHAZADO no se especificaron — se usa verde y azul como default
+// razonable, distinto de los demás, a confirmar si se prefiere otro color.
+function colorPuntoPorEstado(credito) {
+  const est = getEstadoComercial(credito);
+  if (est === 'EN PROCESO') return '#F9A825'; // amarilla
+  if (est === 'CERRADO') return '#D32F2F'; // roja
+  if (est === 'OTORGADO') {
+    const ult = credito.gestiones && credito.gestiones.length > 0 ? credito.gestiones[credito.gestiones.length-1] : {};
+    const motivo = (ult.motivo_estado || '').toUpperCase().trim();
+    return motivo === 'AUTOFIN' ? '#111111' : '#EF6C00'; // negro (Autofin) / naranja (Unidad, u otorgado sin motivo aún)
+  }
+  if (est === 'APROBADO') return '#2E7D32'; // verde — sin especificar, default razonable
+  return '#1565C0'; // RECHAZADO — sin especificar, default razonable (azul, evita confundirse con el rojo de Cerrado)
+}
+
 function renderVistaLista() {
   const lista = busquedaActiva ? resultadosBusqueda : registrosFiltrados;
   if (!lista || lista.length === 0) return;
@@ -2321,63 +3023,116 @@ function renderVistaLista() {
   const segClase = { SIN_SEG:'seg-sin', VENCIDO:'seg-vencido', AL_DIA:'seg-al-dia' };
   const segLabel = { SIN_SEG:'SIN SEG.', VENCIDO:'VENCIDO', AL_DIA:'AL DÍA' };
   const fmt = n => n ? '$'+Number(n).toLocaleString('es-CL') : '-';
+  const diasDesde = fi => {
+    const d = parseFechaIngreso(fi);
+    if (!d) return '-';
+    const hoy = new Date(); hoy.setHours(0,0,0,0);
+    return Math.max(0, Math.round((hoy - d) / 86400000));
+  };
   const filas = lista.map((c, idx) => {
     const gs = getEstadoGestion(c);
     const ult = c.gestiones && c.gestiones.length > 0 ? c.gestiones[c.gestiones.length-1] : {};
+    const nGestiones = (c.gestiones||[]).length;
+    const dias = diasDesde(c.fecha_ingreso || c.fecha_curse);
     const bg = idx % 2 === 0 ? '#fff' : '#F8F9FB';
     const td = 'padding:5px 10px;border-bottom:1px solid #ECEFF1;font-size:12px;white-space:nowrap';
-    const marcado = seleccionIds.has(c.id) ? 'checked' : '';
+    const puntoEstado = `<i title="${getEstadoComercial(c)}" style="display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:${colorPuntoPorEstado(c)}"></i>`;
     return `<tr style="background:${bg};cursor:pointer" onclick="abrirFichaLista(${idx})">
-      <td style="${td};text-align:center" onclick="event.stopPropagation()"><input type="checkbox" ${marcado} onchange="toggleSeleccionFila(${c.id}, this.checked)" style="cursor:pointer"></td>
-      <td style="${td};color:var(--azul);font-weight:700;text-decoration:underline">${c.id}</td>
+      <td style="${td};color:var(--azul);font-weight:700;text-decoration:underline">${puntoEstado}${c.id}</td>
       <td style="${td};font-weight:600">${c.nombre||'-'}</td>
       <td style="${td}">${c.rut_cliente||'-'}</td>
       <td style="${td};max-width:150px;overflow:hidden;text-overflow:ellipsis">${c.ejecutivo||'-'}</td>
       <td style="${td}">${c.producto||'-'}</td>
       <td style="${td}">${(c.marca||'')+' '+(c.modelo||'')}</td>
       <td style="${td}">${fmtFecha(c.fecha_ingreso)||'-'}</td>
+      <td style="${td};text-align:center">${dias}</td>
       <td style="${td};color:#2E7D32;font-weight:600">${fmt(c.monto_pagare)}</td>
       <td style="${td}"><span class="hist-estado-badge ${segClase[gs]||''}">${segLabel[gs]||gs}</span></td>
+      <td style="${td};text-align:center" title="Número de gestiones registradas">${nGestiones}</td>
       <td style="${td}">${ult.nuevo_estado||'-'}</td>
       <td style="${td};max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${ult.comentario||''}">${ult.comentario||'-'}</td>
     </tr>`;
   }).join('');
-  const todosMarcados = lista.length > 0 && lista.every(c => seleccionIds.has(c.id));
-  const nSel = lista.filter(c => seleccionIds.has(c.id)).length;
   document.getElementById('panel-content').innerHTML = `
-    <div style="flex:1;overflow:auto;height:100%;display:flex;flex-direction:column">
-      <div style="padding:6px 10px;font-size:12px;color:var(--texto-sec);flex-shrink:0;background:#F8F9FB;border-bottom:1px solid #ECEFF1">
-        ${nSel > 0 ? `<b>${nSel}</b> seleccionado(s) — ` : ''}<a href="#" onclick="exportarDetalle();return false" style="color:var(--azul);font-weight:600;text-decoration:none">⬇️ Exportar ${nSel>0?'seleccionados':'todo'} a Excel</a>
-      </div>
+    <div style="flex:1;overflow:auto;height:100%">
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead><tr>
-          <th style="${thS};text-align:center;width:30px"><input type="checkbox" ${todosMarcados?'checked':''} onchange="toggleSeleccionarTodos(this.checked)" style="cursor:pointer"></th>
           <th style="${thS}">ID</th><th style="${thS}">Nombre</th><th style="${thS}">RUT</th>
           <th style="${thS}">Ejecutivo</th><th style="${thS}">Producto</th><th style="${thS}">Marca/Modelo</th>
-          <th style="${thS}">F.Ingreso</th><th style="${thS}">Pagaré</th><th style="${thS}">Seg.</th>
-          <th style="${thS}">Últ. Estado</th><th style="${thS}">Comentario</th>
+          <th style="${thS}">F.Ingreso</th><th style="${thS}">Días</th><th style="${thS}">Pagaré</th><th style="${thS}">Seg.</th>
+          <th style="${thS}">Gest.</th><th style="${thS}">Últ. Estado</th><th style="${thS}">Comentario</th>
         </tr></thead>
         <tbody>${filas}</tbody>
       </table>
     </div>`;
 }
 
-function toggleSeleccionFila(id, checked) {
-  if (checked) seleccionIds.add(id); else seleccionIds.delete(id);
-  renderVistaLista();
+// BLOQUE 4 (Fase 4) — vista tablero: mismos filtros y datos que ficha/lista,
+// organizados en columnas por los 5 estados vigentes. Un clic abre la ficha.
+function renderVistaTablero() {
+  // v7.9 — antes usaba getCreditosActivos() sin aplicar el filtro de estado ni el
+  // de Sin Seg./Vencido/Al Día, así que Tablero podía mostrar algo distinto de
+  // Lista con los mismos filtros puestos. Ahora parte de registrosFiltrados,
+  // exactamente lo mismo que ve Lista, y solo dibuja las columnas de los estados
+  // seleccionados (o las 5 si el filtro de Estado está en "Todos").
+  const base = busquedaActiva ? resultadosBusqueda : registrosFiltrados;
+  const estadosAMostrar = filtroEstados.length > 0 ? filtroEstados : ESTADOS_VALIDOS;
+  const diasDesde = fi => {
+    const d = parseFechaIngreso(fi);
+    if (!d) return '-';
+    const hoy = new Date(); hoy.setHours(0,0,0,0);
+    return Math.max(0, Math.round((hoy - d) / 86400000));
+  };
+  const colorEstado = { 'APROBADO':'#2E7D32', 'EN PROCESO':'#F9A825', 'CERRADO':'#D32F2F', 'OTORGADO':'#EF6C00', 'RECHAZADO':'#1565C0' };
+
+  const columnas = estadosAMostrar.map(est => {
+    const items = base.filter(c => getEstadoComercial(c) === est);
+    const tarjetas = items.map(c => {
+      const gs = getEstadoGestion(c);
+      const ult = c.gestiones && c.gestiones.length > 0 ? c.gestiones[c.gestiones.length-1] : {};
+      const nGestiones = (c.gestiones||[]).length;
+      const dias = diasDesde(c.fecha_ingreso || c.fecha_curse);
+      const urgente = gs === 'VENCIDO';
+      return `<div onclick="abrirFichaDesdeTablero('${c.id}')" style="background:#fff;border:1px solid #ECEFF1;border-left:4px solid ${colorPuntoPorEstado(c)};border-radius:8px;padding:8px 10px;margin-bottom:8px;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.06)">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--texto-sec)">
+          <span>#${c.id}${urgente?' <b style="color:#C62828">· VENCIDO</b>':''}</span>
+          <span title="Días desde el ingreso">${dias}d</span>
+        </div>
+        <div style="font-weight:700;font-size:13px;margin:2px 0">${c.nombre||'-'}</div>
+        <div style="font-size:11px;color:var(--texto-sec)">${c.ejecutivo||'-'}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-size:11px">
+          <span title="Número de gestiones">💬 ${nGestiones}</span>
+          <span style="color:#2E7D32;font-weight:600">${c.monto_pagare?'$'+Number(c.monto_pagare).toLocaleString('es-CL'):''}</span>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div style="flex:1;min-width:220px;max-width:280px;background:#F8F9FB;border-radius:10px;padding:8px;display:flex;flex-direction:column;max-height:100%">
+      <div style="font-weight:700;font-size:12px;color:${colorEstado[est]};padding:4px 6px 8px;border-bottom:2px solid ${colorEstado[est]};margin-bottom:8px">${est} (${items.length})</div>
+      <div style="overflow-y:auto;flex:1">${tarjetas || '<div style="font-size:11px;color:var(--texto-sec);padding:8px">Sin operaciones</div>'}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('panel-content').innerHTML = `<div style="display:flex;gap:10px;height:100%;overflow-x:auto;padding:4px">${columnas}</div>`;
 }
 
-function toggleSeleccionarTodos(checked) {
-  const lista = busquedaActiva ? resultadosBusqueda : registrosFiltrados;
-  lista.forEach(c => { if (checked) seleccionIds.add(c.id); else seleccionIds.delete(c.id); });
-  renderVistaLista();
+// Abre la ficha rápida de un crédito desde el tablero (un clic), buscándolo
+// en la colección combinada — no depende del filtro de estado activo.
+function abrirFichaDesdeTablero(id) {
+  const c = operaciones.find(x => String(x.id) === String(id));
+  mostrarFichaRapida(c);
 }
 
 function abrirFichaLista(idx) {
   const lista = busquedaActiva ? resultadosBusqueda : registrosFiltrados;
   if (!lista[idx]) return;
-  creditoFichaLista = lista[idx];
-  const c = creditoFichaLista;
+  mostrarFichaRapida(lista[idx]);
+}
+
+// BLOQUE 3 (Fase 4) — ficha rápida reutilizable: se abre con un clic desde la
+// lista o el tablero, sin depender de un índice en registrosFiltrados.
+function mostrarFichaRapida(c) {
+  if (!c) return;
+  creditoFichaLista = c;
   const gs = getEstadoGestion(c);
   const segLabel = { SIN_SEG:'SIN SEG.', VENCIDO:'VENCIDO', AL_DIA:'AL DÍA' };
   const segClase = { SIN_SEG:'seg-sin', VENCIDO:'seg-vencido', AL_DIA:'seg-al-dia' };
@@ -2775,7 +3530,7 @@ const MANUAL_HTML = `<!DOCTYPE html>
   <div class="pantalla">
     <div class="pantalla-header">🖥️ Vista general de la aplicación</div>
     <div class="mock-header-bar">
-      <span>📋 Seguimiento de Créditos Aprobados v6.0</span>
+      <span>📋 Seguimiento de Créditos Aprobados v7.0</span>
       <span style="font-size:11px;opacity:0.8">Ejecutivo: JUAN PÉREZ (AFA) &nbsp;|&nbsp; 🔄 Actualizar &nbsp;|&nbsp; Cerrar sesión</span>
     </div>
     <div class="app-mock">
@@ -3284,7 +4039,7 @@ const MANUAL_HTML = `<!DOCTYPE html>
 <div style="text-align:center;padding:32px 0;color:#90A4AE;font-size:12px;border-top:2px solid #ECEFF1;margin-top:40px">
   <div style="font-size:24px;margin-bottom:8px">🏦</div>
   <strong>AutoFácil Chile</strong><br>
-  Manual de Usuario — Seguimiento de Créditos v6.0<br>
+  Manual de Usuario — Seguimiento de Créditos v7.0<br>
   Documento confidencial de uso interno · Mayo 2026
 </div>
 
@@ -3317,94 +4072,13 @@ initConfig();
 </script>
 
 <!-- EDITAR CREDITO MODAL -->
-<div id="edit-credito-overlay">
-  <div class="edit-credito-modal">
-    <div class="edit-credito-header">
-      <h2>✏️ Editar Crédito</h2>
-      <button class="btn-sm" onclick="cerrarEditCredito()">✕ Cerrar</button>
-    </div>
-    <div class="edit-credito-body">
-      <div class="edit-credito-search">
-        <input type="text" id="ec-id-input" placeholder="Ingresa el ID del crédito..." onkeydown="if(event.key==='Enter') buscarCreditoEdit()">
-        <button class="btn-buscar-credito" onclick="buscarCreditoEdit()">🔍 Buscar</button>
-      </div>
-      <div id="ec-msg" class="edit-msg"></div>
-      <div id="ec-form" class="edit-credito-form">
-        <div class="edit-seccion">
-          <div class="edit-seccion-title">ID del Crédito</div>
-          <div style="font-size:22px;font-weight:700;color:var(--azul);padding:4px 0 8px" id="ec-id-display"></div>
-        </div>
-        <div class="edit-seccion">
-          <div class="edit-seccion-title">Datos del Cliente</div>
-          <div class="edit-grid">
-            <div class="edit-field"><label>Nombre</label><input type="text" id="ec-nombre"></div>
-            <div class="edit-field"><label>RUT Cliente</label><input type="text" id="ec-rut_cliente"></div>
-            <div class="edit-field"><label>Ejecutivo</label><input type="text" id="ec-ejecutivo"></div>
-            <div class="edit-field"><label>Riesgo Cliente</label>
-              <select id="ec-riesgo_cliente">
-                <option value="">-</option>
-                <option>Riesgo Bajo</option>
-                <option>Riesgo Neutro</option>
-                <option>Riesgo Alto</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <div class="edit-seccion">
-          <div class="edit-seccion-title">Datos del Vehículo y Crédito</div>
-          <div class="edit-grid">
-            <div class="edit-field"><label>Producto</label><input type="text" id="ec-producto"></div>
-            <div class="edit-field"><label>Canal</label><input type="text" id="ec-canal"></div>
-            <div class="edit-field"><label>Marca</label><input type="text" id="ec-marca"></div>
-            <div class="edit-field"><label>Modelo</label><input type="text" id="ec-modelo"></div>
-            <div class="edit-field"><label>Dealer</label><input type="text" id="ec-dealer"></div>
-            <div class="edit-field"><label>Sucursal</label><input type="text" id="ec-sucursal"></div>
-          </div>
-        </div>
-        <div class="edit-seccion">
-          <div class="edit-seccion-title">Montos</div>
-          <div class="edit-grid-3">
-            <div class="edit-field"><label>Precio</label><input type="number" id="ec-precio"></div>
-            <div class="edit-field"><label>Pie</label><input type="number" id="ec-pie"></div>
-            <div class="edit-field"><label>Saldo Precio</label><input type="number" id="ec-saldo_precio"></div>
-            <div class="edit-field"><label>Monto Pagaré</label><input type="number" id="ec-monto_pagare"></div>
-            <div class="edit-field"><label>Categoría</label><input type="text" id="ec-categoria"></div>
-            <div class="edit-field"><label>Estado</label>
-              <select id="ec-estado">
-                <option value="">-</option>
-                <option>APROBADOS</option>
-                <option>DESISTIDO</option>
-                <option>POSPUESTO</option>
-                <option>OTROS</option>
-                <option>CERRADO</option>
-                <option>OTORGADO</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <div class="edit-seccion">
-          <div class="edit-seccion-title">Fechas y Evaluación</div>
-          <div class="edit-grid-3">
-            <div class="edit-field"><label>Fecha Ingreso</label><input type="text" id="ec-fecha_ingreso" placeholder="YYYY-MM-DD"></div>
-            <div class="edit-field"><label>Fecha Curse</label><input type="text" id="ec-fecha_curse" placeholder="YYYY-MM-DD"></div>
-            <div class="edit-field"><label>Evaluador</label><input type="text" id="ec-nom_evaluador"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="edit-credito-footer">
-      <button class="btn-cancelar" onclick="cerrarEditCredito()">Cancelar</button>
-      <button class="btn-guardar-credito" onclick="guardarCreditoEdit()">💾 Guardar Cambios</button>
-    </div>
-  </div>
-</div>
-
+<!-- Modal "Editar Crédito" retirado (Fase 3.5 regla 14, BLOQUE 5) -->
 <!-- ADMIN MODAL -->
 <div id="admin-overlay">
   <div class="admin-modal">
     <div class="admin-header">
+      <button class="btn-sm" onclick="cerrarAdmin()" style="background:rgba(255,255,255,0.18);font-weight:600">🏠 Inicio</button>
       <h2>⚙️ Administración de Usuarios</h2>
-      <button class="btn-sm" onclick="cerrarAdmin()">✕ Cerrar</button>
     </div>
     <div class="admin-body">
       <div class="admin-list">
