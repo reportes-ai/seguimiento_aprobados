@@ -203,6 +203,11 @@
   .upload-area .icon { font-size: 18px; }
   .upload-area p { font-size: 12px; color: var(--azul); font-weight: 500; margin: 0; }
   .upload-area small { font-size: 11px; color: var(--texto-sec); }
+  /* v7.15 — el <input type="file"> real queda oculto; la etiqueta (for=...) ya
+     lo activa al hacer clic. Antes se veían DOS selectores nativos "Seleccionar
+     archivo" apilados debajo de los recuadros de color, iguales entre sí y
+     fáciles de confundir sobre a cuál proceso pertenecía cada uno. */
+  .upload-area + input[type="file"] { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
   #file-input { display: none; }
   .estado-carga { padding: 6px 12px; font-size: 11px; background: var(--verde-bg); color: var(--verde); border-radius: 4px; margin: 0 16px 6px; display: none; }
   .estado-error { background: var(--rojo-bg); color: var(--rojo); }
@@ -615,7 +620,6 @@
     </div>
     <div class="header-right">
       <span id="header-ejecutivo"></span>
-      <button class="btn-sm" onclick="recargarDatos()" title="Actualizar datos desde el servidor">🔄 Actualizar</button>
     </div>
   </header>
 
@@ -658,6 +662,10 @@
       <div>
         <label>Hasta</label>
         <input type="date" id="filtro-fecha-hasta" onchange="aplicarFiltroFecha()">
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button class="btn-sm" onclick="recargarDatos()" title="Actualizar datos desde el servidor" style="background:var(--gris-claro);color:var(--texto);height:34px">🔄 Actualizar</button>
       </div>
       <div style="margin-left:auto;display:flex;gap:8px">
         <button class="btn-nueva-gestion" id="btn-nueva-gestion" onclick="abrirModal()" disabled style="margin:0;width:auto;padding:0 16px;height:34px">➕ Nueva Gestión</button>
@@ -4024,7 +4032,7 @@ const MANUAL_HTML = `<!DOCTYPE html>
   <p>Verifique el rango de fechas (Desde/Hasta). Si el rango está muy restringido, puede que no haya créditos en ese período. Amplíe las fechas.</p>
 
   <h3>¿Cada cuánto tiempo se actualizan los datos?</h3>
-  <p>Los datos se actualizan en tiempo real cuando alguien ingresa una gestión. Para asegurarse de ver lo más reciente, haga clic en el botón <strong>🔄 Actualizar</strong> en la barra superior.</p>
+  <p>Los datos se actualizan en tiempo real cuando alguien ingresa una gestión. Para asegurarse de ver lo más reciente, haga clic en el botón <strong>🔄 Actualizar</strong> en la barra de filtros de Seguimiento (junto a las fechas).</p>
 
   <h3>¿Pueden dos personas trabajar al mismo tiempo?</h3>
   <p>Sí, múltiples usuarios pueden usar el sistema simultáneamente sin problemas.</p>
