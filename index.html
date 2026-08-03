@@ -616,7 +616,7 @@
   <header id="app-header" style="background:var(--azul)">
     <div style="display:flex;align-items:center;gap:10px">
       <button class="btn-sm" onclick="showHome()" style="background:rgba(255,255,255,0.18);font-weight:600">🏠 Inicio</button>
-      <h1 id="header-titulo">📋 Seguimiento de Operaciones <small style="font-size:11px;opacity:0.7">v7.1</small></h1>
+      <h1 id="header-titulo">📋 Seguimiento de Operaciones <small style="font-size:11px;opacity:0.7">v7.2</small></h1>
     </div>
     <div class="header-right">
       <span id="header-ejecutivo"></span>
@@ -1756,15 +1756,25 @@ async function recargarDatos() {
       });
     }
 
-    // BLOQUE 1/2 (Fase 4) — traer gestiones de AMBOS orígenes (antes, rechazados
-    // se cargaba siempre con gestiones:[] y nunca consultaba su historial real).
+    // BLOQUE 1/2 (Fase 4) — traer gestiones de AMBOS orígenes desde sus tablas
+    // respectivas: aprobados → 'gestiones', rechazados → 'gestiones_rechazados'
+    // (las gestiones de rechazados viven en su propia tabla por integridad
+    // referencial, ya que credito_id apunta a creditos_rechazados).
     const idsAprobados = creditosRaw.map(c => c.id);
     const idsRechazados = rechazadosRaw.map(c => c.id);
-    const idsTodos = [...idsAprobados, ...idsRechazados];
+
     let gestionesRaw = [];
-    if (idsTodos.length > 0) {
-      const inList = `(${idsTodos.join(',')})`;
+    if (idsAprobados.length > 0) {
+      const inList = `(${idsAprobados.join(',')})`;
       gestionesRaw = await sbGet('gestiones', `credito_id=in.${inList}&order=created_at.asc`);
+    }
+
+    let gestionesRechRaw = [];
+    if (idsRechazados.length > 0) {
+      const inList = `(${idsRechazados.join(',')})`;
+      try {
+        gestionesRechRaw = await sbGet('gestiones_rechazados', `credito_id=in.${inList}&order=created_at.asc`);
+      } catch(e) { gestionesRechRaw = []; }
     }
 
     const gesMap = {};
@@ -1773,8 +1783,14 @@ async function recargarDatos() {
       gesMap[g.credito_id].push(g);
     });
 
+    const gesMapRech = {};
+    gestionesRechRaw.forEach(g => {
+      if (!gesMapRech[g.credito_id]) gesMapRech[g.credito_id] = [];
+      gesMapRech[g.credito_id].push(g);
+    });
+
     creditos = creditosRaw.map(c => ({...c, gestiones: gesMap[c.id] || [], origen: 'aprobados'}));
-    rechazados = rechazadosRaw.map(c => ({...c, gestiones: gesMap[c.id] || [], origen: 'rechazados'}));
+    rechazados = rechazadosRaw.map(c => ({...c, gestiones: gesMapRech[c.id] || [], origen: 'rechazados'}));
 
     // Vista visual única (BLOQUE 2): combina ambos orígenes en una sola colección,
     // sin fusionar físicamente nada en Supabase — solo en el cliente.
@@ -1957,9 +1973,11 @@ async function loadExcel(event, tipo = 'aprobados') {
           await sbInsert(tablaDestino, nuevos.slice(i, i+loteSize));
         }
         // Gestión inicial de trazabilidad — no bloquea la carga si falla (se registra en consola)
+        // Va a la tabla correcta según el origen: rechazados → gestiones_rechazados
         try {
+          const tablaGest = tipo === 'rechazados' ? 'gestiones_rechazados' : 'gestiones';
           for (let i=0; i<gestionesIniciales.length; i+=loteSize) {
-            await sbInsert('gestiones', gestionesIniciales.slice(i, i+loteSize));
+            await sbInsert(tablaGest, gestionesIniciales.slice(i, i+loteSize));
           }
         } catch(e) { console.warn('No se pudo registrar la gestión inicial de trazabilidad:', e); }
       }
@@ -2451,7 +2469,12 @@ async function grabarGestion() {
       tel_vendedor: document.getElementById('inp-tel-vendedor').value || null,
       usuario: currentUser.usuario,
     };
-    await sbInsert('gestiones', gestion);
+    // La gestión va a la tabla que corresponde al ORIGEN del crédito. Los créditos
+    // rechazados guardan su historial en gestiones_rechazados (su credito_id apunta
+    // a creditos_rechazados), mientras que los aprobados usan la tabla gestiones.
+    const esRechazado = credito.origen === 'rechazados';
+    const tablaGestiones = esRechazado ? 'gestiones_rechazados' : 'gestiones';
+    await sbInsert(tablaGestiones, gestion);
     cerrarModal();
     await recargarDatos();
     // Mantener el filtro y posición actual
