@@ -516,7 +516,7 @@
          gráficos e informe todos juntos. -->
     <div class="filters-bar" style="max-width:1100px;margin:0 auto 16px">
       <div class="pivot-filter" id="pivot-filter-ejecutivos">
-        <label>Usuario <small style="text-transform:none;font-weight:400">(múltiple)</small></label>
+        <label>Usuario <small style="text-transform:none;font-weight:400">(múltiple — ejecutivos y vendedores asignados)</small></label>
         <button type="button" class="pivot-trigger" id="pivot-trigger-ejecutivos" onclick="togglePivotDropdown('ejecutivos')">
           <span id="pivot-summary-ejecutivos">Todos</span><b>▾</b>
         </button>
@@ -616,7 +616,7 @@
   <header id="app-header" style="background:var(--azul)">
     <div style="display:flex;align-items:center;gap:10px">
       <button class="btn-sm" onclick="showHome()" style="background:rgba(255,255,255,0.18);font-weight:600">🏠 Inicio</button>
-      <h1 id="header-titulo">📋 Seguimiento de Operaciones <small style="font-size:11px;opacity:0.7">v7.2</small></h1>
+      <h1 id="header-titulo">📋 Seguimiento de Operaciones <small style="font-size:11px;opacity:0.7">v7.1</small></h1>
     </div>
     <div class="header-right">
       <span id="header-ejecutivo"></span>
@@ -626,7 +626,7 @@
   <div class="module-content">
     <div class="filters-bar">
       <div id="filtro-ejecutivo-wrap" style="display:none">
-        <label>Usuario <small style="text-transform:none;font-weight:400">(múltiple)</small></label>
+        <label>Usuario <small style="text-transform:none;font-weight:400">(múltiple — ejecutivos y vendedores asignados)</small></label>
         <div class="pivot-filter" id="pivot-filter-seg-usuario">
           <button type="button" class="pivot-trigger" id="pivot-trigger-seg-usuario" onclick="togglePivotDropdown('seg-usuario')">
             <span id="pivot-summary-seg-usuario">Todos</span><b>▾</b>
@@ -861,6 +861,31 @@
       </label>
       <input type="file" id="file-input-rechazados" accept=".xlsx,.xls" onchange="loadExcel(event, 'rechazados')">
       <div class="estado-carga" id="estado-carga" style="margin:10px 16px 4px"></div>
+
+      <!-- v7.20 — herramienta separada: SOLO completa el campo Vendedor en
+           operaciones que ya existen, nunca crea operaciones nuevas. -->
+      <div style="margin:18px 16px 4px;padding-top:14px;border-top:1px dashed var(--borde)">
+        <p style="font-size:11px;color:var(--texto-sec);line-height:1.5;margin-bottom:10px">
+          <strong style="color:#7B1FA2">🔧 Repoblar Vendedor</strong> — completa el campo <em>Vendedor</em> en operaciones que ya existen (cargadas antes de que se capturara esa columna), desde el 01-08-2026 en adelante. No crea operaciones nuevas ni cambia nada más, y nunca sobrescribe un Vendedor que ya tenga valor.
+        </p>
+        <label class="upload-area" for="file-repoblar-aprobados" style="border-color:#7B1FA2;background:#F3E5F5">
+          <span class="icon">🔧</span>
+          <div>
+            <p style="color:#7B1FA2">Repoblar Vendedor — Aprobados</p>
+            <small>Solo actualiza el campo Vendedor</small>
+          </div>
+        </label>
+        <input type="file" id="file-repoblar-aprobados" accept=".xlsx,.xls" onchange="repoblarVendedor(event, 'aprobados')">
+        <label class="upload-area" for="file-repoblar-rechazados" style="border-color:#7B1FA2;background:#F3E5F5;margin-top:4px">
+          <span class="icon">🔧</span>
+          <div>
+            <p style="color:#7B1FA2">Repoblar Vendedor — Rechazados</p>
+            <small>Solo actualiza el campo Vendedor</small>
+          </div>
+        </label>
+        <input type="file" id="file-repoblar-rechazados" accept=".xlsx,.xls" onchange="repoblarVendedor(event, 'rechazados')">
+        <div class="estado-carga" id="estado-repoblacion" style="margin:10px 0 0"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -903,6 +928,23 @@ async function sbGet(table, params = '') {
   });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
+}
+
+// v7.17 — traduce el error crudo de Supabase (JSON de PostgREST) a un mensaje
+// entendible para el usuario final. Caso conocido y ya diagnosticado: la
+// restricción "gestiones_credito_id_fkey" solo acepta credito_id que exista
+// en la tabla "creditos" (aprobados) — una gestión sobre una operación de
+// origen "rechazados" falla ahí hasta que se corrija en Supabase (pendiente,
+// ya identificado y comunicado). No se puede arreglar desde el código: es una
+// restricción real de la base de datos.
+function mensajeErrorGuardado(err) {
+  let detalle = null;
+  try { detalle = JSON.parse(err.message); } catch(e) {}
+  if (detalle && detalle.code === '23503' && String(detalle.message || '').includes('gestiones_credito_id_fkey')) {
+    return 'No se pudo guardar la gestión: esta operación pertenece a la base de "Rechazados" y la base de datos todavía tiene una restricción pendiente de ajuste para permitir gestiones sobre ese origen.\n\nNo perdiste tu información — vuelve a intentarlo más tarde, y si persiste, avisa al administrador del sistema (ya está identificado el ajuste que falta).';
+  }
+  if (detalle && detalle.message) return 'Error al guardar: ' + detalle.message;
+  return 'Error al guardar: ' + err.message;
 }
 
 async function sbInsert(table, data) {
@@ -1060,6 +1102,8 @@ let currentUser = null;
 let filtroRepUsuarios = []; // v7.7 — Reportes: selección múltiple por USUARIO consolidado (Administración), [] = todos
 let filtroRepProductos = []; // v7.3 — Reportes: selección múltiple, [] = todos
 let filtroSegUsuarios = []; // v7.9 — Seguimiento: selección múltiple por USUARIO consolidado, [] = todos
+// v7.24 — filtroSegVendedores/filtroRepVendedores retirados: Usuario ahora
+// consolida Ejecutivos Y Vendedores asignados juntos (operacionPerteneceAUsuario).
 let _reportesFiltrosInit = false; // controla el prellenado de fechas solo la primera vez
 let creditos = [];      // Array crudo de aprobados (compatibilidad con import/dedup)
 let rechazados = [];    // Array crudo de rechazados (compatibilidad con import/dedup)
@@ -1087,8 +1131,16 @@ async function doLogin() {
     const rows = await sbGet('usuarios_seguimiento', 'usuario=eq.' + encodeURIComponent(u) + '&clave=eq.' + encodeURIComponent(p) + '&limit=1');
     if (!rows || rows.length === 0) { errEl.style.display = 'block'; return; }
     const usr = rows[0];
-    // Normalizar ejecutivos (puede venir como string JSON desde Supabase)
+    // v7.23 — usuarios bloqueados (antes se eliminaban físicamente) no pueden ingresar.
+    if (usr.bloqueado === true) {
+      errEl.textContent = 'Tu usuario está bloqueado. Contacta al administrador del sistema.';
+      errEl.style.display = 'block';
+      return;
+    }
+    // Normalizar ejecutivos y vendedores (pueden venir como string JSON desde Supabase)
     if (typeof usr.ejecutivos === 'string') usr.ejecutivos = JSON.parse(usr.ejecutivos);
+    if (typeof usr.vendedores === 'string') { try { usr.vendedores = JSON.parse(usr.vendedores); } catch(e) { usr.vendedores = []; } }
+    if (!Array.isArray(usr.vendedores)) usr.vendedores = [];
     currentUser = usr;
     vistaActual = usr.vista_default || 'ficha';
     // Ocultar toggle si no tiene permiso
@@ -1225,14 +1277,40 @@ function ejecutivosDeUsuario(valorUsuario) {
   return [(valorUsuario||'').toUpperCase().trim()];
 }
 
+// v7.24 — igual que ejecutivosDeUsuario, pero para el campo Vendedor. Un mismo
+// USUARIO ahora consolida ambos (Ejecutivos asignados + Vendedores asignados),
+// así que el filtro "Usuario" queda como uno solo, en vez de dos separados.
+function vendedoresDeUsuario(valorUsuario) {
+  const u = USUARIOS_CACHE.find(x => x.usuario === valorUsuario);
+  if (u && Array.isArray(u.vendedores)) return u.vendedores.map(v => (v||'').toUpperCase().trim());
+  return [];
+}
+
+// true si la operación pertenece al usuario seleccionado, por Ejecutivo O por
+// Vendedor (cualquiera de los dos alcanza, ya no son filtros separados).
+function operacionPerteneceAUsuario(credito, valorUsuario) {
+  const ej = (credito.ejecutivo || '').toUpperCase().trim();
+  const ve = (credito.vendedor || '').toUpperCase().trim();
+  if (ejecutivosDeUsuario(valorUsuario).includes(ej)) return true;
+  if (ve && vendedoresDeUsuario(valorUsuario).includes(ve)) return true;
+  return false;
+}
+
 // Nombre consolidado a mostrar para una operación, según qué usuario tiene ese
 // "ejecutivo" crudo entre sus asignados (Administración). Si ninguno lo tiene
 // asignado, se muestra el valor crudo tal cual, sin inventar una consolidación.
-function nombreUsuarioDeEjecutivo(ejecutivoRaw) {
-  const ej = (ejecutivoRaw || '').toUpperCase().trim();
-  if (!ej) return 'Sin usuario';
-  const u = USUARIOS_CACHE.find(x => Array.isArray(x.ejecutivos) && x.ejecutivos.some(e => (e||'').toUpperCase().trim() === ej));
-  return u ? formatearNombreUsuario(u.usuario) : ejecutivoRaw;
+// v7.24 — recibe el crédito completo (no solo el ejecutivo) para poder buscar
+// coincidencia por Ejecutivo O por Vendedor, ya que un mismo Usuario consolida
+// ambos campos ahora.
+function nombreUsuarioDeEjecutivo(credito) {
+  const ej = (credito.ejecutivo || '').toUpperCase().trim();
+  const ve = (credito.vendedor || '').toUpperCase().trim();
+  if (!ej && !ve) return 'Sin usuario';
+  const u = USUARIOS_CACHE.find(x =>
+    (Array.isArray(x.ejecutivos) && x.ejecutivos.some(e => (e||'').toUpperCase().trim() === ej && ej)) ||
+    (Array.isArray(x.vendedores) && x.vendedores.some(v => (v||'').toUpperCase().trim() === ve && ve))
+  );
+  return u ? formatearNombreUsuario(u.usuario) : (credito.ejecutivo || credito.vendedor || 'Sin usuario');
 }
 
 // v7.9 — Seguimiento: mismo criterio de consolidación por Usuario que Reportes
@@ -1419,12 +1497,11 @@ function onFiltrosReporteChange() {
 // rango de fechas (por defecto, mes calendario vigente si no se seleccionó nada).
 function getOperacionesReporte() {
   let lista = operaciones;
+  // v7.24 — Usuario consolidado (multi): agrupa Ejecutivos Y Vendedores
+  // asignados; antes había un filtro de Vendedor aparte, ahora queda
+  // absorbido acá, un solo filtro "Usuario" (mismo criterio que Seguimiento).
   if (filtroRepUsuarios.length > 0) {
-    // v7.7 — cada "usuario" seleccionado representa uno o varios nombres crudos
-    // de ejecutivo (Administración → "Ejecutivos asignados"); se consolidan todos.
-    const ejecsPermitidos = new Set();
-    filtroRepUsuarios.forEach(u => ejecutivosDeUsuario(u).forEach(e => ejecsPermitidos.add(e)));
-    lista = lista.filter(c => ejecsPermitidos.has((c.ejecutivo||'').toUpperCase().trim()));
+    lista = lista.filter(c => filtroRepUsuarios.some(u => operacionPerteneceAUsuario(c, u)));
   }
   if (filtroRepProductos.length > 0) lista = lista.filter(c => filtroRepProductos.includes(c.producto));
 
@@ -1536,7 +1613,7 @@ function renderInformeInline() {
     // v7.7 — se agrupa por USUARIO consolidado (Administración → "Ejecutivos
     // asignados"), no por cada variante cruda de nombre, para que el informe
     // realmente consolide como pide el negocio.
-    const ejec = nombreUsuarioDeEjecutivo(c.ejecutivo);
+    const ejec = nombreUsuarioDeEjecutivo(c);
     const estado = getEstadoComercial(c);
     if (!resumen[ejec]) resumen[ejec] = {};
     if (!resumen[ejec][estado]) resumen[ejec][estado] = { cantidad: 0, monto: 0 };
@@ -1707,30 +1784,48 @@ async function recargarDatos() {
         USUARIOS_CACHE = USUARIOS_CACHE.filter(u => u.ejecutivos && u.ejecutivos !== 'todos' && (!Array.isArray(u.ejecutivos) || u.ejecutivos[0] !== 'todos'));
         USUARIOS_CACHE = USUARIOS_CACHE.map(u => ({
           ...u,
-          ejecutivos: Array.isArray(u.ejecutivos) ? u.ejecutivos : (typeof u.ejecutivos === 'string' ? JSON.parse(u.ejecutivos) : [])
+          ejecutivos: Array.isArray(u.ejecutivos) ? u.ejecutivos : (typeof u.ejecutivos === 'string' ? JSON.parse(u.ejecutivos) : []),
+          vendedores: Array.isArray(u.vendedores) ? u.vendedores : (typeof u.vendedores === 'string' ? (function(){ try { return JSON.parse(u.vendedores); } catch(e) { return []; } })() : [])
         }));
       } catch(e) { console.warn('No se pudo cargar cache usuarios:', e); }
     }
 
-    // v7.10 — jerarquía de perfiles: el supervisor ve su propio equipo (todos los
-    // usuarios que en Administración lo tienen asignado como "Supervisor asignado"),
-    // no solo su propio nombre. El gerente sigue viendo todo ('todos'); un usuario
-    // común sigue viendo solo lo suyo. Esto se resuelve UNA vez aquí y se reutiliza
-    // para filtrar tanto aprobados como rechazados.
+    // v7.10/v7.24 — jerarquía de perfiles: el supervisor ve su propio equipo (todos
+    // los usuarios que en Administración lo tienen asignado como "Supervisor
+    // asignado"), no solo su propio nombre. El gerente sigue viendo todo ('todos');
+    // un usuario común sigue viendo solo lo suyo. Ahora el alcance considera tanto
+    // Ejecutivos como Vendedores asignados (un mismo usuario consolida ambos).
     let ejecutivosPermitidos = currentUser.ejecutivos;
+    let vendedoresPermitidos = currentUser.vendedores || [];
     if (currentUser.perfil === 'supervisor' && ejecutivosPermitidos[0] !== 'todos') {
       try {
         const equipoRaw = await sbGet('usuarios_seguimiento', 'supervisor=eq.' + encodeURIComponent(currentUser.usuario));
-        const nombresPermitidos = new Set((currentUser.ejecutivos || []).map(e => (e||'').toUpperCase().trim()));
+        const nombresEjecutivo = new Set((currentUser.ejecutivos || []).map(e => (e||'').toUpperCase().trim()));
+        const nombresVendedor = new Set((currentUser.vendedores || []).map(v => (v||'').toUpperCase().trim()));
         equipoRaw.forEach(miembro => {
           let ejs = miembro.ejecutivos;
           if (typeof ejs === 'string') { try { ejs = JSON.parse(ejs); } catch(e) { ejs = []; } }
-          if (Array.isArray(ejs)) ejs.forEach(e => nombresPermitidos.add((e||'').toUpperCase().trim()));
+          if (Array.isArray(ejs)) ejs.forEach(e => nombresEjecutivo.add((e||'').toUpperCase().trim()));
+          let vds = miembro.vendedores;
+          if (typeof vds === 'string') { try { vds = JSON.parse(vds); } catch(e) { vds = []; } }
+          if (Array.isArray(vds)) vds.forEach(v => nombresVendedor.add((v||'').toUpperCase().trim()));
         });
-        ejecutivosPermitidos = [...nombresPermitidos];
+        ejecutivosPermitidos = [...nombresEjecutivo];
+        vendedoresPermitidos = [...nombresVendedor];
       } catch(e) {
         console.warn('No se pudo cargar el equipo del supervisor, se usa solo su propio acceso:', e);
       }
+    }
+
+    // Une el criterio: una operación es visible si su Ejecutivo O su Vendedor
+    // coincide con lo permitido (cualquiera de los dos alcanza).
+    function esVisiblePorAlcance(c) {
+      if (ejecutivosPermitidos[0] === 'todos') return true;
+      const cej = (c.ejecutivo || '').toUpperCase().trim();
+      const cve = (c.vendedor || '').toUpperCase().trim();
+      if (ejecutivosPermitidos.some(e => cej === e.toUpperCase().trim())) return true;
+      if (cve && vendedoresPermitidos.some(v => cve === v.toUpperCase().trim())) return true;
+      return false;
     }
 
     // Cargar rechazados si existe la tabla (BLOQUE 2 — se etiqueta el origen)
@@ -1738,43 +1833,27 @@ async function recargarDatos() {
     try {
       rechazadosRaw = await sbGet('creditos_rechazados', 'order=id.desc&limit=5000');
       if (ejecutivosPermitidos[0] !== 'todos') {
-        rechazadosRaw = rechazadosRaw.filter(c => {
-          const cej = (c.ejecutivo || '').toUpperCase().trim();
-          return ejecutivosPermitidos.some(e => cej === e.toUpperCase().trim());
-        });
+        rechazadosRaw = rechazadosRaw.filter(esVisiblePorAlcance);
       }
     } catch(e) { rechazadosRaw = []; }
 
     // Traer TODOS los créditos aprobados y filtrar en el cliente (más robusto)
     let creditosRaw = await sbGet('creditos', 'order=id.desc&limit=5000');
 
-    // Filtrar por ejecutivo si no es gerente
+    // Filtrar por ejecutivo/vendedor si no es gerente
     if (ejecutivosPermitidos[0] !== 'todos') {
-      creditosRaw = creditosRaw.filter(c => {
-        const cej = (c.ejecutivo || '').toUpperCase().trim();
-        return ejecutivosPermitidos.some(e => cej === e.toUpperCase().trim());
-      });
+      creditosRaw = creditosRaw.filter(esVisiblePorAlcance);
     }
 
-    // BLOQUE 1/2 (Fase 4) — traer gestiones de AMBOS orígenes desde sus tablas
-    // respectivas: aprobados → 'gestiones', rechazados → 'gestiones_rechazados'
-    // (las gestiones de rechazados viven en su propia tabla por integridad
-    // referencial, ya que credito_id apunta a creditos_rechazados).
+    // BLOQUE 1/2 (Fase 4) — traer gestiones de AMBOS orígenes (antes, rechazados
+    // se cargaba siempre con gestiones:[] y nunca consultaba su historial real).
     const idsAprobados = creditosRaw.map(c => c.id);
     const idsRechazados = rechazadosRaw.map(c => c.id);
-
+    const idsTodos = [...idsAprobados, ...idsRechazados];
     let gestionesRaw = [];
-    if (idsAprobados.length > 0) {
-      const inList = `(${idsAprobados.join(',')})`;
+    if (idsTodos.length > 0) {
+      const inList = `(${idsTodos.join(',')})`;
       gestionesRaw = await sbGet('gestiones', `credito_id=in.${inList}&order=created_at.asc`);
-    }
-
-    let gestionesRechRaw = [];
-    if (idsRechazados.length > 0) {
-      const inList = `(${idsRechazados.join(',')})`;
-      try {
-        gestionesRechRaw = await sbGet('gestiones_rechazados', `credito_id=in.${inList}&order=created_at.asc`);
-      } catch(e) { gestionesRechRaw = []; }
     }
 
     const gesMap = {};
@@ -1783,14 +1862,8 @@ async function recargarDatos() {
       gesMap[g.credito_id].push(g);
     });
 
-    const gesMapRech = {};
-    gestionesRechRaw.forEach(g => {
-      if (!gesMapRech[g.credito_id]) gesMapRech[g.credito_id] = [];
-      gesMapRech[g.credito_id].push(g);
-    });
-
     creditos = creditosRaw.map(c => ({...c, gestiones: gesMap[c.id] || [], origen: 'aprobados'}));
-    rechazados = rechazadosRaw.map(c => ({...c, gestiones: gesMapRech[c.id] || [], origen: 'rechazados'}));
+    rechazados = rechazadosRaw.map(c => ({...c, gestiones: gesMap[c.id] || [], origen: 'rechazados'}));
 
     // Vista visual única (BLOQUE 2): combina ambos orígenes en una sola colección,
     // sin fusionar físicamente nada en Supabase — solo en el cliente.
@@ -1918,6 +1991,9 @@ async function loadExcel(event, tipo = 'aprobados') {
         }
 
         // Fila nueva y válida -> se arma el registro (mismos campos que ya usaba el código)
+        // v7.19 — vuelta a v7.17: "Ejecutivo" vuelve a tomar la columna "Ejecutivo".
+        // "Vendedor" se agrega como campo PARALELO e independiente (columna propia),
+        // capturado en ambas bases (antes solo se guardaba para Rechazados).
         const base = {
           id,
           categoria: rec['Categoría']||'',
@@ -1925,6 +2001,7 @@ async function loadExcel(event, tipo = 'aprobados') {
           nombre: rec['Nombre']||'',
           rut_cliente: rec['Rut Cliente']||'',
           ejecutivo: rec['Ejecutivo']||'',
+          vendedor: rec['Vendedor']||'',
           producto: rec['Producto']||rec['Producto admisión']||'',
           dealer: rec['Dealer']||'',
           sucursal: rec['Sucursal']||'',
@@ -1944,7 +2021,6 @@ async function loadExcel(event, tipo = 'aprobados') {
           base.puntaje_scoring = rec['Puntaje Scoring']||'';
           base.modulo = rec['Módulo']||'';
           base.comentario_rechazo = rec['Comentario Rechazo']||'';
-          base.vendedor = rec['Vendedor']||'';
         }
         nuevos.push(base);
 
@@ -1973,11 +2049,9 @@ async function loadExcel(event, tipo = 'aprobados') {
           await sbInsert(tablaDestino, nuevos.slice(i, i+loteSize));
         }
         // Gestión inicial de trazabilidad — no bloquea la carga si falla (se registra en consola)
-        // Va a la tabla correcta según el origen: rechazados → gestiones_rechazados
         try {
-          const tablaGest = tipo === 'rechazados' ? 'gestiones_rechazados' : 'gestiones';
           for (let i=0; i<gestionesIniciales.length; i+=loteSize) {
-            await sbInsert(tablaGest, gestionesIniciales.slice(i, i+loteSize));
+            await sbInsert('gestiones', gestionesIniciales.slice(i, i+loteSize));
           }
         } catch(e) { console.warn('No se pudo registrar la gestión inicial de trazabilidad:', e); }
       }
@@ -1991,6 +2065,93 @@ async function loadExcel(event, tipo = 'aprobados') {
     } catch(err) {
       loading(false);
       mostrarCarga(`❌ Error: ${err.message}`, true);
+    }
+  };
+  reader.readAsBinaryString(file);
+  event.target.value = '';
+}
+
+function mostrarRepoblacion(msg, esError=false) {
+  const el = document.getElementById('estado-repoblacion');
+  el.textContent = msg;
+  el.className = 'estado-carga' + (esError ? ' estado-error' : '');
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 9000);
+}
+
+// v7.20 — REPOBLAR VENDEDOR: a diferencia de loadExcel() (que nunca actualiza,
+// solo inserta), esta función SÍ hace UPDATE — pero de forma muy acotada, a
+// pedido explícito, para completar datos que quedaron vacíos porque se
+// cargaron antes de que la app capturara la columna Vendedor:
+//   - Solo toca el campo "vendedor" — nada más del registro.
+//   - Solo actualiza si el ID YA EXISTE y su vendedor actual está vacío
+//     (nunca sobrescribe un valor ya cargado).
+//   - Solo aplica a fecha_ingreso desde el 01-08-2026 en adelante.
+//   - Funciona igual para creditos y creditos_rechazados.
+async function repoblarVendedor(event, tipo) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      loading(true, 'Procesando archivo de repoblación...');
+      const wb = XLSX.read(e.target.result, {type:'binary', cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+      let headerRow = -1;
+      for (let i=0;i<raw.length;i++) {
+        if (String(raw[i][0]).trim()==='ID') { headerRow=i; break; }
+      }
+      if (headerRow<0) { loading(false); mostrarRepoblacion('❌ No se encontró fila de encabezados (ID)', true); return; }
+
+      const headers = raw[headerRow].map(h => String(h).trim());
+      const rows = raw.slice(headerRow+1).filter(r => r.some(v => String(v).trim() !== ''));
+
+      if (!headers.includes('Vendedor')) {
+        loading(false);
+        mostrarRepoblacion('❌ El archivo no tiene columna "Vendedor". No se actualizó nada.', true);
+        return;
+      }
+
+      const tabla = tipo === 'rechazados' ? 'creditos_rechazados' : 'creditos';
+      const coleccion = tipo === 'rechazados' ? rechazados : creditos;
+      const porId = new Map(coleccion.map(c => [String(c.id), c]));
+      const FECHA_LIMITE = new Date('2026-08-01T00:00:00');
+
+      let actualizados = 0, yaTeniaVendedor = 0, fueraDeRango = 0, noEncontrados = 0, sinVendedorEnArchivo = 0;
+
+      for (const row of rows) {
+        const rec = {};
+        headers.forEach((h,i) => rec[h] = row[i] ?? '');
+        const id = String(rec['ID']).trim();
+        const vendedorNuevo = String(rec['Vendedor']||'').trim();
+
+        if (!id) continue;
+        if (!vendedorNuevo) { sinVendedorEnArchivo++; continue; }
+
+        const existente = porId.get(id);
+        if (!existente) { noEncontrados++; continue; }
+
+        const fi = parseFechaIngreso(existente.fecha_ingreso || existente.fecha_curse);
+        if (!fi || fi < FECHA_LIMITE) { fueraDeRango++; continue; }
+
+        if (existente.vendedor && String(existente.vendedor).trim()) { yaTeniaVendedor++; continue; }
+
+        try {
+          await sbUpdate(tabla, id, { vendedor: vendedorNuevo });
+          actualizados++;
+        } catch(err) {
+          console.warn('No se pudo actualizar vendedor para ID ' + id + ':', err);
+        }
+      }
+
+      loading(false);
+      mostrarRepoblacion(`✅ Vendedor completado en ${actualizados} operaciones | Ya tenían vendedor: ${yaTeniaVendedor} | Antes del 01-08-2026 (fuera de rango): ${fueraDeRango} | No encontradas: ${noEncontrados} | Sin vendedor en el archivo: ${sinVendedorEnArchivo}`);
+      if (actualizados > 0) await recargarDatos();
+    } catch(err) {
+      loading(false);
+      mostrarRepoblacion(`❌ Error: ${err.message}`, true);
     }
   };
   reader.readAsBinaryString(file);
@@ -2031,11 +2192,12 @@ function getCreditosActivos() {
   // no hace falta elegir aprobados/rechazados por separado).
   let lista = operaciones;
 
-  // v7.9 — Usuario consolidado (multi), mismo criterio que Reportes.
+  // v7.24 — Usuario consolidado (multi): un mismo usuario agrupa tanto sus
+  // Ejecutivos asignados como sus Vendedores asignados; con cualquiera de
+  // los dos que coincida, alcanza. Antes había un filtro de Vendedor aparte;
+  // ahora queda absorbido acá, un solo filtro "Usuario".
   if (filtroSegUsuarios.length > 0) {
-    const ejecsPermitidos = new Set();
-    filtroSegUsuarios.forEach(u => ejecutivosDeUsuario(u).forEach(e => ejecsPermitidos.add(e)));
-    lista = lista.filter(c => ejecsPermitidos.has((c.ejecutivo||'').toUpperCase().trim()));
+    lista = lista.filter(c => filtroSegUsuarios.some(u => operacionPerteneceAUsuario(c, u)));
   }
 
   // Filtro por rango de fecha_ingreso
@@ -2469,12 +2631,7 @@ async function grabarGestion() {
       tel_vendedor: document.getElementById('inp-tel-vendedor').value || null,
       usuario: currentUser.usuario,
     };
-    // La gestión va a la tabla que corresponde al ORIGEN del crédito. Los créditos
-    // rechazados guardan su historial en gestiones_rechazados (su credito_id apunta
-    // a creditos_rechazados), mientras que los aprobados usan la tabla gestiones.
-    const esRechazado = credito.origen === 'rechazados';
-    const tablaGestiones = esRechazado ? 'gestiones_rechazados' : 'gestiones';
-    await sbInsert(tablaGestiones, gestion);
+    await sbInsert('gestiones', gestion);
     cerrarModal();
     await recargarDatos();
     // Mantener el filtro y posición actual
@@ -2483,7 +2640,7 @@ async function grabarGestion() {
     const idx = registrosFiltrados.findIndex(r => r.id === credito.id);
     if (idx >= 0) { idxActual = idx; renderPanelDerecho(); }
   } catch(err) {
-    alert('Error al guardar: ' + err.message);
+    alert(mensajeErrorGuardado(err));
     btn.disabled = false; btn.textContent = 'GRABAR';
   }
 }
@@ -2728,6 +2885,7 @@ function exportarDetalle() {
       'Nombre': c.nombre,
       'RUT': c.rut_cliente,
       'Ejecutivo': c.ejecutivo,
+      'Vendedor': c.vendedor,
       'Estado BD': c.estado,
       'Estado Comercial': ec,
       'Seguimiento': gs,
@@ -2813,11 +2971,11 @@ function renderAdminLista() {
     const avatarCls = 'avatar-' + u.perfil;
     const last = u.ultimo_acceso ? new Date(u.ultimo_acceso).toLocaleString('es-CL', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : 'Nunca';
     const ejs = Array.isArray(u.ejecutivos) ? u.ejecutivos : (u.ejecutivos ? JSON.parse(u.ejecutivos) : []);
-    return '<div class="admin-user-item' + cls + '" onclick="seleccionarUser(' + i + ')">' +
+    return '<div class="admin-user-item' + cls + '" onclick="seleccionarUser(' + i + ')" style="' + (u.bloqueado ? 'opacity:0.6' : '') + '">' +
       '<div class="admin-user-avatar ' + avatarCls + '">' + avatarLetra(u) + '</div>' +
       '<div class="admin-user-info">' +
         '<div class="admin-user-email">' + u.usuario + '</div>' +
-        '<div class="admin-user-meta"><span class="perfil-badge perfil-' + u.perfil + '">' + u.perfil + '</span> · ' + (ejs[0] === 'todos' ? 'Todos' : (ejs[0] || '-')) + '</div>' +
+        '<div class="admin-user-meta"><span class="perfil-badge perfil-' + u.perfil + '">' + u.perfil + '</span>' + (u.bloqueado ? ' <span class="perfil-badge" style="background:var(--rojo-bg);color:var(--rojo)">BLOQUEADO</span>' : '') + ' · ' + (ejs[0] === 'todos' ? 'Todos' : (ejs[0] || '-')) + '</div>' +
         '<div class="admin-user-last">Último acceso: ' + last + '</div>' +
       '</div></div>';
   }).join('');
@@ -2836,6 +2994,7 @@ function renderAdminFormEmpty() {
 
 function renderAdminFormEditar(u) {
   const ejs = Array.isArray(u.ejecutivos) ? u.ejecutivos : (u.ejecutivos ? JSON.parse(u.ejecutivos) : []);
+  const vends = Array.isArray(u.vendedores) ? u.vendedores : (u.vendedores ? JSON.parse(u.vendedores) : []);
   const last = u.ultimo_acceso ? new Date(u.ultimo_acceso).toLocaleString('es-CL', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : 'Nunca';
   const ejsFiltered = ejs.filter(e=>e!=='todos');
 
@@ -2869,8 +3028,8 @@ function renderAdminFormEditar(u) {
         '<label>Supervisor asignado</label>' +
         '<select id="af-supervisor">' +
           '<option value="">(Sin supervisor asignado)</option>' +
-          adminUsuarios.filter(x => x.perfil === 'supervisor').map(x =>
-            '<option value="' + x.usuario + '"' + (u.supervisor === x.usuario ? ' selected' : '') + '>' + formatearNombreUsuario(x.usuario) + '</option>'
+          adminUsuarios.filter(x => x.perfil === 'supervisor' || x.perfil === 'gerente').map(x =>
+            '<option value="' + x.usuario + '"' + (u.supervisor === x.usuario ? ' selected' : '') + '>' + formatearNombreUsuario(x.usuario) + ' (' + (x.perfil === 'gerente' ? 'Gerente' : 'Supervisor') + ')</option>'
           ).join('') +
         '</select>' +
       '</div>' +
@@ -2885,22 +3044,35 @@ function renderAdminFormEditar(u) {
           '</div>' +
         '</div>' +
       '</div>' +
+      '<div class="form-group" id="af-ve-group" style="' + (u.perfil==='gerente'?'display:none':'') + '">' +
+        '<label>Vendedores asignados <small style="text-transform:none;font-weight:400">(múltiple — campo independiente de Ejecutivos)</small></label>' +
+        '<div class="pivot-filter" id="af-ve-filter">' +
+          '<button type="button" class="pivot-trigger" id="af-ve-trigger" onclick="toggleAfVeDropdown()" style="width:100%">' +
+            '<span id="af-ve-summary">Ninguno</span><b>▾</b>' +
+          '</button>' +
+          '<div class="pivot-dropdown" id="af-ve-dropdown" style="width:100%">' +
+            '<div id="af-ve-items"></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
       '<div class="admin-log-section">' +
         '<div class="admin-log-title">Último acceso</div>' +
         '<div class="admin-log-item"><span>' + (u.usuario||'') + '</span><strong>' + last + '</strong></div>' +
       '</div>' +
       '<div class="admin-form-actions">' +
-        (adminModo==='editar' ? '<button class="btn-eliminar-user" onclick="eliminarUser()">Eliminar</button>' : '') +
+        (adminModo==='editar' ? ('<button class="btn-eliminar-user" onclick="toggleBloqueoUser()" style="' + (u.bloqueado ? 'color:var(--verde);border-color:var(--verde)' : '') + '">' + (u.bloqueado ? '✅ Desbloquear' : '🚫 Bloquear') + '</button>') : '') +
         '<button class="btn-guardar-user" onclick="guardarUser()">Guardar</button>' +
       '</div>' +
     '</div>';
 
   renderAfEjecutivosDropdown(ejsFiltered);
+  renderAfVendedoresDropdown(vends);
 }
 
 function onPerfilChange() {
   const p = document.getElementById('af-perfil').value;
   document.getElementById('af-ej-group').style.display = p === 'gerente' ? 'none' : '';
+  document.getElementById('af-ve-group').style.display = p === 'gerente' ? 'none' : '';
   document.getElementById('af-supervisor-group').style.display = p === 'usuario' ? '' : 'none';
 }
 
@@ -2951,11 +3123,59 @@ function getEjecutivosForm() {
   return Array.from(document.querySelectorAll('#af-ej-items input:checked')).map(cb => cb.value);
 }
 
+// v7.19 — "Vendedores asignados": mismo componente y patrón que "Ejecutivos
+// asignados", pero SIN consolidación (campo independiente, no agrupa variantes
+// de nombre) y sin el valor especial 'todos' (Vendedor no determina alcance de
+// datos por perfil, solo es un dato adicional/filtro).
+function renderAfVendedoresDropdown(seleccionados) {
+  const disponiblesSet = new Set([...operaciones.map(c => c.vendedor).filter(Boolean), ...seleccionados]);
+  const disponibles = [...disponiblesSet].sort();
+  const cont = document.getElementById('af-ve-items');
+  cont.innerHTML = disponibles.map(v => `
+    <label class="pivot-item">
+      <input type="checkbox" value="${v.replace(/"/g,'&quot;')}" ${seleccionados.includes(v) ? 'checked' : ''} onchange="actualizarAfVeResumen()">
+      <span>${v}</span>
+    </label>`).join('');
+  actualizarAfVeResumen();
+}
+
+function actualizarAfVeResumen() {
+  const span = document.getElementById('af-ve-summary');
+  if (!span) return;
+  const marcados = Array.from(document.querySelectorAll('#af-ve-items input:checked'));
+  if (marcados.length === 0) span.textContent = 'Ninguno';
+  else if (marcados.length === 1) span.textContent = marcados[0].value;
+  else span.textContent = `Varios (${marcados.length})`;
+}
+
+function toggleAfVeDropdown() {
+  const dd = document.getElementById('af-ve-dropdown');
+  const trigger = document.getElementById('af-ve-trigger');
+  const abierto = dd.classList.contains('visible');
+  dd.classList.toggle('visible', !abierto);
+  trigger.classList.toggle('abierto', !abierto);
+}
+document.addEventListener('click', function(e) {
+  const filtro = document.getElementById('af-ve-filter');
+  const dd = document.getElementById('af-ve-dropdown');
+  if (filtro && dd && !filtro.contains(e.target)) {
+    dd.classList.remove('visible');
+    document.getElementById('af-ve-trigger').classList.remove('abierto');
+  }
+});
+
+function getVendedoresForm() {
+  const perfil = document.getElementById('af-perfil').value;
+  if (perfil === 'gerente') return [];
+  return Array.from(document.querySelectorAll('#af-ve-items input:checked')).map(cb => cb.value);
+}
+
 async function guardarUser() {
   const email = document.getElementById('af-email').value.trim().toLowerCase();
   const clave = document.getElementById('af-clave').value.trim();
   const perfil = document.getElementById('af-perfil').value;
   const ejecutivos = getEjecutivosForm();
+  const vendedores = getVendedoresForm();
   if (!email || !clave) { alert('Email y contrasena son obligatorios'); return; }
   if (ejecutivos.length === 0 && perfil !== 'gerente') { alert('Agrega al menos un ejecutivo'); return; }
   const vistaDefault = document.getElementById('af-vista')?.value || 'ficha';
@@ -2963,7 +3183,8 @@ async function guardarUser() {
   // v7.10 — jerarquía de supervisión: solo aplica a perfil "usuario". El supervisor
   // que ve un usuario se define aquí; el propio supervisor no tiene supervisor.
   const supervisorAsignado = perfil === 'usuario' ? (document.getElementById('af-supervisor')?.value || null) : null;
-  const data = { usuario: email, clave, perfil, ejecutivos, vista_default: vistaDefault, permite_cambio_vista: permiteCambio, supervisor: supervisorAsignado };
+  // v7.19 — "vendedores" se guarda en paralelo a "ejecutivos", sin reemplazarlo.
+  const data = { usuario: email, clave, perfil, ejecutivos, vendedores, vista_default: vistaDefault, permite_cambio_vista: permiteCambio, supervisor: supervisorAsignado };
   try {
     if (adminModo === 'nuevo') {
       await sbInsert('usuarios_seguimiento', data);
@@ -2980,18 +3201,24 @@ async function guardarUser() {
   }
 }
 
-async function eliminarUser() {
+// v7.23 — antes esto eliminaba físicamente el registro (sbDelete). Ahora solo
+// marca/desmarca "bloqueado": el usuario se conserva (con todas sus
+// asignaciones e historial de acceso), pero no puede volver a ingresar
+// mientras esté bloqueado. Reversible: el mismo botón desbloquea.
+async function toggleBloqueoUser() {
   const u = adminUsuarios[adminSelIdx];
-  if (u.usuario === currentUser.usuario) { alert('No puedes eliminar tu propio usuario'); return; }
-  if (!confirm('Eliminar usuario ' + u.usuario + '?')) return;
+  if (u.usuario === currentUser.usuario) { alert('No puedes bloquear tu propio usuario'); return; }
+  const nuevoEstado = !u.bloqueado;
+  const accion = nuevoEstado ? 'bloquear' : 'desbloquear';
+  const consecuencia = nuevoEstado ? 'No podrá ingresar a la app, pero sus datos y asignaciones se conservan.' : 'Podrá volver a ingresar a la app.';
+  if (!confirm('¿Seguro que quieres ' + accion + ' a ' + u.usuario + '? ' + consecuencia)) return;
   try {
-    await sbDelete('usuarios_seguimiento', u.id);
-    adminSelIdx = null;
-    adminModo = null;
+    await sbUpdate('usuarios_seguimiento', u.id, { bloqueado: nuevoEstado });
     await cargarAdminUsuarios();
-    renderAdminFormEmpty();
+    const idx = adminUsuarios.findIndex(x => x.usuario === u.usuario);
+    if (idx >= 0) { adminSelIdx = idx; adminModo = 'editar'; renderAdminLista(); renderAdminFormEditar(adminUsuarios[idx]); }
   } catch(e) {
-    alert('Error eliminando: ' + e.message);
+    alert('Error al ' + accion + ': ' + e.message);
   }
 }
 
@@ -3073,6 +3300,7 @@ function renderVistaLista() {
       <td style="${td};font-weight:600">${c.nombre||'-'}</td>
       <td style="${td}">${c.rut_cliente||'-'}</td>
       <td style="${td};max-width:150px;overflow:hidden;text-overflow:ellipsis">${c.ejecutivo||'-'}</td>
+      <td style="${td};max-width:150px;overflow:hidden;text-overflow:ellipsis">${c.vendedor||'-'}</td>
       <td style="${td}">${c.producto||'-'}</td>
       <td style="${td}">${(c.marca||'')+' '+(c.modelo||'')}</td>
       <td style="${td}">${fmtFecha(c.fecha_ingreso)||'-'}</td>
@@ -3089,7 +3317,7 @@ function renderVistaLista() {
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead><tr>
           <th style="${thS}">ID</th><th style="${thS}">Nombre</th><th style="${thS}">RUT</th>
-          <th style="${thS}">Ejecutivo</th><th style="${thS}">Producto</th><th style="${thS}">Marca/Modelo</th>
+          <th style="${thS}">Ejecutivo</th><th style="${thS}">Vendedor</th><th style="${thS}">Producto</th><th style="${thS}">Marca/Modelo</th>
           <th style="${thS}">F.Ingreso</th><th style="${thS}">Días</th><th style="${thS}">Pagaré</th><th style="${thS}">Seg.</th>
           <th style="${thS}">Gest.</th><th style="${thS}">Últ. Estado</th><th style="${thS}">Comentario</th>
         </tr></thead>
