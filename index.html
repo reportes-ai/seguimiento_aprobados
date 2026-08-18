@@ -1847,13 +1847,22 @@ async function recargarDatos() {
 
     // BLOQUE 1/2 (Fase 4) — traer gestiones de AMBOS orígenes (antes, rechazados
     // se cargaba siempre con gestiones:[] y nunca consultaba su historial real).
+    // v7.25 — corregido: antes se armaba UNA sola URL con TODOS los IDs juntos
+    // (credito_id=in.(id1,id2,...)), que al crecer la cantidad de operaciones
+    // terminó excediendo el largo de URL permitido y devolvía "Bad Request" —
+    // sin ningún detalle de Supabase, porque el rechazo ocurre antes de llegar
+    // a la base de datos. Ahora se consulta en tandas de 300 IDs por vez.
     const idsAprobados = creditosRaw.map(c => c.id);
     const idsRechazados = rechazadosRaw.map(c => c.id);
     const idsTodos = [...idsAprobados, ...idsRechazados];
     let gestionesRaw = [];
-    if (idsTodos.length > 0) {
-      const inList = `(${idsTodos.join(',')})`;
-      gestionesRaw = await sbGet('gestiones', `credito_id=in.${inList}&order=created_at.asc`);
+    const TAMANO_TANDA_IDS = 300;
+    for (let i = 0; i < idsTodos.length; i += TAMANO_TANDA_IDS) {
+      const tanda = idsTodos.slice(i, i + TAMANO_TANDA_IDS);
+      if (tanda.length === 0) continue;
+      const inList = `(${tanda.join(',')})`;
+      const parcial = await sbGet('gestiones', `credito_id=in.${inList}&order=created_at.asc`);
+      gestionesRaw = gestionesRaw.concat(parcial);
     }
 
     const gesMap = {};
