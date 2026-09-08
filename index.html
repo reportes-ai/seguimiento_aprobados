@@ -1697,7 +1697,7 @@ async function initApp() {
   const label = currentUser.perfil === 'gerente' ? 'Gerente' : currentUser.perfil === 'supervisor' ? 'Supervisor' : 'Ejecutivo';
   const nombre = currentUser.ejecutivos[0] === 'todos' ? 'Todos los ejecutivos' : currentUser.ejecutivos[0];
   document.getElementById('header-ejecutivo').textContent = `${label}: ${nombre}`;
-  document.getElementById('filtro-ejecutivo-wrap').style.display = currentUser.perfil === 'gerente' ? 'block' : 'none';
+  document.getElementById('filtro-ejecutivo-wrap').style.display = (currentUser.perfil === 'gerente' || currentUser.perfil === 'supervisor') ? 'block' : 'none';
 
   // Fechas por default: desde = mismo día mes anterior, hasta = hoy
   const hoy = new Date();
@@ -1777,10 +1777,21 @@ function loading(show, msg='Cargando datos...') {
 async function recargarDatos() {
   loading(true, 'Cargando créditos...');
   try {
-    // Cargar cache de usuarios para modo agrupado (solo gerentes)
-    if (currentUser.perfil === 'gerente' && USUARIOS_CACHE.length === 0) {
+    // v7.26 — corregido: se cargaba solo para Gerente, así que un Supervisor
+    // nunca recibía la agrupación por Usuario y el filtro se caía al modo
+    // "sin agrupar" (mostrando cada variante de nombre cruda por separado,
+    // v7.27 — dos correcciones juntas:
+    // 1) Se restringen las columnas a solo las necesarias (usuario, ejecutivos,
+    //    vendedores) — antes traía TODAS, incluida "clave" (contraseña en texto
+    //    plano) de TODOS los usuarios de la empresa. Ya era un riesgo para
+    //    Gerente/Supervisor; extenderlo a Usuario común sin esto habría expuesto
+    //    esas contraseñas a cualquier empleado.
+    // 2) Con eso ya resuelto, se carga para TODOS los perfiles (antes solo
+    //    Gerente y Supervisor), para que un Usuario común también vea su propio
+    //    nombre agrupado en vez de sus variantes crudas sin consolidar.
+    if (USUARIOS_CACHE.length === 0) {
       try {
-        USUARIOS_CACHE = await sbGet('usuarios_seguimiento', 'order=usuario.asc');
+        USUARIOS_CACHE = await sbGet('usuarios_seguimiento', 'select=usuario,ejecutivos,vendedores&order=usuario.asc');
         USUARIOS_CACHE = USUARIOS_CACHE.filter(u => u.ejecutivos && u.ejecutivos !== 'todos' && (!Array.isArray(u.ejecutivos) || u.ejecutivos[0] !== 'todos'));
         USUARIOS_CACHE = USUARIOS_CACHE.map(u => ({
           ...u,
