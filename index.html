@@ -2927,9 +2927,14 @@ function exportarDetalle() {
       'Último Estado Gestión': ult.nuevo_estado||'',
       'Último Motivo': ult.motivo_estado||'',
       'Último Seguimiento': ult.seguimiento||'',
+      'Último Contacto': ult.contacto||'',
       'Fecha Seguimiento': ult.fecha_seguimiento||'',
+      'Último Concesionario': ult.concesionario||'',
+      'Último Vendedor Contacto': ult.vendedor||'',
+      'Último Teléfono Vendedor': ult.tel_vendedor||'',
       'Último Comentario': ult.comentario||'',
       'Usuario Gestión': ult.usuario||'',
+      'Fecha Gestión': ult.created_at ? new Date(ult.created_at).toLocaleString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '',
     };
   });
 
@@ -3012,6 +3017,53 @@ function renderAdminFormEmpty() {
   document.getElementById('admin-form-area').innerHTML = '<div class="admin-empty-form">Selecciona un usuario o crea uno nuevo</div>';
 }
 
+// v7.29 — vista de resumen: todos los usuarios de una vez, con sus Ejecutivos
+// y Vendedores asignados completos (no truncados), en vez de tener que entrar
+// a cada uno por separado. No modifica nada, solo lectura.
+function mostrarResumenUsuarios() {
+  adminSelIdx = null;
+  adminModo = null;
+  renderAdminLista();
+
+  const parseLista = v => Array.isArray(v) ? v : (typeof v === 'string' ? (function(){ try { return JSON.parse(v); } catch(e) { return []; } })() : []);
+  const perfilLabel = { gerente: 'Gerente', supervisor: 'Supervisor', usuario: 'Usuario' };
+
+  const filas = adminUsuarios.map(u => {
+    const ejs = parseLista(u.ejecutivos).filter(e => e !== 'todos');
+    const vds = parseLista(u.vendedores);
+    const esTodos = Array.isArray(u.ejecutivos) ? u.ejecutivos[0] === 'todos' : String(u.ejecutivos).includes('todos');
+    const supervisorTxt = u.supervisor ? formatearNombreUsuario(u.supervisor) : '—';
+    const bloqueadoTxt = u.bloqueado ? '<span style="color:var(--rojo);font-weight:700">BLOQUEADO</span>' : '';
+    return `<tr style="border-bottom:1px solid var(--gris-claro)">
+      <td style="padding:8px;font-weight:600;white-space:nowrap">${formatearNombreUsuario(u.usuario)}<br><span style="font-weight:400;color:var(--texto-sec);font-size:10px">${u.usuario}</span></td>
+      <td style="padding:8px;white-space:nowrap">${perfilLabel[u.perfil] || u.perfil} ${bloqueadoTxt}</td>
+      <td style="padding:8px;font-size:12px">${esTodos ? '<em>Todos</em>' : (ejs.join(', ') || '—')}</td>
+      <td style="padding:8px;font-size:12px">${vds.join(', ') || '—'}</td>
+      <td style="padding:8px;white-space:nowrap;font-size:12px">${supervisorTxt}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('admin-form-area').innerHTML = `
+    <div style="padding:16px">
+      <h3 style="font-size:15px;color:var(--gris);margin-bottom:4px">📊 Resumen de usuarios</h3>
+      <p style="font-size:11px;color:var(--texto-sec);margin-bottom:12px">Solo lectura — para editar a alguien, selecciónalo en la lista de la izquierda.</p>
+      <div style="overflow-x:auto;border:1px solid var(--borde);border-radius:8px">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr style="background:var(--azul);color:#fff;text-align:left">
+              <th style="padding:8px">Usuario</th>
+              <th style="padding:8px">Perfil</th>
+              <th style="padding:8px">Ejecutivos asignados</th>
+              <th style="padding:8px">Vendedores asignados</th>
+              <th style="padding:8px">Supervisor</th>
+            </tr>
+          </thead>
+          <tbody>${filas || '<tr><td colspan="5" style="padding:16px;text-align:center;color:var(--texto-sec)">Sin usuarios</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
 function renderAdminFormEditar(u) {
   const ejs = Array.isArray(u.ejecutivos) ? u.ejecutivos : (u.ejecutivos ? JSON.parse(u.ejecutivos) : []);
   const vends = Array.isArray(u.vendedores) ? u.vendedores : (u.vendedores ? JSON.parse(u.vendedores) : []);
@@ -3075,6 +3127,10 @@ function renderAdminFormEditar(u) {
           '</div>' +
         '</div>' +
       '</div>' +
+      '<div class="form-group" id="af-equipo-group" style="' + (u.perfil==='supervisor'?'':'display:none') + '">' +
+        '<label>Equipo <small style="text-transform:none;font-weight:400">(usuarios que lo tienen asignado como supervisor — solo lectura)</small></label>' +
+        '<div id="af-equipo-lista" style="border:1px solid var(--borde);border-radius:7px;padding:10px;max-height:220px;overflow-y:auto;background:var(--fondo)"></div>' +
+      '</div>' +
       '<div class="admin-log-section">' +
         '<div class="admin-log-title">Último acceso</div>' +
         '<div class="admin-log-item"><span>' + (u.usuario||'') + '</span><strong>' + last + '</strong></div>' +
@@ -3087,6 +3143,32 @@ function renderAdminFormEditar(u) {
 
   renderAfEjecutivosDropdown(ejsFiltered);
   renderAfVendedoresDropdown(vends);
+  renderAfEquipoResumen(u);
+}
+
+// v7.28 — panel de solo lectura: para un Supervisor, muestra qué Ejecutivos y
+// Vendedores cubre cada persona de su equipo (los usuarios que lo tienen a él
+// asignado como "Supervisor asignado"). Útil porque el propio Supervisor casi
+// nunca tiene asignaciones directas — su alcance real está en su equipo.
+function renderAfEquipoResumen(u) {
+  const cont = document.getElementById('af-equipo-lista');
+  if (!cont) return;
+  const parseLista = v => Array.isArray(v) ? v : (typeof v === 'string' ? (function(){ try { return JSON.parse(v); } catch(e) { return []; } })() : []);
+  const equipo = adminUsuarios.filter(x => x.supervisor === u.usuario);
+  if (equipo.length === 0) {
+    cont.innerHTML = '<p style="color:var(--texto-sec);font-size:12px;margin:0">Todavía nadie tiene asignado a este supervisor en "Supervisor asignado".</p>';
+    return;
+  }
+  cont.innerHTML = equipo.map((m, i) => {
+    const ejs = parseLista(m.ejecutivos).filter(e => e !== 'todos');
+    const vds = parseLista(m.vendedores);
+    const borde = i < equipo.length - 1 ? 'border-bottom:1px solid var(--gris-claro);' : '';
+    return '<div style="padding:7px 0;' + borde + '">' +
+      '<div style="font-weight:700;font-size:12px;color:var(--gris)">' + formatearNombreUsuario(m.usuario) + '</div>' +
+      '<div style="font-size:11px;color:var(--texto-sec)"><strong>Ejecutivos:</strong> ' + (ejs.join(', ') || '—') + '</div>' +
+      '<div style="font-size:11px;color:var(--texto-sec)"><strong>Vendedores:</strong> ' + (vds.join(', ') || '—') + '</div>' +
+    '</div>';
+  }).join('');
 }
 
 function onPerfilChange() {
@@ -3094,6 +3176,7 @@ function onPerfilChange() {
   document.getElementById('af-ej-group').style.display = p === 'gerente' ? 'none' : '';
   document.getElementById('af-ve-group').style.display = p === 'gerente' ? 'none' : '';
   document.getElementById('af-supervisor-group').style.display = p === 'usuario' ? '' : 'none';
+  document.getElementById('af-equipo-group').style.display = p === 'supervisor' ? '' : 'none';
 }
 
 // v7.8 — "Ejecutivos asignados" pasa de texto libre a un desplegable de casillas
@@ -4363,7 +4446,10 @@ initConfig();
       <div class="admin-list">
         <div class="admin-list-header">
           <span>Usuarios</span>
-          <button class="btn-add-user" onclick="nuevoUser()">+ Nuevo</button>
+          <div style="display:flex;gap:6px">
+            <button class="btn-add-user" style="background:var(--azul)" onclick="mostrarResumenUsuarios()">📊 Resumen</button>
+            <button class="btn-add-user" onclick="nuevoUser()">+ Nuevo</button>
+          </div>
         </div>
         <div class="admin-user-list" id="admin-user-list">
           <div style="padding:20px;text-align:center;color:var(--texto-sec);font-size:13px">Cargando...</div>
