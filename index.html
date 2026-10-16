@@ -1310,7 +1310,7 @@ function nombreUsuarioDeEjecutivo(credito) {
     (Array.isArray(x.ejecutivos) && x.ejecutivos.some(e => (e||'').toUpperCase().trim() === ej && ej)) ||
     (Array.isArray(x.vendedores) && x.vendedores.some(v => (v||'').toUpperCase().trim() === ve && ve))
   );
-  return u ? formatearNombreUsuario(u.usuario) : (credito.ejecutivo || credito.vendedor || 'Sin usuario');
+  return u ? nombreVisibleUsuario(u) : (credito.ejecutivo || credito.vendedor || 'Sin usuario');
 }
 
 // v7.9 — Seguimiento: mismo criterio de consolidación por Usuario que Reportes
@@ -1318,7 +1318,7 @@ function nombreUsuarioDeEjecutivo(credito) {
 function poblarFiltrosSeguimiento() {
   let opcionesUsuario;
   if (USUARIOS_CACHE.length > 0) {
-    opcionesUsuario = USUARIOS_CACHE.filter(u => u.usuario).map(u => ({ value: u.usuario, label: formatearNombreUsuario(u.usuario) }))
+    opcionesUsuario = USUARIOS_CACHE.filter(u => u.usuario).map(u => ({ value: u.usuario, label: nombreVisibleUsuario(u) }))
       .sort((a,b) => a.label.localeCompare(b.label));
   } else {
     opcionesUsuario = [...new Set(operaciones.map(c => c.ejecutivo).filter(Boolean))].sort().map(e => ({ value: e, label: e }));
@@ -1334,7 +1334,7 @@ function poblarFiltrosReporte() {
   if (USUARIOS_CACHE.length > 0) {
     // Un ítem por USUARIO consolidado (Administración → "Ejecutivos asignados"),
     // no por cada variante cruda de nombre — esa es la consolidación que pediste mantener.
-    opcionesUsuario = USUARIOS_CACHE.filter(u => u.usuario).map(u => ({ value: u.usuario, label: formatearNombreUsuario(u.usuario) }))
+    opcionesUsuario = USUARIOS_CACHE.filter(u => u.usuario).map(u => ({ value: u.usuario, label: nombreVisibleUsuario(u) }))
       .sort((a,b) => a.label.localeCompare(b.label));
   } else {
     // Sin cache de usuarios disponible (por ejemplo, perfil no gerente): se cae
@@ -1791,7 +1791,7 @@ async function recargarDatos() {
     //    nombre agrupado en vez de sus variantes crudas sin consolidar.
     if (USUARIOS_CACHE.length === 0) {
       try {
-        USUARIOS_CACHE = await sbGet('usuarios_seguimiento', 'select=usuario,ejecutivos,vendedores&order=usuario.asc');
+        USUARIOS_CACHE = await sbGet('usuarios_seguimiento', 'select=usuario,nombre,ejecutivos,vendedores&order=usuario.asc');
         USUARIOS_CACHE = USUARIOS_CACHE.filter(u => u.ejecutivos && u.ejecutivos !== 'todos' && (!Array.isArray(u.ejecutivos) || u.ejecutivos[0] !== 'todos'));
         USUARIOS_CACHE = USUARIOS_CACHE.map(u => ({
           ...u,
@@ -2074,6 +2074,36 @@ async function loadExcel(event, tipo = 'aprobados') {
             await sbInsert('gestiones', gestionesIniciales.slice(i, i+loteSize));
           }
         } catch(e) { console.warn('No se pudo registrar la gestión inicial de trazabilidad:', e); }
+
+        // v7.33 — alerta inmediata si alguna fila recién cargada trae un
+        // Ejecutivo o Vendedor que ningún Usuario tiene asignado todavía. No
+        // bloquea la carga (ya se hizo) — solo avisa en el momento, para que
+        // no quede "perdido" hasta que alguien note un "Sin usuario" en
+        // Reportes. Se compara contra USUARIOS_CACHE, ya cargado desde el login.
+        const sinAsignarEnCarga = new Map(); // "campo|valor" -> cantidad de operaciones
+        nuevos.forEach(r => {
+          ['ejecutivo', 'vendedor'].forEach(campo => {
+            const v = (r[campo] || '').trim();
+            if (!v) return;
+            const asignado = USUARIOS_CACHE.some(u => {
+              const lista = campo === 'ejecutivo' ? u.ejecutivos : u.vendedores;
+              return Array.isArray(lista) && lista.some(x => (x||'').toUpperCase().trim() === v.toUpperCase());
+            });
+            if (!asignado) {
+              const key = campo + '|' + v;
+              sinAsignarEnCarga.set(key, (sinAsignarEnCarga.get(key)||0) + 1);
+            }
+          });
+        });
+        if (sinAsignarEnCarga.size > 0) {
+          const detalle = [...sinAsignarEnCarga.entries()]
+            .sort((a,b) => b[1]-a[1])
+            .map(([key,count]) => {
+              const [campo, valor] = key.split('|');
+              return `• (${campo === 'ejecutivo' ? 'Ejecutivo' : 'Vendedor'}) ${valor} — ${count} operación(es)`;
+            }).join('\n');
+          alert(`⚠️ Se cargaron ${nuevos.length} operaciones nuevas, pero ${sinAsignarEnCarga.size} nombre(s) de Ejecutivo/Vendedor no están asignados a ningún Usuario todavía:\n\n${detalle}\n\nMientras no se asignen, esas operaciones aparecerán como "Sin usuario" en Reportes.\nResuélvelo en Administración → 🔗 Variantes sin asignar.`);
+        }
       }
 
       loading(false);
@@ -2184,9 +2214,29 @@ async function repoblarVendedor(event, tipo) {
 function normaliza(s) { return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
 
 function formatearNombreUsuario(email) {
-  // alvaro.vargas@... → Alvaro Vargas
+  // alvaro.vargas@... → Alvaro Vargas (solo se usa como respaldo si el
+  // usuario no tiene el campo "Nombre" cargado — ver nombreVisibleUsuario).
   const parte = email.split('@')[0];
   return parte.split('.').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+}
+
+// v7.33 — el identificador que se muestra en Reportes/Seguimiento/Administración
+// es ahora el campo "Nombre" que carga el gerente al crear el usuario (dato
+// propio, no deducido del email). Si un usuario todavía no tiene "Nombre"
+// cargado (cuentas creadas antes de este cambio), se sigue usando el nombre
+// deducido del email como respaldo, para no dejar a nadie sin etiqueta.
+function nombreVisibleUsuario(u) {
+  if (u && u.nombre && u.nombre.trim()) return u.nombre.trim();
+  return formatearNombreUsuario((u && u.usuario) || '');
+}
+
+// Igual que nombreVisibleUsuario, pero cuando solo se tiene el email (por
+// ejemplo, el campo "Supervisor asignado" que guarda el email del supervisor).
+// Busca el objeto completo en la lista dada (por defecto, adminUsuarios).
+function nombreVisibleUsuarioPorEmail(email, lista) {
+  const origen = lista || (typeof adminUsuarios !== 'undefined' ? adminUsuarios : []);
+  const u = origen.find(x => x.usuario === email);
+  return u ? nombreVisibleUsuario(u) : formatearNombreUsuario(email || '');
 }
 
 let USUARIOS_CACHE = [];
@@ -2985,7 +3035,8 @@ async function cargarAdminUsuarios() {
 }
 
 function avatarLetra(u) {
-  return u.usuario ? u.usuario[0].toUpperCase() : '?';
+  const base = (u.nombre && u.nombre.trim()) ? u.nombre.trim() : u.usuario;
+  return base ? base[0].toUpperCase() : '?';
 }
 
 function renderAdminLista() {
@@ -2999,7 +3050,7 @@ function renderAdminLista() {
     return '<div class="admin-user-item' + cls + '" onclick="seleccionarUser(' + i + ')" style="' + (u.bloqueado ? 'opacity:0.6' : '') + '">' +
       '<div class="admin-user-avatar ' + avatarCls + '">' + avatarLetra(u) + '</div>' +
       '<div class="admin-user-info">' +
-        '<div class="admin-user-email">' + u.usuario + '</div>' +
+        '<div class="admin-user-email">' + nombreVisibleUsuario(u) + '<br><span style="font-weight:400;color:var(--texto-sec);font-size:10px">' + u.usuario + '</span></div>' +
         '<div class="admin-user-meta"><span class="perfil-badge perfil-' + u.perfil + '">' + u.perfil + '</span>' + (u.bloqueado ? ' <span class="perfil-badge" style="background:var(--rojo-bg);color:var(--rojo)">BLOQUEADO</span>' : '') + ' · ' + (ejs[0] === 'todos' ? 'Todos' : (ejs[0] || '-')) + '</div>' +
         '<div class="admin-user-last">Último acceso: ' + last + '</div>' +
       '</div></div>';
@@ -3020,6 +3071,192 @@ function renderAdminFormEmpty() {
 // v7.29 — vista de resumen: todos los usuarios de una vez, con sus Ejecutivos
 // y Vendedores asignados completos (no truncados), en vez de tener que entrar
 // a cada uno por separado. No modifica nada, solo lectura.
+// v7.31 — "Variantes sin asignar": herramienta para no tener que escribir a
+// mano cada variante de Ejecutivo/Vendedor en Administración. Detecta los
+// valores crudos que aparecen en las operaciones cargadas pero que ningún
+// Usuario tiene en su lista de "Ejecutivos asignados"/"Vendedores asignados"
+// (por eso aparecen como "Sin usuario" o sueltos en Reportes/Seguimiento),
+// SUGIERE a qué usuario podrían pertenecer comparando el texto contra las
+// variantes que ese usuario YA tiene asignadas, y deja que el gerente
+// confirme con un clic por fila. Nunca asigna nada sin esa confirmación
+// explícita — se mantiene el principio ya definido de "sin inventar
+// coincidencias": solo sugiere, no decide.
+function parseListaCampoAdmin(v) {
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'string') {
+    try { const p = JSON.parse(v); return Array.isArray(p) ? p : []; } catch(e) { return []; }
+  }
+  return [];
+}
+
+function normalizarVariante(s) {
+  let t = (s || '').toString().toUpperCase().trim();
+  t = t.normalize('NFD').replace(/[̀-ͯ]/g, '');
+  ['VENDEDOR', 'VENDEDORA', '(AFA)', 'AFA'].forEach(r => { t = t.split(r).join(' '); });
+  t = t.replace(/\s+/g, ' ').trim();
+  return t;
+}
+
+function similitudVariantes(a, b) {
+  const ta = new Set(normalizarVariante(a).split(' ').filter(w => w.length >= 3));
+  const tb = new Set(normalizarVariante(b).split(' ').filter(w => w.length >= 3));
+  if (ta.size === 0 || tb.size === 0) return 0;
+  let comunes = 0;
+  ta.forEach(w => { if (tb.has(w)) comunes++; });
+  return comunes / Math.min(ta.size, tb.size);
+}
+
+function detectarVariantesSinAsignar() {
+  const mapaEj = new Map();
+  const mapaVe = new Map();
+  operaciones.forEach(c => {
+    const ej = (c.ejecutivo || '').trim();
+    const ve = (c.vendedor || '').trim();
+    if (ej) {
+      const asignado = adminUsuarios.some(u => parseListaCampoAdmin(u.ejecutivos).some(e => (e||'').toUpperCase().trim() === ej.toUpperCase()));
+      if (!asignado) mapaEj.set(ej, (mapaEj.get(ej)||0) + 1);
+    }
+    if (ve) {
+      const asignado = adminUsuarios.some(u => parseListaCampoAdmin(u.vendedores).some(v => (v||'').toUpperCase().trim() === ve.toUpperCase()));
+      if (!asignado) mapaVe.set(ve, (mapaVe.get(ve)||0) + 1);
+    }
+  });
+  const aEj = [...mapaEj.entries()].map(([valor,count]) => ({ campo:'ejecutivo', valor, count }));
+  const aVe = [...mapaVe.entries()].map(([valor,count]) => ({ campo:'vendedor', valor, count }));
+  return [...aEj, ...aVe].sort((a,b) => b.count - a.count);
+}
+
+function sugerirUsuarioParaVariante(item) {
+  let mejorUsuario = null, mejorScore = 0;
+  adminUsuarios.forEach(u => {
+    if (u.perfil === 'gerente') return; // 'todos' no es una lista de variantes
+    const lista = item.campo === 'ejecutivo' ? parseListaCampoAdmin(u.ejecutivos) : parseListaCampoAdmin(u.vendedores);
+    lista.forEach(variante => {
+      const score = similitudVariantes(item.valor, variante);
+      if (score > mejorScore) { mejorScore = score; mejorUsuario = u; }
+    });
+  });
+  return mejorScore >= 0.5 ? { usuario: mejorUsuario, score: mejorScore } : null;
+}
+
+let variantesSinAsignarActuales = [];
+
+function mostrarVariantesSinAsignar() {
+  adminSelIdx = null;
+  adminModo = null;
+  renderAdminLista();
+
+  variantesSinAsignarActuales = detectarVariantesSinAsignar();
+
+  if (variantesSinAsignarActuales.length === 0) {
+    document.getElementById('admin-form-area').innerHTML = `
+      <div style="padding:24px;text-align:center;color:var(--texto-sec)">
+        <div style="font-size:32px;margin-bottom:8px">✅</div>
+        <p>No hay variantes de Ejecutivo o Vendedor sin asignar a un usuario.</p>
+      </div>`;
+    return;
+  }
+
+  const opcionesUsuarios = adminUsuarios.filter(u => u.perfil !== 'gerente')
+    .map(u => `<option value="${u.usuario}">${nombreVisibleUsuario(u)}</option>`).join('');
+
+  const filas = variantesSinAsignarActuales.map((item, idx) => {
+    const campoLabel = item.campo === 'ejecutivo' ? 'Ejecutivo' : 'Vendedor';
+    return `<tr style="border-bottom:1px solid var(--gris-claro)" id="fila-variante-${idx}">
+      <td style="padding:8px;font-size:11px"><span class="perfil-badge" style="background:#ede7f6;color:#8e44ad">${campoLabel}</span></td>
+      <td style="padding:8px;font-size:12px;max-width:280px">${item.valor}</td>
+      <td style="padding:8px;font-size:12px;text-align:center">${item.count}</td>
+      <td style="padding:8px">
+        <select id="sel-variante-${idx}" style="font-size:12px;padding:4px;max-width:220px">
+          <option value="">-- Seleccionar usuario --</option>
+          ${opcionesUsuarios}
+        </select>
+        <div id="sugerencia-variante-${idx}" style="font-size:10px;margin-top:2px"></div>
+      </td>
+      <td style="padding:8px;white-space:nowrap">
+        <button class="btn-sm" style="background:var(--verde);color:#fff" onclick="asignarVarianteAUsuario(${idx})">✔️ Asignar</button>
+        <button class="btn-sm" style="background:var(--azul);color:#fff;margin-left:4px" onclick="crearUsuarioConVariante(${idx})">➕ Nuevo</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('admin-form-area').innerHTML = `
+    <div style="padding:16px">
+      <h3 style="font-size:15px;color:var(--gris);margin-bottom:4px">🔗 Variantes sin asignar</h3>
+      <p style="font-size:11px;color:var(--texto-sec);margin-bottom:12px">
+        Nombres de Ejecutivo/Vendedor que aparecen en operaciones cargadas pero que ningún usuario tiene asignados todavía
+        (por eso se ven como "Sin usuario" o sueltos en los reportes). La sugerencia compara el texto con las variantes
+        que cada usuario ya tiene — revísala antes de confirmar: nada se asigna sin que presiones "Asignar".
+      </p>
+      <div style="overflow-x:auto;border:1px solid var(--borde);border-radius:8px">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr style="background:var(--azul);color:#fff;text-align:left">
+              <th style="padding:8px">Campo</th>
+              <th style="padding:8px">Valor en la base</th>
+              <th style="padding:8px;text-align:center">Operaciones</th>
+              <th style="padding:8px">Asignar a</th>
+              <th style="padding:8px">Acción</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-variantes">${filas}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  // Precargar la sugerencia (select + texto) después de insertar el HTML
+  variantesSinAsignarActuales.forEach((item, idx) => {
+    const sugerencia = sugerirUsuarioParaVariante(item);
+    const div = document.getElementById('sugerencia-variante-' + idx);
+    const sel = document.getElementById('sel-variante-' + idx);
+    if (sugerencia) {
+      if (sel) sel.value = sugerencia.usuario.usuario;
+      if (div) div.innerHTML = `<span style="color:var(--verde)">💡 Sugerido: ${nombreVisibleUsuario(sugerencia.usuario)}</span>`;
+    } else if (div) {
+      div.innerHTML = `<span style="color:var(--texto-sec)">Sin coincidencia sugerida</span>`;
+    }
+  });
+}
+
+async function asignarVarianteAUsuario(idx) {
+  const item = variantesSinAsignarActuales[idx];
+  const sel = document.getElementById('sel-variante-' + idx);
+  const valorUsuario = sel ? sel.value : '';
+  if (!valorUsuario) { alert('Selecciona un usuario para asignar esta variante.'); return; }
+  const u = adminUsuarios.find(x => x.usuario === valorUsuario);
+  if (!u) { alert('Usuario no encontrado.'); return; }
+  const campo = item.campo === 'ejecutivo' ? 'ejecutivos' : 'vendedores';
+  const listaActual = parseListaCampoAdmin(u[campo]);
+  if (listaActual.some(v => (v||'').toUpperCase().trim() === item.valor.toUpperCase().trim())) {
+    alert('Esa variante ya está asignada a este usuario.');
+    return;
+  }
+  const nuevaLista = [...listaActual, item.valor];
+  try {
+    await sbUpdate('usuarios_seguimiento', u.id, { [campo]: nuevaLista });
+    u[campo] = nuevaLista; // sincroniza en memoria para que no se vuelva a sugerir
+    const cacheEntry = USUARIOS_CACHE.find(x => x.usuario === u.usuario);
+    if (cacheEntry) cacheEntry[campo] = nuevaLista;
+    else USUARIOS_CACHE.push({ usuario: u.usuario, ejecutivos: campo === 'ejecutivos' ? nuevaLista : [], vendedores: campo === 'vendedores' ? nuevaLista : [] });
+    mostrarVariantesSinAsignar(); // re-renderiza: esta fila ya queda resuelta y desaparece
+  } catch(e) {
+    alert('Error al asignar: ' + e.message);
+  }
+}
+
+function crearUsuarioConVariante(idx) {
+  const item = variantesSinAsignarActuales[idx];
+  adminSelIdx = null;
+  adminModo = 'nuevo';
+  renderAdminLista();
+  renderAdminFormEditar({
+    usuario: '', clave: '', perfil: 'usuario',
+    ejecutivos: item.campo === 'ejecutivo' ? [item.valor] : [],
+    vendedores: item.campo === 'vendedor' ? [item.valor] : [],
+    ultimo_acceso: null
+  });
+}
+
 function mostrarResumenUsuarios() {
   adminSelIdx = null;
   adminModo = null;
@@ -3032,10 +3269,10 @@ function mostrarResumenUsuarios() {
     const ejs = parseLista(u.ejecutivos).filter(e => e !== 'todos');
     const vds = parseLista(u.vendedores);
     const esTodos = Array.isArray(u.ejecutivos) ? u.ejecutivos[0] === 'todos' : String(u.ejecutivos).includes('todos');
-    const supervisorTxt = u.supervisor ? formatearNombreUsuario(u.supervisor) : '—';
+    const supervisorTxt = u.supervisor ? nombreVisibleUsuarioPorEmail(u.supervisor) : '—';
     const bloqueadoTxt = u.bloqueado ? '<span style="color:var(--rojo);font-weight:700">BLOQUEADO</span>' : '';
     return `<tr style="border-bottom:1px solid var(--gris-claro)">
-      <td style="padding:8px;font-weight:600;white-space:nowrap">${formatearNombreUsuario(u.usuario)}<br><span style="font-weight:400;color:var(--texto-sec);font-size:10px">${u.usuario}</span></td>
+      <td style="padding:8px;font-weight:600;white-space:nowrap">${nombreVisibleUsuario(u)}<br><span style="font-weight:400;color:var(--texto-sec);font-size:10px">${u.usuario}</span></td>
       <td style="padding:8px;white-space:nowrap">${perfilLabel[u.perfil] || u.perfil} ${bloqueadoTxt}</td>
       <td style="padding:8px;font-size:12px">${esTodos ? '<em>Todos</em>' : (ejs.join(', ') || '—')}</td>
       <td style="padding:8px;font-size:12px">${vds.join(', ') || '—'}</td>
@@ -3073,6 +3310,9 @@ function renderAdminFormEditar(u) {
   document.getElementById('admin-form-area').innerHTML =
     '<div class="admin-form">' +
       '<div class="admin-form-title">' + (adminModo === 'nuevo' ? '➕ Nuevo Usuario' : '✏️ Editar Usuario') + '</div>' +
+      '<div class="form-group"><label>Nombre <small style="text-transform:none;font-weight:400">(así se identifica a esta persona en Reportes y Seguimiento, en vez de deducirlo del email)</small></label>' +
+        '<input type="text" id="af-nombre" value="' + (u.nombre||'') + '" placeholder="Ej: Sebastián Millar">' +
+      '</div>' +
       '<div class="form-group"><label>Email (usuario)</label>' +
         '<input type="email" id="af-email" value="' + (u.usuario||'') + '" placeholder="nombre@autofacilchile.cl">' +
       '</div>' +
@@ -3101,7 +3341,7 @@ function renderAdminFormEditar(u) {
         '<select id="af-supervisor">' +
           '<option value="">(Sin supervisor asignado)</option>' +
           adminUsuarios.filter(x => x.perfil === 'supervisor' || x.perfil === 'gerente').map(x =>
-            '<option value="' + x.usuario + '"' + (u.supervisor === x.usuario ? ' selected' : '') + '>' + formatearNombreUsuario(x.usuario) + ' (' + (x.perfil === 'gerente' ? 'Gerente' : 'Supervisor') + ')</option>'
+            '<option value="' + x.usuario + '"' + (u.supervisor === x.usuario ? ' selected' : '') + '>' + nombreVisibleUsuario(x) + ' (' + (x.perfil === 'gerente' ? 'Gerente' : 'Supervisor') + ')</option>'
           ).join('') +
         '</select>' +
       '</div>' +
@@ -3164,7 +3404,7 @@ function renderAfEquipoResumen(u) {
     const vds = parseLista(m.vendedores);
     const borde = i < equipo.length - 1 ? 'border-bottom:1px solid var(--gris-claro);' : '';
     return '<div style="padding:7px 0;' + borde + '">' +
-      '<div style="font-weight:700;font-size:12px;color:var(--gris)">' + formatearNombreUsuario(m.usuario) + '</div>' +
+      '<div style="font-weight:700;font-size:12px;color:var(--gris)">' + nombreVisibleUsuario(m) + '</div>' +
       '<div style="font-size:11px;color:var(--texto-sec)"><strong>Ejecutivos:</strong> ' + (ejs.join(', ') || '—') + '</div>' +
       '<div style="font-size:11px;color:var(--texto-sec)"><strong>Vendedores:</strong> ' + (vds.join(', ') || '—') + '</div>' +
     '</div>';
@@ -3274,20 +3514,32 @@ function getVendedoresForm() {
 }
 
 async function guardarUser() {
+  // v7.33 — "Nombre" es ahora un dato propio del usuario (no deducido del
+  // email): es lo que se muestra como identificador en Reportes/Seguimiento.
+  const nombre = document.getElementById('af-nombre').value.trim();
   const email = document.getElementById('af-email').value.trim().toLowerCase();
   const clave = document.getElementById('af-clave').value.trim();
   const perfil = document.getElementById('af-perfil').value;
   const ejecutivos = getEjecutivosForm();
   const vendedores = getVendedoresForm();
-  if (!email || !clave) { alert('Email y contrasena son obligatorios'); return; }
-  if (ejecutivos.length === 0 && perfil !== 'gerente') { alert('Agrega al menos un ejecutivo'); return; }
+  if (!nombre || !email || !clave) { alert('Nombre, Email y Contraseña son obligatorios'); return; }
+  // v7.32 — corregido: Ejecutivos y Vendedores son campos paralelos e
+  // independientes (v7.19/v7.24). El usuario es lo principal; se le asignan
+  // ejecutivos y/o vendedores, no los dos obligatoriamente. Antes esta
+  // validación exigía siempre al menos un Ejecutivo, bloqueando guardar a un
+  // usuario que solo tiene Vendedores asignados (como el flujo de "Crear
+  // usuario" desde Variantes sin asignar, cuando la variante es de Vendedor).
+  if (ejecutivos.length === 0 && vendedores.length === 0 && perfil !== 'gerente') {
+    alert('Agrega al menos un Ejecutivo o un Vendedor asignado.');
+    return;
+  }
   const vistaDefault = document.getElementById('af-vista')?.value || 'ficha';
   const permiteCambio = document.getElementById('af-permite-cambio')?.checked !== false;
   // v7.10 — jerarquía de supervisión: solo aplica a perfil "usuario". El supervisor
   // que ve un usuario se define aquí; el propio supervisor no tiene supervisor.
   const supervisorAsignado = perfil === 'usuario' ? (document.getElementById('af-supervisor')?.value || null) : null;
   // v7.19 — "vendedores" se guarda en paralelo a "ejecutivos", sin reemplazarlo.
-  const data = { usuario: email, clave, perfil, ejecutivos, vendedores, vista_default: vistaDefault, permite_cambio_vista: permiteCambio, supervisor: supervisorAsignado };
+  const data = { usuario: email, nombre, clave, perfil, ejecutivos, vendedores, vista_default: vistaDefault, permite_cambio_vista: permiteCambio, supervisor: supervisorAsignado };
   try {
     if (adminModo === 'nuevo') {
       await sbInsert('usuarios_seguimiento', data);
@@ -4448,6 +4700,7 @@ initConfig();
           <span>Usuarios</span>
           <div style="display:flex;gap:6px">
             <button class="btn-add-user" style="background:var(--azul)" onclick="mostrarResumenUsuarios()">📊 Resumen</button>
+            <button class="btn-add-user" style="background:#8e44ad" onclick="mostrarVariantesSinAsignar()">🔗 Variantes sin asignar</button>
             <button class="btn-add-user" onclick="nuevoUser()">+ Nuevo</button>
           </div>
         </div>
