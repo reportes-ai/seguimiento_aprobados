@@ -146,6 +146,11 @@
   .pivot-trigger b { color: var(--texto-sec); font-weight: 400; margin-left: 6px; flex-shrink: 0; }
   .pivot-dropdown { display: none; position: absolute; top: calc(100% + 4px); left: 0; width: 260px; max-height: 320px; overflow-y: auto; background: #fff; border: 1px solid var(--borde); border-radius: 8px; box-shadow: 0 14px 34px rgba(16,34,59,0.18); z-index: 50; padding: 4px; }
   .pivot-dropdown.visible { display: block; }
+  /* v7.36 — campo de búsqueda dentro del desplegable, para listas largas de
+     Ejecutivos/Vendedores en Administración de Usuarios */
+  .pivot-search { width: 100%; box-sizing: border-box; height: 30px; border: 1px solid var(--borde); border-radius: 6px; padding: 0 8px; font-size: 12px; margin-bottom: 4px; position: sticky; top: 0; background: #fff; }
+  .pivot-search:focus { outline: none; border-color: var(--azul); }
+  .pivot-item.oculto-busqueda { display: none; }
   .pivot-list { width: 210px; border: 1px solid var(--borde); border-radius: 7px; background: #fff; }
   .pivot-item { display: flex; align-items: center; gap: 7px; padding: 4px 9px; font-size: 12px; line-height: 16px; cursor: pointer; }
   .pivot-item:hover { background: var(--fondo); }
@@ -833,6 +838,28 @@
   </div>
 </div>
 
+<!-- MODAL "SIN USUARIO" — DETALLE (v7.36) — desde el informe de Reportes, explica
+     por qué una operación cae en "Sin usuario": porque no trae ningún dato de
+     Ejecutivo/Vendedor en el archivo de origen, o porque sí trae un nombre pero
+     ese nombre todavía no está asignado a ningún Usuario en Administración. -->
+<div class="modal-overlay" id="modal-sin-usuario">
+  <div class="modal" style="width:620px;max-width:94vw;max-height:84vh;display:flex;flex-direction:column">
+    <div class="modal-header" style="justify-content:space-between;flex-shrink:0">
+      <div>
+        <h3>🔍 Detalle de "Sin usuario"</h3>
+        <div class="modal-fecha-hora" id="sin-usuario-subtitulo"></div>
+      </div>
+      <button onclick="cerrarDetalleSinUsuario()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div class="modal-body" style="overflow-y:auto;flex:1">
+      <div id="sin-usuario-contenido"></div>
+    </div>
+    <div class="modal-footer" style="flex-shrink:0">
+      <button class="btn-guardar-user" onclick="irAVariantesSinAsignarDesdeReporte()">🔗 Ir a Variantes sin asignar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL CARGA DE ARCHIVOS (v7.1) — antes vivía embebido en el panel lateral de Operaciones -->
 <div class="modal-overlay" id="modal-carga">
   <div class="modal" style="width:480px">
@@ -1263,6 +1290,22 @@ function goToReportes() {
   onFiltrosReporteChange();
 }
 
+// v7.34 — normalización compartida para TODA comparación de Ejecutivo/Vendedor
+// (asignación en Administración, filtros, alcance por perfil, "Variantes sin
+// asignar", carga de Excel). Antes cada sitio hacía (x||'').toUpperCase().trim(),
+// que falla cuando dos textos son la MISMA variante pero difieren en una forma
+// que no cambia el significado: doble espacio interno, u una tilde presente en
+// un lado y ausente en el otro (frecuente entre lo cargado a mano en
+// Administración y lo que trae un Excel real) — eso dejaba operaciones
+// legítimamente asignadas apareciendo igual como "Sin usuario".
+function claveNormalizada(s) {
+  return (s || '').toString()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toUpperCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // v7.4 — Reportes: filtros propios estilo tabla dinámica de Excel. Las casillas
 // se pueblan siempre marcadas por defecto (equivalente a "Todos"); se leen recién
 // al presionar Consultar (onFiltrosReporteChange), no en cada clic.
@@ -1273,8 +1316,8 @@ function goToReportes() {
 // sigue funcionando aunque no haya consolidación definida.
 function ejecutivosDeUsuario(valorUsuario) {
   const u = USUARIOS_CACHE.find(x => x.usuario === valorUsuario);
-  if (u && Array.isArray(u.ejecutivos)) return u.ejecutivos.map(e => (e||'').toUpperCase().trim());
-  return [(valorUsuario||'').toUpperCase().trim()];
+  if (u && Array.isArray(u.ejecutivos)) return u.ejecutivos.map(e => claveNormalizada(e));
+  return [claveNormalizada(valorUsuario)];
 }
 
 // v7.24 — igual que ejecutivosDeUsuario, pero para el campo Vendedor. Un mismo
@@ -1282,16 +1325,16 @@ function ejecutivosDeUsuario(valorUsuario) {
 // así que el filtro "Usuario" queda como uno solo, en vez de dos separados.
 function vendedoresDeUsuario(valorUsuario) {
   const u = USUARIOS_CACHE.find(x => x.usuario === valorUsuario);
-  if (u && Array.isArray(u.vendedores)) return u.vendedores.map(v => (v||'').toUpperCase().trim());
+  if (u && Array.isArray(u.vendedores)) return u.vendedores.map(v => claveNormalizada(v));
   return [];
 }
 
 // true si la operación pertenece al usuario seleccionado, por Ejecutivo O por
 // Vendedor (cualquiera de los dos alcanza, ya no son filtros separados).
 function operacionPerteneceAUsuario(credito, valorUsuario) {
-  const ej = (credito.ejecutivo || '').toUpperCase().trim();
-  const ve = (credito.vendedor || '').toUpperCase().trim();
-  if (ejecutivosDeUsuario(valorUsuario).includes(ej)) return true;
+  const ej = claveNormalizada(credito.ejecutivo);
+  const ve = claveNormalizada(credito.vendedor);
+  if (ej && ejecutivosDeUsuario(valorUsuario).includes(ej)) return true;
   if (ve && vendedoresDeUsuario(valorUsuario).includes(ve)) return true;
   return false;
 }
@@ -1303,12 +1346,12 @@ function operacionPerteneceAUsuario(credito, valorUsuario) {
 // coincidencia por Ejecutivo O por Vendedor, ya que un mismo Usuario consolida
 // ambos campos ahora.
 function nombreUsuarioDeEjecutivo(credito) {
-  const ej = (credito.ejecutivo || '').toUpperCase().trim();
-  const ve = (credito.vendedor || '').toUpperCase().trim();
+  const ej = claveNormalizada(credito.ejecutivo);
+  const ve = claveNormalizada(credito.vendedor);
   if (!ej && !ve) return 'Sin usuario';
   const u = USUARIOS_CACHE.find(x =>
-    (Array.isArray(x.ejecutivos) && x.ejecutivos.some(e => (e||'').toUpperCase().trim() === ej && ej)) ||
-    (Array.isArray(x.vendedores) && x.vendedores.some(v => (v||'').toUpperCase().trim() === ve && ve))
+    (Array.isArray(x.ejecutivos) && x.ejecutivos.some(e => ej && claveNormalizada(e) === ej)) ||
+    (Array.isArray(x.vendedores) && x.vendedores.some(v => ve && claveNormalizada(v) === ve))
   );
   return u ? nombreVisibleUsuario(u) : (credito.ejecutivo || credito.vendedor || 'Sin usuario');
 }
@@ -1654,7 +1697,12 @@ function renderInformeInline() {
   ejecutivos.forEach((ejec, idx) => {
     const bg = idx % 2 === 0 ? '#fff' : '#F8F9FB';
     html += `<tr style="background:${bg}">`;
-    html += `<td style="padding:6px 10px;font-weight:600;white-space:nowrap;border-bottom:1px solid #ECEFF1">${ejec}</td>`;
+    // v7.36 — la fila "Sin usuario" es clicable: abre el detalle de cuáles
+    // operaciones son y permite corregirles el Ejecutivo/Vendedor ahí mismo.
+    const celdaUsuario = ejec === 'Sin usuario'
+      ? `<td style="padding:6px 10px;font-weight:600;white-space:nowrap;border-bottom:1px solid #ECEFF1;color:var(--rojo);cursor:pointer;text-decoration:underline" onclick="verDetalleSinUsuario()" title="Ver detalle y corregir">${ejec} 🔍</td>`
+      : `<td style="padding:6px 10px;font-weight:600;white-space:nowrap;border-bottom:1px solid #ECEFF1">${ejec}</td>`;
+    html += celdaUsuario;
     let totalEjec = { cantidad: 0, monto: 0 };
     estados.forEach(e => {
       const d = resumen[ejec][e] || { cantidad: 0, monto: 0 };
@@ -1686,6 +1734,101 @@ function renderInformeInline() {
 
   contenedor.innerHTML = html;
   if (btnExp) btnExp.style.display = 'inline-block';
+}
+
+// v7.36 — Detalle de "Sin usuario": estas son SIEMPRE operaciones que no
+// traen NINGÚN dato de Ejecutivo ni Vendedor en el archivo de origen (si
+// trajeran un nombre, aunque no estuviera asignado a un Usuario todavía,
+// nombreUsuarioDeEjecutivo() las agruparía bajo ESE nombre, no bajo "Sin
+// usuario" — ese caso se resuelve en Administración → Variantes sin
+// asignar). Por eso la única forma real de sacarlas de "Sin usuario" es
+// completarles el dato aquí mismo, a mano, operación por operación.
+function verDetalleSinUsuario() {
+  const datos = getOperacionesReporte().filter(c => nombreUsuarioDeEjecutivo(c) === 'Sin usuario');
+  const sub = document.getElementById('sin-usuario-subtitulo');
+  if (sub) sub.textContent = `${datos.length} operación(es) sin ningún dato de Ejecutivo ni Vendedor en el archivo de origen`;
+
+  const cont = document.getElementById('sin-usuario-contenido');
+  if (!cont) return;
+
+  if (datos.length === 0) {
+    cont.innerHTML = '<p style="color:var(--texto-sec);text-align:center;padding:16px">No hay operaciones en esta condición.</p>';
+  } else {
+    cont.innerHTML = `
+      <p style="font-size:11px;color:var(--texto-sec);margin-bottom:10px">
+        Estas operaciones no traen Ejecutivo ni Vendedor en el archivo que se cargó. Escribe el dato correcto y presiona
+        Guardar en cada una — apenas tengan uno de los dos, dejan de aparecer como "Sin usuario" (y si ese nombre todavía
+        no está asignado a ningún Usuario, aparecerá en 🔗 Variantes sin asignar para consolidarlo).
+      </p>
+      <div style="border:1px solid var(--borde);border-radius:8px;overflow:hidden">` +
+      datos.map(c => `
+        <div id="su-fila-${c.origen}-${c.id}" style="padding:10px 12px;border-bottom:1px solid var(--gris-claro);display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+          <div style="flex:1 1 220px;min-width:180px">
+            <div style="font-weight:600;font-size:12px">${c.nombre || '(sin nombre)'}</div>
+            <div style="font-size:10px;color:var(--texto-sec)">${c.rut_cliente || ''} · ${c.producto || ''} · ${c.dealer || ''} · ${c.fecha_ingreso || ''} · ${c.origen === 'rechazados' ? 'Rechazados' : 'Aprobados'}</div>
+          </div>
+          <input type="text" id="su-ej-${c.origen}-${c.id}" placeholder="Ejecutivo" style="width:140px;height:28px;border:1px solid var(--borde);border-radius:6px;padding:0 7px;font-size:11px">
+          <input type="text" id="su-ve-${c.origen}-${c.id}" placeholder="Vendedor" style="width:140px;height:28px;border:1px solid var(--borde);border-radius:6px;padding:0 7px;font-size:11px">
+          <button onclick="guardarEjVeOperacion('${c.origen}', ${c.id})" style="height:28px;padding:0 10px;border:none;border-radius:6px;background:var(--azul);color:#fff;font-size:11px;cursor:pointer">Guardar</button>
+        </div>`).join('') +
+      '</div>';
+  }
+
+  document.getElementById('modal-sin-usuario').classList.add('visible');
+}
+
+function cerrarDetalleSinUsuario() {
+  document.getElementById('modal-sin-usuario').classList.remove('visible');
+}
+document.getElementById('modal-sin-usuario').addEventListener('click', function(e) { if (e.target === this) cerrarDetalleSinUsuario(); });
+
+// Guarda el Ejecutivo y/o Vendedor escrito a mano para una operación puntual
+// que no traía ninguno de los dos. Edición directa (no es una carga de
+// Excel), así que no choca con la regla de "nunca se actualiza mediante una
+// carga" — esa regla aplica solo a reimportar el mismo archivo.
+async function guardarEjVeOperacion(origen, id) {
+  const inEj = document.getElementById(`su-ej-${origen}-${id}`);
+  const inVe = document.getElementById(`su-ve-${origen}-${id}`);
+  const ejecutivo = inEj ? inEj.value.trim() : '';
+  const vendedor = inVe ? inVe.value.trim() : '';
+  if (!ejecutivo && !vendedor) { alert('Escribe al menos un Ejecutivo o un Vendedor antes de guardar.'); return; }
+
+  const tabla = origen === 'rechazados' ? 'creditos_rechazados' : 'creditos';
+  try {
+    const data = {};
+    if (ejecutivo) data.ejecutivo = ejecutivo;
+    if (vendedor) data.vendedor = vendedor;
+    await sbUpdate(tabla, id, data);
+
+    // Refleja el cambio en memoria sin recargar todo desde Supabase
+    const c = operaciones.find(x => x.id === id && x.origen === origen);
+    if (c) { if (ejecutivo) c.ejecutivo = ejecutivo; if (vendedor) c.vendedor = vendedor; }
+
+    const fila = document.getElementById(`su-fila-${origen}-${id}`);
+    if (fila) fila.outerHTML = '<div style="padding:8px 12px;font-size:11px;color:var(--verde)">✅ Guardado.</div>';
+
+    // Refresca el informe principal detrás del modal (actualiza el conteo de "Sin usuario")
+    renderInformeInline();
+
+    // Avisa, sin bloquear, si el nombre recién escrito todavía no está
+    // asignado a ningún Usuario — para que no vuelva a perderse de vista.
+    const asignado = USUARIOS_CACHE.some(u =>
+      (ejecutivo && Array.isArray(u.ejecutivos) && u.ejecutivos.some(e => claveNormalizada(e) === claveNormalizada(ejecutivo))) ||
+      (vendedor && Array.isArray(u.vendedores) && u.vendedores.some(v => claveNormalizada(v) === claveNormalizada(vendedor)))
+    );
+    if (!asignado) {
+      alert(`Guardado. "${ejecutivo || vendedor}" todavía no está asignado a ningún Usuario — ve a Administración → 🔗 Variantes sin asignar para consolidarlo.`);
+    }
+  } catch (e) {
+    alert(mensajeErrorGuardado(e));
+  }
+}
+
+async function irAVariantesSinAsignarDesdeReporte() {
+  cerrarDetalleSinUsuario();
+  mostrarPantalla('admin-overlay');
+  await cargarAdminUsuarios();
+  mostrarVariantesSinAsignar();
 }
 
 function goToAdmin() {
@@ -1811,15 +1954,15 @@ async function recargarDatos() {
     if (currentUser.perfil === 'supervisor' && ejecutivosPermitidos[0] !== 'todos') {
       try {
         const equipoRaw = await sbGet('usuarios_seguimiento', 'supervisor=eq.' + encodeURIComponent(currentUser.usuario));
-        const nombresEjecutivo = new Set((currentUser.ejecutivos || []).map(e => (e||'').toUpperCase().trim()));
-        const nombresVendedor = new Set((currentUser.vendedores || []).map(v => (v||'').toUpperCase().trim()));
+        const nombresEjecutivo = new Set((currentUser.ejecutivos || []).map(e => claveNormalizada(e)));
+        const nombresVendedor = new Set((currentUser.vendedores || []).map(v => claveNormalizada(v)));
         equipoRaw.forEach(miembro => {
           let ejs = miembro.ejecutivos;
           if (typeof ejs === 'string') { try { ejs = JSON.parse(ejs); } catch(e) { ejs = []; } }
-          if (Array.isArray(ejs)) ejs.forEach(e => nombresEjecutivo.add((e||'').toUpperCase().trim()));
+          if (Array.isArray(ejs)) ejs.forEach(e => nombresEjecutivo.add(claveNormalizada(e)));
           let vds = miembro.vendedores;
           if (typeof vds === 'string') { try { vds = JSON.parse(vds); } catch(e) { vds = []; } }
-          if (Array.isArray(vds)) vds.forEach(v => nombresVendedor.add((v||'').toUpperCase().trim()));
+          if (Array.isArray(vds)) vds.forEach(v => nombresVendedor.add(claveNormalizada(v)));
         });
         ejecutivosPermitidos = [...nombresEjecutivo];
         vendedoresPermitidos = [...nombresVendedor];
@@ -1832,10 +1975,10 @@ async function recargarDatos() {
     // coincide con lo permitido (cualquiera de los dos alcanza).
     function esVisiblePorAlcance(c) {
       if (ejecutivosPermitidos[0] === 'todos') return true;
-      const cej = (c.ejecutivo || '').toUpperCase().trim();
-      const cve = (c.vendedor || '').toUpperCase().trim();
-      if (ejecutivosPermitidos.some(e => cej === e.toUpperCase().trim())) return true;
-      if (cve && vendedoresPermitidos.some(v => cve === v.toUpperCase().trim())) return true;
+      const cej = claveNormalizada(c.ejecutivo);
+      const cve = claveNormalizada(c.vendedor);
+      if (cej && ejecutivosPermitidos.some(e => cej === claveNormalizada(e))) return true;
+      if (cve && vendedoresPermitidos.some(v => cve === claveNormalizada(v))) return true;
       return false;
     }
 
@@ -2085,9 +2228,10 @@ async function loadExcel(event, tipo = 'aprobados') {
           ['ejecutivo', 'vendedor'].forEach(campo => {
             const v = (r[campo] || '').trim();
             if (!v) return;
+            const vClave = claveNormalizada(v);
             const asignado = USUARIOS_CACHE.some(u => {
               const lista = campo === 'ejecutivo' ? u.ejecutivos : u.vendedores;
-              return Array.isArray(lista) && lista.some(x => (x||'').toUpperCase().trim() === v.toUpperCase());
+              return Array.isArray(lista) && lista.some(x => claveNormalizada(x) === vClave);
             });
             if (!asignado) {
               const key = campo + '|' + v;
@@ -3107,22 +3251,36 @@ function similitudVariantes(a, b) {
 }
 
 function detectarVariantesSinAsignar() {
-  const mapaEj = new Map();
+  // v7.34 — se agrupa por claveNormalizada, no por el texto crudo: dos
+  // variantes que son la misma persona pero difieren en doble espacio o
+  // una tilde ya no aparecen como dos filas separadas pidiendo dos
+  // confirmaciones — se juntan en una, con el conteo sumado.
+  const mapaEj = new Map(); // claveNormalizada -> { valor: <texto representativo>, count }
   const mapaVe = new Map();
   operaciones.forEach(c => {
-    const ej = (c.ejecutivo || '').trim();
-    const ve = (c.vendedor || '').trim();
-    if (ej) {
-      const asignado = adminUsuarios.some(u => parseListaCampoAdmin(u.ejecutivos).some(e => (e||'').toUpperCase().trim() === ej.toUpperCase()));
-      if (!asignado) mapaEj.set(ej, (mapaEj.get(ej)||0) + 1);
+    const ejRaw = (c.ejecutivo || '').trim();
+    const veRaw = (c.vendedor || '').trim();
+    if (ejRaw) {
+      const clave = claveNormalizada(ejRaw);
+      const asignado = adminUsuarios.some(u => parseListaCampoAdmin(u.ejecutivos).some(e => claveNormalizada(e) === clave));
+      if (!asignado) {
+        const actual = mapaEj.get(clave) || { valor: ejRaw, count: 0 };
+        actual.count++;
+        mapaEj.set(clave, actual);
+      }
     }
-    if (ve) {
-      const asignado = adminUsuarios.some(u => parseListaCampoAdmin(u.vendedores).some(v => (v||'').toUpperCase().trim() === ve.toUpperCase()));
-      if (!asignado) mapaVe.set(ve, (mapaVe.get(ve)||0) + 1);
+    if (veRaw) {
+      const clave = claveNormalizada(veRaw);
+      const asignado = adminUsuarios.some(u => parseListaCampoAdmin(u.vendedores).some(v => claveNormalizada(v) === clave));
+      if (!asignado) {
+        const actual = mapaVe.get(clave) || { valor: veRaw, count: 0 };
+        actual.count++;
+        mapaVe.set(clave, actual);
+      }
     }
   });
-  const aEj = [...mapaEj.entries()].map(([valor,count]) => ({ campo:'ejecutivo', valor, count }));
-  const aVe = [...mapaVe.entries()].map(([valor,count]) => ({ campo:'vendedor', valor, count }));
+  const aEj = [...mapaEj.values()].map(({valor,count}) => ({ campo:'ejecutivo', valor, count }));
+  const aVe = [...mapaVe.values()].map(({valor,count}) => ({ campo:'vendedor', valor, count }));
   return [...aEj, ...aVe].sort((a,b) => b.count - a.count);
 }
 
@@ -3148,11 +3306,25 @@ function mostrarVariantesSinAsignar() {
 
   variantesSinAsignarActuales = detectarVariantesSinAsignar();
 
+  // v7.34 — operaciones sin NINGÚN dato de Ejecutivo/Vendedor (ambos campos
+  // vacíos en el archivo de origen) también caen en "Sin usuario" en los
+  // reportes, pero esta herramienta no puede ayudar con esas: no hay ningún
+  // texto que sugerir ni asignar. Se muestran aparte, solo informativamente,
+  // para no confundirlas con las que sí se pueden resolver aquí.
+  const sinNingunDato = operaciones.filter(c => !(c.ejecutivo||'').trim() && !(c.vendedor||'').trim()).length;
+  const avisoSinDato = sinNingunDato > 0
+    ? `<p style="font-size:11px;color:var(--rojo);background:var(--rojo-bg);border-radius:6px;padding:8px;margin-bottom:12px">
+        ⚠️ Además, hay <strong>${sinNingunDato}</strong> operación(es) sin ningún dato de Ejecutivo ni Vendedor en el archivo de origen —
+        esas no aparecen en la tabla de abajo porque no hay ningún texto que asignar. Quedarán como "Sin usuario" hasta corregir el dato en el origen.
+      </p>`
+    : '';
+
   if (variantesSinAsignarActuales.length === 0) {
     document.getElementById('admin-form-area').innerHTML = `
       <div style="padding:24px;text-align:center;color:var(--texto-sec)">
         <div style="font-size:32px;margin-bottom:8px">✅</div>
         <p>No hay variantes de Ejecutivo o Vendedor sin asignar a un usuario.</p>
+        ${avisoSinDato}
       </div>`;
     return;
   }
@@ -3188,6 +3360,7 @@ function mostrarVariantesSinAsignar() {
         (por eso se ven como "Sin usuario" o sueltos en los reportes). La sugerencia compara el texto con las variantes
         que cada usuario ya tiene — revísala antes de confirmar: nada se asigna sin que presiones "Asignar".
       </p>
+      ${avisoSinDato}
       <div style="overflow-x:auto;border:1px solid var(--borde);border-radius:8px">
         <table style="width:100%;border-collapse:collapse;font-size:12px">
           <thead>
@@ -3227,7 +3400,7 @@ async function asignarVarianteAUsuario(idx) {
   if (!u) { alert('Usuario no encontrado.'); return; }
   const campo = item.campo === 'ejecutivo' ? 'ejecutivos' : 'vendedores';
   const listaActual = parseListaCampoAdmin(u[campo]);
-  if (listaActual.some(v => (v||'').toUpperCase().trim() === item.valor.toUpperCase().trim())) {
+  if (listaActual.some(v => claveNormalizada(v) === claveNormalizada(item.valor))) {
     alert('Esa variante ya está asignada a este usuario.');
     return;
   }
@@ -3307,11 +3480,26 @@ function renderAdminFormEditar(u) {
   const last = u.ultimo_acceso ? new Date(u.ultimo_acceso).toLocaleString('es-CL', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : 'Nunca';
   const ejsFiltered = ejs.filter(e=>e!=='todos');
 
+  // v7.35 — aviso visible de "estás editando una cuenta EXISTENTE": se
+  // detectó que el campo Nombre de una cuenta ya creada había ido
+  // acumulando varios nombres pegados uno tras otro (ej. "...Solange
+  // VucinaTatiana Arriagada"), señal de que alguien entró a editar esa
+  // cuenta pensando que estaba creando una nueva — sin darse cuenta de que
+  // el campo Nombre ya tenía texto cargado — y guardó encima. Este aviso
+  // deja inconfundible cuándo se está editando algo que ya existe.
+  const avisoEditando = adminModo === 'editar'
+    ? '<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:7px;padding:8px 12px;margin-bottom:14px;font-size:12px;color:#856404">' +
+        '⚠️ Estás EDITANDO la cuenta existente de <strong>' + (u.usuario||'(sin email)') + '</strong>. Si tu intención era crear a otra persona distinta, ' +
+        'cierra esto y usa el botón "+ Nuevo" en vez de escribir aquí.' +
+      '</div>'
+    : '';
+
   document.getElementById('admin-form-area').innerHTML =
     '<div class="admin-form">' +
-      '<div class="admin-form-title">' + (adminModo === 'nuevo' ? '➕ Nuevo Usuario' : '✏️ Editar Usuario') + '</div>' +
+      '<div class="admin-form-title">' + (adminModo === 'nuevo' ? '➕ Nuevo Usuario' : '✏️ Editar Usuario: ' + (u.usuario||'')) + '</div>' +
+      avisoEditando +
       '<div class="form-group"><label>Nombre <small style="text-transform:none;font-weight:400">(así se identifica a esta persona en Reportes y Seguimiento, en vez de deducirlo del email)</small></label>' +
-        '<input type="text" id="af-nombre" value="' + (u.nombre||'') + '" placeholder="Ej: Sebastián Millar">' +
+        '<input type="text" id="af-nombre" autocomplete="off" value="' + (u.nombre||'') + '" placeholder="Ej: Sebastián Millar">' +
       '</div>' +
       '<div class="form-group"><label>Email (usuario)</label>' +
         '<input type="email" id="af-email" value="' + (u.usuario||'') + '" placeholder="nombre@autofacilchile.cl">' +
@@ -3352,6 +3540,7 @@ function renderAdminFormEditar(u) {
             '<span id="af-ej-summary">Ninguno</span><b>▾</b>' +
           '</button>' +
           '<div class="pivot-dropdown" id="af-ej-dropdown" style="width:100%">' +
+            '<input type="text" class="pivot-search" id="af-ej-search" placeholder="Buscar ejecutivo..." oninput="filtrarAfEjItems()" onclick="event.stopPropagation()">' +
             '<div id="af-ej-items"></div>' +
           '</div>' +
         '</div>' +
@@ -3363,6 +3552,7 @@ function renderAdminFormEditar(u) {
             '<span id="af-ve-summary">Ninguno</span><b>▾</b>' +
           '</button>' +
           '<div class="pivot-dropdown" id="af-ve-dropdown" style="width:100%">' +
+            '<input type="text" class="pivot-search" id="af-ve-search" placeholder="Buscar vendedor..." oninput="filtrarAfVeItems()" onclick="event.stopPropagation()">' +
             '<div id="af-ve-items"></div>' +
           '</div>' +
         '</div>' +
@@ -3450,6 +3640,24 @@ function toggleAfEjDropdown() {
   const abierto = dd.classList.contains('visible');
   dd.classList.toggle('visible', !abierto);
   trigger.classList.toggle('abierto', !abierto);
+  // v7.36 — al abrir, limpia la búsqueda anterior y enfoca el campo para
+  // que el gerente pueda escribir de inmediato
+  if (!abierto) {
+    const buscador = document.getElementById('af-ej-search');
+    if (buscador) { buscador.value = ''; filtrarAfEjItems(); setTimeout(() => buscador.focus(), 0); }
+  }
+}
+
+// v7.36 — filtra en vivo las casillas de "Ejecutivos asignados" por lo que
+// se escriba en el buscador (sin distinguir tildes/mayúsculas), sin afectar
+// las que ya estén marcadas aunque queden ocultas momentáneamente.
+function filtrarAfEjItems() {
+  const buscador = document.getElementById('af-ej-search');
+  const texto = claveNormalizada(buscador ? buscador.value : '');
+  document.querySelectorAll('#af-ej-items .pivot-item').forEach(item => {
+    const valor = claveNormalizada(item.querySelector('span') ? item.querySelector('span').textContent : '');
+    item.classList.toggle('oculto-busqueda', texto.length > 0 && !valor.includes(texto));
+  });
 }
 document.addEventListener('click', function(e) {
   const filtro = document.getElementById('af-ej-filter');
@@ -3497,6 +3705,21 @@ function toggleAfVeDropdown() {
   const abierto = dd.classList.contains('visible');
   dd.classList.toggle('visible', !abierto);
   trigger.classList.toggle('abierto', !abierto);
+  // v7.36 — al abrir, limpia la búsqueda anterior y enfoca el campo
+  if (!abierto) {
+    const buscador = document.getElementById('af-ve-search');
+    if (buscador) { buscador.value = ''; filtrarAfVeItems(); setTimeout(() => buscador.focus(), 0); }
+  }
+}
+
+// v7.36 — filtra en vivo las casillas de "Vendedores asignados"
+function filtrarAfVeItems() {
+  const buscador = document.getElementById('af-ve-search');
+  const texto = claveNormalizada(buscador ? buscador.value : '');
+  document.querySelectorAll('#af-ve-items .pivot-item').forEach(item => {
+    const valor = claveNormalizada(item.querySelector('span') ? item.querySelector('span').textContent : '');
+    item.classList.toggle('oculto-busqueda', texto.length > 0 && !valor.includes(texto));
+  });
 }
 document.addEventListener('click', function(e) {
   const filtro = document.getElementById('af-ve-filter');
@@ -3523,6 +3746,29 @@ async function guardarUser() {
   const ejecutivos = getEjecutivosForm();
   const vendedores = getVendedoresForm();
   if (!nombre || !email || !clave) { alert('Nombre, Email y Contraseña son obligatorios'); return; }
+  // v7.34 — aviso defensivo: un "Nombre" donde una minúscula es seguida
+  // directamente por una mayúscula sin espacio (ej. "...DuranSebastian...")
+  // suele ser dos nombres distintos pegados por error al escribir rápido
+  // varios usuarios seguidos. No bloquea — el gerente puede confirmar si
+  // realmente es así — pero evita que pase desapercibido.
+  if (/[a-záéíóúñ][A-ZÁÉÍÓÚÑ]/.test(nombre)) {
+    const seguir = confirm('El Nombre "' + nombre + '" parece tener dos nombres pegados sin espacio (por ejemplo, de escribir varios usuarios seguidos sin limpiar el campo). ¿Es correcto tal cual está escrito?');
+    if (!seguir) return;
+  }
+  // v7.35 — segundo aviso, específico para EDITAR: si el nombre nuevo
+  // simplemente agrega texto al final del que ya tenía esta cuenta (con o
+  // sin espacio de por medio), es la señal más directa de que alguien
+  // entró a una cuenta existente pensando que creaba una nueva persona, y
+  // está a punto de guardar el nombre de otra persona encima de esta
+  // cuenta. No aplica a "nuevo" porque ahí no hay nombre previo que comparar.
+  if (adminModo === 'editar' && adminSelIdx !== null) {
+    const nombreAnterior = (adminUsuarios[adminSelIdx] && adminUsuarios[adminSelIdx].nombre || '').trim();
+    if (nombreAnterior && nombre !== nombreAnterior && nombre.toLowerCase().startsWith(nombreAnterior.toLowerCase())) {
+      const agregado = nombre.slice(nombreAnterior.length).trim();
+      const seguir = confirm('Esta cuenta (' + (adminUsuarios[adminSelIdx].usuario||'') + ') ya tenía el Nombre "' + nombreAnterior + '", y ahora le estás agregando "' + agregado + '" al final en vez de reemplazarlo.\n\n¿Esto es correcto, o querías crear una cuenta NUEVA para "' + agregado + '" con el botón "+ Nuevo"?\n\nAceptar = guardar igual. Cancelar = no guardar.');
+      if (!seguir) return;
+    }
+  }
   // v7.32 — corregido: Ejecutivos y Vendedores son campos paralelos e
   // independientes (v7.19/v7.24). El usuario es lo principal; se le asignan
   // ejecutivos y/o vendedores, no los dos obligatoriamente. Antes esta
