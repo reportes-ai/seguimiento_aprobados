@@ -6,10 +6,16 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gestión360 — AutoFácil v7.0</title>
+<title>Gestión360 — AutoFácil v7.39</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- v7.37 — integrity + crossorigin: si el CDN se viera comprometido, el navegador
+     rechaza ejecutar un archivo que no calce con este hash (Subresource Integrity).
+     Se cambió de cdnjs a jsdelivr porque es la fuente donde se pudo verificar el
+     hash SHA-256 oficial, publicado por el propio proveedor del CDN, para esta
+     versión exacta del paquete (xlsx@0.18.5/dist/xlsx.full.min.js) — mismo
+     paquete npm que servía cdnjs, pero sin un hash propio verificable desde acá. -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" integrity="sha256-yVBhl8r4CaB1tt7h2g02+xnacVj/6KiOewyWxdhiPJk=" crossorigin="anonymous"></script>
 <style>
   :root {
     /* v7.0 — paleta inspirada en el mockup de referencia (Gestión360), mismos
@@ -621,7 +627,7 @@
   <header id="app-header" style="background:var(--azul)">
     <div style="display:flex;align-items:center;gap:10px">
       <button class="btn-sm" onclick="showHome()" style="background:rgba(255,255,255,0.18);font-weight:600">🏠 Inicio</button>
-      <h1 id="header-titulo">📋 Seguimiento de Operaciones <small style="font-size:11px;opacity:0.7">v7.1</small></h1>
+      <h1 id="header-titulo">📋 Seguimiento de Operaciones <small style="font-size:11px;opacity:0.7">v7.39</small></h1>
     </div>
     <div class="header-right">
       <span id="header-ejecutivo"></span>
@@ -700,31 +706,6 @@
           <p>Cargando operaciones…</p>
         </div>
       </div>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL INFORME CONSOLIDADO -->
-<div class="modal-overlay" id="informe-overlay">
-  <div class="modal" style="width:780px;max-width:96vw">
-    <div class="modal-header" style="justify-content:space-between">
-      <h3>📊 INFORME CONSOLIDADO</h3>
-      <button onclick="cerrarInforme()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer">✕</button>
-    </div>
-    <div class="modal-body" style="padding:16px 20px">
-      <div style="display:flex;gap:16px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap">
-        <div class="form-group" style="flex:1;min-width:140px">
-          <label>Desde</label>
-          <input type="date" id="inf-fecha-desde">
-        </div>
-        <div class="form-group" style="flex:1;min-width:140px">
-          <label>Hasta</label>
-          <input type="date" id="inf-fecha-hasta">
-        </div>
-        <button onclick="generarInforme()" style="padding:9px 20px;background:var(--azul);color:#fff;border:none;border-radius:var(--radio);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">🔍 Generar</button>
-        <button id="btn-exportar-excel" onclick="exportarExcel()" style="display:none;padding:9px 20px;background:var(--verde);color:#fff;border:none;border-radius:var(--radio);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">⬇️ Exportar Excel</button>
-      </div>
-      <div id="informe-resultado"></div>
     </div>
   </div>
 </div>
@@ -923,7 +904,7 @@
     <div style="background:#1565C0;color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-radius:12px 12px 0 0;flex-shrink:0">
       <div>
         <h3 style="font-size:16px;font-weight:700;margin:0">❓ Manual de Usuario — Seguimiento de Créditos</h3>
-        <div style="font-size:12px;opacity:0.8;margin-top:2px">AutoFácil Chile · v7.0</div>
+        <div style="font-size:12px;opacity:0.8;margin-top:2px">AutoFácil Chile · v7.39</div>
       </div>
       <button onclick="cerrarAyuda()" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:0 4px">✕</button>
     </div>
@@ -1015,6 +996,25 @@ async function sbDelete(table, id) {
 // Los usuarios se cargan desde la tabla 'usuarios' en Supabase.
 
 // ============================================================
+// ESCAPE DE HTML (v7.37)
+// ============================================================
+// Toda la app arma su HTML con template strings e innerHTML, interpolando
+// datos que vienen de Excel o que la gente escribe a mano (nombre, comentario,
+// ejecutivo, dealer, concesionario, etc.) sin pasar por ningún escape. Un
+// nombre o comentario con "<" o comillas puede romper el render o, en el peor
+// caso, ejecutar script. esc() es el único helper de escape de la app —
+// úsalo en cualquier dato libre que se interpole dentro de un innerHTML.
+function esc(v) {
+  if (v === null || v === undefined) return '';
+  return String(v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ============================================================
 // ESTADOS FUNCIONALES (Fase 3.5 / Fase 4 — BLOQUE 1)
 // ============================================================
 // Los únicos 5 estados vigentes y seleccionables para nuevas gestiones.
@@ -1077,6 +1077,13 @@ function normalizarEstado(valor, motivo) {
     'RECHAZADO': 'RECHAZADO',
     'RECHAZADOS': 'RECHAZADO',
   };
+  // v7.37 — un estado desconocido o vacío se sigue tratando como EN PROCESO
+  // (hay que devolver algo válido para clasificar la operación), pero ahora
+  // queda avisado en consola en vez de disfrazarse silenciosamente de un
+  // estado normal — así un dato mal escrito en la base se puede detectar.
+  if (!(v in mapa)) {
+    console.warn('normalizarEstado: valor de estado desconocido o vacío "' + (valor || '') + '" (motivo: "' + (motivo || '') + '") — se usó EN PROCESO como resguardo.');
+  }
   return mapa[v] || 'EN PROCESO';
 }
 
@@ -1165,7 +1172,15 @@ async function doLogin() {
       return;
     }
     // Normalizar ejecutivos y vendedores (pueden venir como string JSON desde Supabase)
-    if (typeof usr.ejecutivos === 'string') usr.ejecutivos = JSON.parse(usr.ejecutivos);
+    // v7.37 — con try/catch: un valor no-JSON o corrupto en "ejecutivos" ya no
+    // bloquea el login completo con el mensaje engañoso "Error de conexión";
+    // se trata como sin ejecutivos asignados y se avisa en consola para que
+    // quede identificado quién tiene el dato corrupto.
+    if (typeof usr.ejecutivos === 'string') {
+      try { usr.ejecutivos = JSON.parse(usr.ejecutivos); }
+      catch(e) { console.warn('usuarios_seguimiento.ejecutivos no es JSON válido para', usr.usuario, ':', usr.ejecutivos); usr.ejecutivos = []; }
+    }
+    if (!Array.isArray(usr.ejecutivos)) usr.ejecutivos = [];
     if (typeof usr.vendedores === 'string') { try { usr.vendedores = JSON.parse(usr.vendedores); } catch(e) { usr.vendedores = []; } }
     if (!Array.isArray(usr.vendedores)) usr.vendedores = [];
     currentUser = usr;
@@ -1406,10 +1421,12 @@ function renderPivotItems(tipo, opciones, onChangeFn) {
   const marcarTodo = aplicados.length === 0;
   const cont = document.getElementById('pivot-items-' + tipo);
   const handler = onChangeFn || 'onPivotItemChange';
+  // v7.37 — esc(): estos filtros se pueblan con nombres crudos de Ejecutivo,
+  // Producto, Usuario, etc., que vienen de los datos cargados.
   cont.innerHTML = opciones.map(o => `
     <label class="pivot-item">
-      <input type="checkbox" value="${o.value}" ${(marcarTodo || aplicados.includes(o.value)) ? 'checked' : ''} onchange="${handler}('${tipo}')">
-      <span>${o.label}</span>
+      <input type="checkbox" value="${esc(o.value)}" ${(marcarTodo || aplicados.includes(o.value)) ? 'checked' : ''} onchange="${handler}('${tipo}')">
+      <span>${esc(o.label)}</span>
     </label>`).join('');
   actualizarCasillaTodos(tipo);
 }
@@ -1701,7 +1718,7 @@ function renderInformeInline() {
     // operaciones son y permite corregirles el Ejecutivo/Vendedor ahí mismo.
     const celdaUsuario = ejec === 'Sin usuario'
       ? `<td style="padding:6px 10px;font-weight:600;white-space:nowrap;border-bottom:1px solid #ECEFF1;color:var(--rojo);cursor:pointer;text-decoration:underline" onclick="verDetalleSinUsuario()" title="Ver detalle y corregir">${ejec} 🔍</td>`
-      : `<td style="padding:6px 10px;font-weight:600;white-space:nowrap;border-bottom:1px solid #ECEFF1">${ejec}</td>`;
+      : `<td style="padding:6px 10px;font-weight:600;white-space:nowrap;border-bottom:1px solid #ECEFF1">${esc(ejec)}</td>`; // v7.39 — esc(): ejec puede ser el nombre crudo del Excel
     html += celdaUsuario;
     let totalEjec = { cantidad: 0, monto: 0 };
     estados.forEach(e => {
@@ -1764,8 +1781,8 @@ function verDetalleSinUsuario() {
       datos.map(c => `
         <div id="su-fila-${c.origen}-${c.id}" style="padding:10px 12px;border-bottom:1px solid var(--gris-claro);display:flex;flex-wrap:wrap;gap:8px;align-items:center">
           <div style="flex:1 1 220px;min-width:180px">
-            <div style="font-weight:600;font-size:12px">${c.nombre || '(sin nombre)'}</div>
-            <div style="font-size:10px;color:var(--texto-sec)">${c.rut_cliente || ''} · ${c.producto || ''} · ${c.dealer || ''} · ${c.fecha_ingreso || ''} · ${c.origen === 'rechazados' ? 'Rechazados' : 'Aprobados'}</div>
+            <div style="font-weight:600;font-size:12px">${esc(c.nombre) || '(sin nombre)'}</div>
+            <div style="font-size:10px;color:var(--texto-sec)">${esc(c.rut_cliente)} · ${esc(c.producto)} · ${esc(c.dealer)} · ${esc(c.fecha_ingreso)} · ${c.origen === 'rechazados' ? 'Rechazados' : 'Aprobados'}</div>
           </div>
           <input type="text" id="su-ej-${c.origen}-${c.id}" placeholder="Ejecutivo" style="width:140px;height:28px;border:1px solid var(--borde);border-radius:6px;padding:0 7px;font-size:11px">
           <input type="text" id="su-ve-${c.origen}-${c.id}" placeholder="Vendedor" style="width:140px;height:28px;border:1px solid var(--borde);border-radius:6px;padding:0 7px;font-size:11px">
@@ -1838,7 +1855,12 @@ function goToAdmin() {
 
 async function initApp() {
   const label = currentUser.perfil === 'gerente' ? 'Gerente' : currentUser.perfil === 'supervisor' ? 'Supervisor' : 'Ejecutivo';
-  const nombre = currentUser.ejecutivos[0] === 'todos' ? 'Todos los ejecutivos' : currentUser.ejecutivos[0];
+  // v7.37 — un usuario que solo tiene Vendedores asignados (sin Ejecutivo,
+  // permitido desde v7.32) mostraba "Ejecutivo: undefined" en el header.
+  const nombre = currentUser.ejecutivos[0] === 'todos' ? 'Todos los ejecutivos'
+    : (currentUser.ejecutivos && currentUser.ejecutivos[0]) ? currentUser.ejecutivos[0]
+    : (currentUser.vendedores && currentUser.vendedores[0]) ? currentUser.vendedores[0]
+    : '(sin asignar)';
   document.getElementById('header-ejecutivo').textContent = `${label}: ${nombre}`;
   document.getElementById('filtro-ejecutivo-wrap').style.display = (currentUser.perfil === 'gerente' || currentUser.perfil === 'supervisor') ? 'block' : 'none';
 
@@ -1934,13 +1956,9 @@ async function recargarDatos() {
     //    nombre agrupado en vez de sus variantes crudas sin consolidar.
     if (USUARIOS_CACHE.length === 0) {
       try {
-        USUARIOS_CACHE = await sbGet('usuarios_seguimiento', 'select=usuario,nombre,ejecutivos,vendedores&order=usuario.asc');
-        USUARIOS_CACHE = USUARIOS_CACHE.filter(u => u.ejecutivos && u.ejecutivos !== 'todos' && (!Array.isArray(u.ejecutivos) || u.ejecutivos[0] !== 'todos'));
-        USUARIOS_CACHE = USUARIOS_CACHE.map(u => ({
-          ...u,
-          ejecutivos: Array.isArray(u.ejecutivos) ? u.ejecutivos : (typeof u.ejecutivos === 'string' ? JSON.parse(u.ejecutivos) : []),
-          vendedores: Array.isArray(u.vendedores) ? u.vendedores : (typeof u.vendedores === 'string' ? (function(){ try { return JSON.parse(u.vendedores); } catch(e) { return []; } })() : [])
-        }));
+        // v7.37 — un solo armado del cache (construirUsuariosCache)
+        const rows = await sbGet('usuarios_seguimiento', 'select=usuario,nombre,ejecutivos,vendedores&order=usuario.asc');
+        USUARIOS_CACHE = construirUsuariosCache(rows);
       } catch(e) { console.warn('No se pudo cargar cache usuarios:', e); }
     }
 
@@ -2019,6 +2037,12 @@ async function recargarDatos() {
       gestionesRaw = gestionesRaw.concat(parcial);
     }
 
+    // v7.37 — LIMITACIÓN CONOCIDA: la tabla gestiones no tiene columna "origen",
+    // así que si un mismo ID existe en creditos Y en creditos_rechazados sus
+    // gestiones se mezclan aquí. Hoy no ocurre porque el FK
+    // gestiones_credito_id_fkey solo admite IDs de creditos (ver
+    // mensajeErrorGuardado); cuando se ajuste ese FK en Supabase hay que
+    // agregar también la columna origen y filtrar por ella en este mapa.
     const gesMap = {};
     gestionesRaw.forEach(g => {
       if (!gesMap[g.credito_id]) gesMap[g.credito_id] = [];
@@ -2080,7 +2104,9 @@ async function loadExcel(event, tipo = 'aprobados') {
   reader.onload = async function(e) {
     try {
       loading(true, 'Procesando archivo Excel...');
-      const wb = XLSX.read(e.target.result, {type:'binary', cellDates:true});
+      // v7.37 — readAsArrayBuffer + type:'array' en vez de readAsBinaryString
+      // + type:'binary' (deprecado, candidato a removerse de los navegadores).
+      const wb = XLSX.read(e.target.result, {type:'array', cellDates:true});
       const ws = wb.Sheets[wb.SheetNames[0]];
       const raw = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
 
@@ -2204,17 +2230,35 @@ async function loadExcel(event, tipo = 'aprobados') {
         });
       });
 
+      let idsRealmenteInsertados = new Set();
       if (nuevos.length > 0) {
         loading(true, `Importando ${nuevos.length} registros nuevos...`);
         const tablaDestino = tipo === 'rechazados' ? 'creditos_rechazados' : 'creditos';
         const loteSize = 100;
+        // v7.37 — el chequeo de "ya existe" de arriba (existentesPorId) solo
+        // ve lo que hay en memoria, cargado con limit=5000 (recargarDatos).
+        // Con más de 5.000 operaciones, una fila vieja puede verse como
+        // "nueva" acá aunque ya exista en la base. sbInsert manda
+        // resolution=ignore-duplicates, así que Supabase la descarta
+        // silenciosamente y no la devuelve en la respuesta — por eso ahora se
+        // lee esa respuesta y la gestión "Carga inicial" (más abajo) solo se
+        // crea para los ID que Supabase confirmó como insertados de verdad.
+        // Antes se creaba para TODOS los "nuevos" sin excepción, y esa
+        // gestión fantasma reseteaba a APROBADO/RECHAZADO el estado real de
+        // una operación antigua que en realidad ya existía.
         for (let i=0; i<nuevos.length; i+=loteSize) {
-          await sbInsert(tablaDestino, nuevos.slice(i, i+loteSize));
+          const lote = nuevos.slice(i, i+loteSize);
+          const insertados = await sbInsert(tablaDestino, lote);
+          (insertados || []).forEach(r => idsRealmenteInsertados.add(String(r.id)));
+        }
+        const gestionesAInsertar = gestionesIniciales.filter(g => idsRealmenteInsertados.has(String(g.credito_id)));
+        if (gestionesAInsertar.length < gestionesIniciales.length) {
+          console.warn(`loadExcel: ${gestionesIniciales.length - gestionesAInsertar.length} fila(s) del archivo ya existían en la base (más allá de los últimos 5.000 registros en memoria) y no se insertaron de nuevo — tampoco se les creó una gestión "Carga inicial".`);
         }
         // Gestión inicial de trazabilidad — no bloquea la carga si falla (se registra en consola)
         try {
-          for (let i=0; i<gestionesIniciales.length; i+=loteSize) {
-            await sbInsert('gestiones', gestionesIniciales.slice(i, i+loteSize));
+          for (let i=0; i<gestionesAInsertar.length; i+=loteSize) {
+            await sbInsert('gestiones', gestionesAInsertar.slice(i, i+loteSize));
           }
         } catch(e) { console.warn('No se pudo registrar la gestión inicial de trazabilidad:', e); }
 
@@ -2223,8 +2267,10 @@ async function loadExcel(event, tipo = 'aprobados') {
         // bloquea la carga (ya se hizo) — solo avisa en el momento, para que
         // no quede "perdido" hasta que alguien note un "Sin usuario" en
         // Reportes. Se compara contra USUARIOS_CACHE, ya cargado desde el login.
+        // v7.37 — solo mira las filas que de verdad se insertaron.
+        const nuevosRealmenteInsertados = nuevos.filter(r => idsRealmenteInsertados.has(String(r.id)));
         const sinAsignarEnCarga = new Map(); // "campo|valor" -> cantidad de operaciones
-        nuevos.forEach(r => {
+        nuevosRealmenteInsertados.forEach(r => {
           ['ejecutivo', 'vendedor'].forEach(campo => {
             const v = (r[campo] || '').trim();
             if (!v) return;
@@ -2246,7 +2292,7 @@ async function loadExcel(event, tipo = 'aprobados') {
               const [campo, valor] = key.split('|');
               return `• (${campo === 'ejecutivo' ? 'Ejecutivo' : 'Vendedor'}) ${valor} — ${count} operación(es)`;
             }).join('\n');
-          alert(`⚠️ Se cargaron ${nuevos.length} operaciones nuevas, pero ${sinAsignarEnCarga.size} nombre(s) de Ejecutivo/Vendedor no están asignados a ningún Usuario todavía:\n\n${detalle}\n\nMientras no se asignen, esas operaciones aparecerán como "Sin usuario" en Reportes.\nResuélvelo en Administración → 🔗 Variantes sin asignar.`);
+          alert(`⚠️ Se cargaron ${nuevosRealmenteInsertados.length} operaciones nuevas, pero ${sinAsignarEnCarga.size} nombre(s) de Ejecutivo/Vendedor no están asignados a ningún Usuario todavía:\n\n${detalle}\n\nMientras no se asignen, esas operaciones aparecerán como "Sin usuario" en Reportes.\nResuélvelo en Administración → 🔗 Variantes sin asignar.`);
         }
       }
 
@@ -2254,14 +2300,21 @@ async function loadExcel(event, tipo = 'aprobados') {
       const resumenObservados = observados.length > 0
         ? ` | Observados: ${observados.length} (${observados.slice(0,5).map(o=>o.id+': '+o.motivo).join('; ')}${observados.length>5?'…':''})`
         : ' | Observados: 0';
-      mostrarCarga(`✅ Insertados: ${nuevos.length} | Existentes omitidos: ${cuentaOmitidos}${resumenObservados}`);
+      // v7.37 — el conteo de "Insertados" ahora es el confirmado por Supabase
+      // (idsRealmenteInsertados), no el calculado solo con el chequeo en
+      // memoria — si difieren, se informa aparte en vez de mezclarlos.
+      const difiereDeLoEsperado = nuevos.length - idsRealmenteInsertados.size;
+      const notaDiferencia = difiereDeLoEsperado > 0
+        ? ` | ${difiereDeLoEsperado} fila(s) ya existían en la base (fuera de los últimos 5.000 registros en memoria) y se omitieron`
+        : '';
+      mostrarCarga(`✅ Insertados: ${idsRealmenteInsertados.size} | Existentes omitidos: ${cuentaOmitidos}${notaDiferencia}${resumenObservados}`);
       await recargarDatos();
     } catch(err) {
       loading(false);
       mostrarCarga(`❌ Error: ${err.message}`, true);
     }
   };
-  reader.readAsBinaryString(file);
+  reader.readAsArrayBuffer(file);
   event.target.value = '';
 }
 
@@ -2289,7 +2342,8 @@ async function repoblarVendedor(event, tipo) {
   reader.onload = async function(e) {
     try {
       loading(true, 'Procesando archivo de repoblación...');
-      const wb = XLSX.read(e.target.result, {type:'binary', cellDates:true});
+      // v7.37 — readAsArrayBuffer + type:'array' (ver nota en loadExcel)
+      const wb = XLSX.read(e.target.result, {type:'array', cellDates:true});
       const ws = wb.Sheets[wb.SheetNames[0]];
       const raw = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
 
@@ -2348,7 +2402,7 @@ async function repoblarVendedor(event, tipo) {
       mostrarRepoblacion(`❌ Error: ${err.message}`, true);
     }
   };
-  reader.readAsBinaryString(file);
+  reader.readAsArrayBuffer(file);
   event.target.value = '';
 }
 
@@ -2384,6 +2438,32 @@ function nombreVisibleUsuarioPorEmail(email, lista) {
 }
 
 let USUARIOS_CACHE = [];
+
+// v7.37 — fecha local en formato YYYY-MM-DD. NUNCA usar toISOString() para
+// esto: convierte a UTC. En Chile (UTC-3/-4) una hora de la noche (desde las
+// 21:00 / 20:00) ya es el día SIGUIENTE en UTC, así que la fecha de seguimiento
+// propuesta (hoy+2, hoy+365) salía corrida un día. El filtro de fechas de
+// Seguimiento usaba el mismo patrón sobre medianoche local (que en UTC sigue
+// siendo el mismo día): no fallaba en Chile, pero sí en cualquier zona UTC+.
+function fechaISOLocal(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// v7.37 — USUARIOS_CACHE se arma en UN solo lugar a partir de las filas de
+// usuarios_seguimiento (solo usuario, nombre, ejecutivos, vendedores), tanto
+// al cargar datos como después de guardar/editar un usuario en Administración.
+// Antes el cache solo se llenaba una vez al login y quedaba obsoleto tras
+// editar asignaciones hasta recargar la página.
+function construirUsuariosCache(rows) {
+  return (rows || [])
+    .map(u => ({
+      usuario: u.usuario,
+      nombre: u.nombre,
+      ejecutivos: parseListaCampoAdmin(u.ejecutivos),
+      vendedores: parseListaCampoAdmin(u.vendedores),
+    }))
+    .filter(u => u.usuario && u.ejecutivos[0] !== 'todos');
+}
 
 function parseFechaIngreso(fi) {
   if (!fi) return null;
@@ -2421,7 +2501,7 @@ function getCreditosActivos() {
     lista = lista.filter(c => {
       const fi = parseFechaIngreso(c.fecha_ingreso || c.fecha_curse);
       if (!fi) return false;
-      const fStr = fi.toISOString().split('T')[0];
+      const fStr = fechaISOLocal(fi); // v7.37 — antes toISOString() (UTC); ver fechaISOLocal
       if (desde && fStr < desde) return false;
       if (hasta && fStr > hasta) return false;
       return true;
@@ -2434,8 +2514,13 @@ function getEstadoGestion(credito) {
   const gs = credito.gestiones;
   if (!gs || gs.length===0) return 'SIN_SEG';
   const ultima = gs[gs.length-1];
-  // CERRADO y OTORGADO siempre AL_DIA
-  if (['CERRADO','OTORGADO'].includes((ultima.nuevo_estado||'').toUpperCase())) return 'AL_DIA';
+  // v7.37 — unificado con normalizarEstado/getEstadoComercial: antes miraba
+  // nuevo_estado crudo sin pasar por la homologación de motivos, así que un
+  // estado histórico (DESISTIDO/POSPUESTO/OTROS con un motivo que homologa a
+  // CERRADO) contaba como CERRADO en las donas pero quedaba pendiente de
+  // seguimiento aquí — mismo "un solo motor" que ya usa claveNormalizada.
+  const estadoNormalizado = normalizarEstado(ultima.nuevo_estado, ultima.motivo_estado);
+  if (estadoNormalizado === 'CERRADO' || estadoNormalizado === 'OTORGADO') return 'AL_DIA';
   const fechaSeg = ultima.fecha_seguimiento ? new Date(ultima.fecha_seguimiento + 'T00:00:00') : null;
   if (!fechaSeg) return 'SIN_SEG';
   const hoy = new Date(); hoy.setHours(0,0,0,0);
@@ -2655,16 +2740,30 @@ function fmtFecha(v) {
     const s = String(v).trim();
     // Formato "Mon Mar 30" o "27-03-26 15:34" o similar
     // Intentar extraer dd-mm-yy o dd-mm-yyyy
-    const m1 = s.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})/);
+    // v7.37 — anclada con ^: sin esto, una fecha ISO "2026-03-27" (yyyy-mm-dd)
+    // matcheaba a mitad de camino (tomaba "26-03-27" como si fuera dd-mm-yy) y
+    // se mostraba como "26-03-2027". Anclar al inicio hace que solo matchee
+    // cuando el string REALMENTE empieza con día-mes-año; un yyyy-mm-dd no
+    // matchea nada aquí y cae al "new Date(v)" genérico de más abajo, que sí
+    // lo interpreta bien.
+    const m1 = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})/);
     if (m1) {
       let y = parseInt(m1[3]);
       if (y < 100) y += 2000;
       return `${String(m1[1]).padStart(2,'0')}-${String(m1[2]).padStart(2,'0')}-${y}`;
     }
-    // Formato "Mon Mar 30" — añadir año actual
+    // v7.37 — formato ISO yyyy-mm-dd explícito, tomando año/mes/día del texto
+    // directamente (sin pasar por new Date(), que interpreta una fecha-sin-hora
+    // ISO como medianoche UTC — en una zona horaria con offset negativo eso
+    // puede mostrar el día anterior).
+    const mIso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (mIso) {
+      return `${String(mIso[3]).padStart(2,'0')}-${String(mIso[2]).padStart(2,'0')}-${mIso[1]}`;
+    }
+    // Formato "Mon Mar 30" — añadir año actual (v7.37 — antes "2026" fijo)
     const m2 = s.match(/^[A-Za-z]{3}\s+[A-Za-z]{3}\s+(\d{1,2})$/);
     if (m2) {
-      const d = new Date(s + ' 2026');
+      const d = new Date(s + ' ' + new Date().getFullYear());
       if (!isNaN(d)) return d.toLocaleDateString('es-CL');
     }
     const d = new Date(v);
@@ -2695,19 +2794,23 @@ function renderFicha(c) {
         return `<span class="hist-estado-badge ${cls}">${g.fecha_seguimiento} &nbsp;${lbl}</span>`;
       })() : '-';
       const fechaGestion = new Date(g.created_at).toLocaleString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+      // v7.37 — esc() en todo dato libre (motivo, seguimiento, contacto,
+      // concesionario, vendedor, teléfono, comentario, usuario): venían sin
+      // escapar, así que un "<" o unas comillas en cualquiera de estos
+      // campos rompía el render de la tabla o podía ejecutar script.
       return `<tr>
         <td style="white-space:nowrap">${fechaGestion}</td>
         <td>${ec}</td>
-        <td>${g.nuevo_estado||''}</td>
-        <td>${g.motivo_estado||''}</td>
-        <td>${g.seguimiento||''}</td>
-        <td>${g.contacto||''}</td>
+        <td>${esc(g.nuevo_estado)}</td>
+        <td>${esc(g.motivo_estado)}</td>
+        <td>${esc(g.seguimiento)}</td>
+        <td>${esc(g.contacto)}</td>
         <td>${fechaSegLabel}</td>
-        <td>${g.concesionario||''}</td>
-        <td>${g.vendedor||''}</td>
-        <td>${g.tel_vendedor||''}</td>
-        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${g.comentario||''}">${g.comentario||''}</td>
-        <td style="font-size:11px;color:var(--texto-sec)">${g.usuario||''}</td>
+        <td>${esc(g.concesionario)}</td>
+        <td>${esc(g.vendedor)}</td>
+        <td>${esc(g.tel_vendedor)}</td>
+        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(g.comentario)}">${esc(g.comentario)}</td>
+        <td style="font-size:11px;color:var(--texto-sec)">${esc(g.usuario)}</td>
       </tr>`;
     }).join('');
   } else {
@@ -2719,15 +2822,15 @@ function renderFicha(c) {
       <div class="ficha-card">
         <div class="ficha-card-header">🪪 Datos del Crédito &nbsp;${segLabel}</div>
         <div>
-          <div class="ficha-row"><span class="ficha-label">ID</span><span class="ficha-valor"><strong>${c.id}</strong></span><span class="ficha-label">Estado</span><span class="ficha-valor">${c.estado}</span></div>
-          <div class="ficha-row"><span class="ficha-label">Rut Cliente</span><span class="ficha-valor">${c.rut_cliente}</span><span class="ficha-label">Categoría</span><span class="ficha-valor">${c.categoria}</span></div>
-          <div class="ficha-row"><span class="ficha-label">Nombre</span><span class="ficha-valor" style="font-weight:600">${c.nombre}</span><span class="ficha-label">Riesgo</span><span class="ficha-valor ${riesgoClass(c.riesgo_cliente)}">${c.riesgo_cliente}</span></div>
-          <div class="ficha-row"><span class="ficha-label">Producto</span><span class="ficha-valor">${c.producto}</span><span class="ficha-label">Canal</span><span class="ficha-valor">${c.canal}</span></div>
-          <div class="ficha-row"><span class="ficha-label">Marca / Modelo</span><span class="ficha-valor">${c.marca} ${c.modelo}</span><span class="ficha-label">Fecha Ingreso</span><span class="ficha-valor">${fmtFecha(c.fecha_ingreso)}</span></div>
+          <div class="ficha-row"><span class="ficha-label">ID</span><span class="ficha-valor"><strong>${c.id}</strong></span><span class="ficha-label">Estado</span><span class="ficha-valor">${esc(c.estado)}</span></div>
+          <div class="ficha-row"><span class="ficha-label">Rut Cliente</span><span class="ficha-valor">${esc(c.rut_cliente)}</span><span class="ficha-label">Categoría</span><span class="ficha-valor">${esc(c.categoria)}</span></div>
+          <div class="ficha-row"><span class="ficha-label">Nombre</span><span class="ficha-valor" style="font-weight:600">${esc(c.nombre)}</span><span class="ficha-label">Riesgo</span><span class="ficha-valor ${riesgoClass(c.riesgo_cliente)}">${esc(c.riesgo_cliente)}</span></div>
+          <div class="ficha-row"><span class="ficha-label">Producto</span><span class="ficha-valor">${esc(c.producto)}</span><span class="ficha-label">Canal</span><span class="ficha-valor">${esc(c.canal)}</span></div>
+          <div class="ficha-row"><span class="ficha-label">Marca / Modelo</span><span class="ficha-valor">${esc(c.marca)} ${esc(c.modelo)}</span><span class="ficha-label">Fecha Ingreso</span><span class="ficha-valor">${fmtFecha(c.fecha_ingreso)}</span></div>
           <div class="ficha-row"><span class="ficha-label">Precio</span><span class="ficha-valor monto">${fmt(c.precio)}</span><span class="ficha-label">Pie</span><span class="ficha-valor monto">${fmt(c.pie)}</span></div>
           <div class="ficha-row"><span class="ficha-label">Saldo Precio</span><span class="ficha-valor monto">${fmt(c.saldo_precio)}</span><span class="ficha-label">Monto Pagaré</span><span class="ficha-valor monto">${fmt(c.monto_pagare)}</span></div>
-          <div class="ficha-row"><span class="ficha-label">Ejecutivo</span><span class="ficha-valor">${c.ejecutivo}</span><span class="ficha-label">Evaluador</span><span class="ficha-valor">${c.nom_evaluador||'-'}</span></div>
-          <div class="ficha-row"><span class="ficha-label">Dealer</span><span class="ficha-valor">${c.dealer}</span><span class="ficha-label">Sucursal</span><span class="ficha-valor">${c.sucursal}</span></div>
+          <div class="ficha-row"><span class="ficha-label">Ejecutivo</span><span class="ficha-valor">${esc(c.ejecutivo)}</span><span class="ficha-label">Evaluador</span><span class="ficha-valor">${esc(c.nom_evaluador)||'-'}</span></div>
+          <div class="ficha-row"><span class="ficha-label">Dealer</span><span class="ficha-valor">${esc(c.dealer)}</span><span class="ficha-label">Sucursal</span><span class="ficha-valor">${esc(c.sucursal)}</span></div>
         </div>
       </div>
     </div>
@@ -2762,7 +2865,7 @@ function abrirModal() {
   document.getElementById('inp-contacto').type = 'text';
   document.getElementById('inp-comentario').value = '';
   const def = new Date(); def.setDate(def.getDate()+2);
-  document.getElementById('inp-fecha-seg').value = def.toISOString().split('T')[0];
+  document.getElementById('inp-fecha-seg').value = fechaISOLocal(def); // v7.37
   document.getElementById('btn-grabar').disabled = false;
   document.getElementById('modal-overlay').classList.add('visible');
 }
@@ -2807,7 +2910,7 @@ function actualizarMotivos() {
   if (est === 'CERRADO' || est === 'OTORGADO') {
     const fechaCierre = new Date();
     fechaCierre.setDate(fechaCierre.getDate() + 365);
-    document.getElementById('inp-fecha-seg').value = fechaCierre.toISOString().split('T')[0];
+    document.getElementById('inp-fecha-seg').value = fechaISOLocal(fechaCierre); // v7.37
   }
 }
 
@@ -2851,7 +2954,8 @@ async function grabarGestion() {
     // Mantener el filtro y posición actual
     aplicarFiltro();
     // Buscar el mismo crédito en los registros filtrados
-    const idx = registrosFiltrados.findIndex(r => r.id === credito.id);
+    // v7.37 — por id Y origen: el mismo ID puede existir en aprobados y rechazados
+    const idx = registrosFiltrados.findIndex(r => r.id === credito.id && r.origen === credito.origen);
     if (idx >= 0) { idxActual = idx; renderPanelDerecho(); }
   } catch(err) {
     alert(mensajeErrorGuardado(err));
@@ -2866,154 +2970,11 @@ document.getElementById('modal-overlay').addEventListener('click', function(e) {
 // ============================================================
 let informeData = [];
 
-function abrirInforme() {
-  const hoy = new Date();
-  const fmtISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-
-  const parseFecha = fi => {
-    if (!fi) return null;
-    const s = String(fi).trim();
-    const p = s.split('-');
-    if (p.length === 3 && p[0].length === 4) return new Date(`${p[0]}-${p[1]}-${p[2]}T00:00:00`);
-    if (p.length === 3 && p[0].length === 2) return new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
-    const d = new Date(s + ' ' + hoy.getFullYear());
-    return isNaN(d) ? null : d;
-  };
-
-  let masAntigua = null, masNueva = null;
-  operaciones.forEach(c => {
-    const d = parseFecha(c.fecha_ingreso || c.fecha_curse);
-    if (!d) return;
-    if (!masAntigua || d < masAntigua) masAntigua = d;
-    if (!masNueva || d > masNueva) masNueva = d;
-  });
-
-  document.getElementById('inf-fecha-desde').value = fmtISO(masAntigua || hoy);
-  document.getElementById('inf-fecha-hasta').value = fmtISO(masNueva || hoy);
-  document.getElementById('informe-resultado').innerHTML = '<p style="color:var(--texto-sec);text-align:center;padding:20px">Presione Generar para crear el informe</p>';
-  document.getElementById('btn-exportar-excel').style.display = 'none';
-  informeData = [];
-  document.getElementById('informe-overlay').classList.add('visible');
-}
-
-function cerrarInforme() {
-  document.getElementById('informe-overlay').classList.remove('visible');
-}
-
-function generarInforme() {
-  const desde = document.getElementById('inf-fecha-desde').value;
-  const hasta = document.getElementById('inf-fecha-hasta').value;
-  if (!desde || !hasta) { alert('Seleccione rango de fechas'); return; }
-
-  const desdeDate = new Date(desde + 'T00:00:00');
-  const hastaDate = new Date(hasta + 'T23:59:59');
-
-  const parseFecha = fi => {
-    if (!fi) return null;
-    const s = String(fi).trim();
-    const p = s.split('-');
-    if (p.length === 3 && p[0].length === 4) return new Date(`${p[0]}-${p[1]}-${p[2]}T00:00:00`);
-    if (p.length === 3 && p[0].length === 2) return new Date(`${p[2]}-${p[1]}-${p[0]}T00:00:00`);
-    const d = new Date(s + ' ' + new Date().getFullYear());
-    return isNaN(d) ? null : d;
-  };
-
-  // BLOQUE 7 (Fase 4) — el informe ya incluye ambos orígenes (antes solo `creditos`)
-  const creditosFiltrados = operaciones.filter(c => {
-    const d = parseFecha(c.fecha_ingreso || c.fecha_curse);
-    return d && d >= desdeDate && d <= hastaDate;
-  });
-
-  if (creditosFiltrados.length === 0) {
-    document.getElementById('informe-resultado').innerHTML = '<p style="color:var(--rojo);text-align:center;padding:20px">No hay créditos en el rango de fechas seleccionado</p>';
-    document.getElementById('btn-exportar-excel').style.display = 'none';
-    return;
-  }
-
-  // Agrupar por ejecutivo y estado
-  const resumen = {};
-  creditosFiltrados.forEach(c => {
-    const ejec = c.ejecutivo || 'Sin ejecutivo';
-    const estado = getEstadoComercial(c);
-    if (!resumen[ejec]) resumen[ejec] = {};
-    if (!resumen[ejec][estado]) resumen[ejec][estado] = { cantidad: 0, monto: 0 };
-    resumen[ejec][estado].cantidad++;
-    resumen[ejec][estado].monto += Number(c.monto_pagare) || 0;
-  });
-
-  // Construir tabla — BLOQUE 1/7: los 5 estados vigentes (históricos ya normalizados por getEstadoComercial)
-  const estados = ESTADOS_VALIDOS;
-  const ejecutivos = Object.keys(resumen).sort();
-  informeData = { resumen, ejecutivos, estados, desde, hasta, total: creditosFiltrados.length };
-
-  let html = `<div style="font-size:11px;color:var(--texto-sec);margin-bottom:8px">
-    Período: <strong>${desde}</strong> al <strong>${hasta}</strong> — 
-    Total créditos: <strong>${creditosFiltrados.length}</strong>
-  </div>`;
-
-  html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
-  
-  // Header
-  html += '<thead><tr>';
-  html += '<th style="background:var(--azul);color:#fff;padding:7px 10px;text-align:left;position:sticky;top:0;white-space:nowrap">Ejecutivo</th>';
-  estados.forEach(e => {
-    html += `<th colspan="2" style="background:var(--azul);color:#fff;padding:7px 6px;text-align:center;position:sticky;top:0;white-space:nowrap;border-left:1px solid rgba(255,255,255,0.2)">${e}</th>`;
-  });
-  html += '<th colspan="2" style="background:#0D47A1;color:#fff;padding:7px 6px;text-align:center;position:sticky;top:0;white-space:nowrap;border-left:1px solid rgba(255,255,255,0.2)">TOTAL</th>';
-  html += '</tr>';
-  
-  // Subheader
-  html += '<tr>';
-  html += '<th style="background:#E8EAF6;padding:4px 10px;font-size:10px;text-align:left"></th>';
-  estados.forEach(() => {
-    html += '<th style="background:#E8EAF6;padding:4px 5px;font-size:10px;text-align:center;border-left:1px solid #CFD8DC">N°</th>';
-    html += '<th style="background:#E8EAF6;padding:4px 5px;font-size:10px;text-align:right">Monto</th>';
-  });
-  html += '<th style="background:#C5CAE9;padding:4px 5px;font-size:10px;text-align:center;border-left:1px solid #CFD8DC">N°</th>';
-  html += '<th style="background:#C5CAE9;padding:4px 5px;font-size:10px;text-align:right">Monto</th>';
-  html += '</tr></thead><tbody>';
-
-  // Totales generales
-  const totalesGen = {};
-  estados.forEach(e => totalesGen[e] = { cantidad: 0, monto: 0 });
-
-  ejecutivos.forEach((ejec, idx) => {
-    const bg = idx % 2 === 0 ? '#fff' : '#F8F9FB';
-    html += `<tr style="background:${bg}">`;
-    html += `<td style="padding:6px 10px;font-weight:600;white-space:nowrap;border-bottom:1px solid #ECEFF1">${ejec}</td>`;
-    let totalEjec = { cantidad: 0, monto: 0 };
-    estados.forEach(e => {
-      const d = resumen[ejec][e] || { cantidad: 0, monto: 0 };
-      totalesGen[e].cantidad += d.cantidad;
-      totalesGen[e].monto += d.monto;
-      totalEjec.cantidad += d.cantidad;
-      totalEjec.monto += d.monto;
-      const cantStyle = d.cantidad > 0 ? 'font-weight:600;color:var(--azul)' : 'color:#ccc';
-      html += `<td style="padding:6px 5px;text-align:center;border-left:1px solid #ECEFF1;border-bottom:1px solid #ECEFF1;${cantStyle}">${d.cantidad || '-'}</td>`;
-      html += `<td style="padding:6px 5px;text-align:right;border-bottom:1px solid #ECEFF1;font-size:11px;color:var(--verde)">${d.monto > 0 ? '$'+d.monto.toLocaleString('es-CL') : ''}</td>`;
-    });
-    html += `<td style="padding:6px 5px;text-align:center;font-weight:700;border-left:1px solid #CFD8DC;border-bottom:1px solid #ECEFF1;color:var(--azul)">${totalEjec.cantidad}</td>`;
-    html += `<td style="padding:6px 5px;text-align:right;font-weight:700;border-bottom:1px solid #ECEFF1;font-size:11px;color:var(--verde)">$${totalEjec.monto.toLocaleString('es-CL')}</td>`;
-    html += '</tr>';
-  });
-
-  // Fila totales
-  let totalGenCant = 0, totalGenMonto = 0;
-  html += '<tr style="background:#EEF2FF;font-weight:700">';
-  html += '<td style="padding:7px 10px;border-top:2px solid var(--azul)">TOTAL</td>';
-  estados.forEach(e => {
-    totalGenCant += totalesGen[e].cantidad;
-    totalGenMonto += totalesGen[e].monto;
-    html += `<td style="padding:7px 5px;text-align:center;border-left:1px solid #CFD8DC;border-top:2px solid var(--azul);color:var(--azul)">${totalesGen[e].cantidad||'-'}</td>`;
-    html += `<td style="padding:7px 5px;text-align:right;border-top:2px solid var(--azul);font-size:11px;color:var(--verde)">${totalesGen[e].monto>0?'$'+totalesGen[e].monto.toLocaleString('es-CL'):''}</td>`;
-  });
-  html += `<td style="padding:7px 5px;text-align:center;border-left:1px solid #CFD8DC;border-top:2px solid var(--azul);color:var(--azul)">${totalGenCant}</td>`;
-  html += `<td style="padding:7px 5px;text-align:right;border-top:2px solid var(--azul);font-size:11px;color:var(--verde)">$${totalGenMonto.toLocaleString('es-CL')}</td>`;
-  html += '</tr></tbody></table></div>';
-
-  document.getElementById('informe-resultado').innerHTML = html;
-  document.getElementById('btn-exportar-excel').style.display = 'inline-block';
-}
+// v7.37 — abrirInforme()/cerrarInforme()/generarInforme() (Informe Consolidado
+// legacy) eran código muerto: ningún botón ni atajo los invocaba desde que
+// Reportes pasó a usar renderInformeInline() (que agrupa por Usuario
+// consolidado, no por ejecutivo crudo). exportarExcel(), más abajo, se
+// mantiene — la usa el botón real "Exportar Excel" de Reportes.
 
 function exportarExcel() {
   if (!informeData || !informeData.ejecutivos) return;
@@ -3033,7 +2994,7 @@ function exportarExcel() {
   estados.forEach(e => totalesGen[e] = { cantidad: 0, monto: 0 });
 
   ejecutivos.forEach(ejec => {
-    let row = `"${ejec}"`;
+    let row = `"${String(ejec).replace(/"/g, '""')}"`; // v7.39 — comillas internas dobladas (RFC 4180)
     let totalCant = 0, totalMonto = 0;
     estados.forEach(e => {
       const d = resumen[ejec][e] || { cantidad: 0, monto: 0 };
@@ -3068,10 +3029,6 @@ function exportarExcel() {
   URL.revokeObjectURL(url);
 }
 
-document.getElementById('informe-overlay').addEventListener('click', function(e) {
-  if (e.target === this) cerrarInforme();
-});
-
 
 // ============================================================
 // ELIMINAR REGISTROS — RETIRADO (Fase 3.5 regla 15 / Fase 4 Brecha 2, BLOQUE 5)
@@ -3087,7 +3044,7 @@ function exportarDetalle() {
 
   const colLabel = filtroCol==='sinSeg'?'SIN_SEG':filtroCol==='vencido'?'VENCIDO':filtroCol==='alDia'?'AL_DIA':'TODOS';
   const nombreEstadoArchivo = filtroEstados.length === 0 ? 'todos' : filtroEstados.length === 1 ? filtroEstados[0] : 'varios_estados';
-  const nombreArchivo = `Detalle_${nombreEstadoArchivo.replace(/\s/g,'_')}_${colLabel}_${new Date().toISOString().slice(0,10)}.xlsx`;
+  const nombreArchivo = `Detalle_${nombreEstadoArchivo.replace(/\s/g,'_')}_${colLabel}_${fechaISOLocal(new Date())}.xlsx`; // v7.37
 
   const rows = lista.map(c => {
     const gs = getEstadoGestion(c);
@@ -3144,10 +3101,13 @@ function exportarDetalle() {
 // mediante una gestión trazable (grabarGestion), nunca por edición directa.
 // ============================================================
 
+// v7.37 — Escape solo cierra Administración cuando está abierta. Antes
+// llamaba a cerrarAdmin() desde cualquier pantalla (te mandaba a Inicio desde
+// Seguimiento) y en la pantalla de login explotaba con currentUser = null.
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    cerrarAdmin();
-  }
+  if (e.key !== 'Escape' || !currentUser) return;
+  const admin = document.getElementById('admin-overlay');
+  if (admin && (admin.style.display === 'block' || admin.classList.contains('visible'))) cerrarAdmin();
 });
 
 // ============================================================
@@ -3157,11 +3117,11 @@ let adminUsuarios = [];
 let adminSelIdx = null;
 let adminModo = null; // 'nuevo' | 'editar'
 
-async function abrirAdmin() {
-  document.getElementById('admin-overlay').classList.add('visible');
-  await cargarAdminUsuarios();
-}
-
+// v7.37 — abrirAdmin() (código muerto) retirada: nadie la llamaba (Administración
+// se abre con goToAdmin(), vía mostrarPantalla) y la clase .visible que agregaba
+// a admin-overlay no tenía ninguna regla CSS asociada — era además la rama
+// inerte del chequeo de Escape de arriba. Con esto queda una sola forma de
+// abrir Administración.
 function cerrarAdmin() {
   showHome();
   adminSelIdx = null;
@@ -3191,11 +3151,14 @@ function renderAdminLista() {
     const avatarCls = 'avatar-' + u.perfil;
     const last = u.ultimo_acceso ? new Date(u.ultimo_acceso).toLocaleString('es-CL', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : 'Nunca';
     const ejs = Array.isArray(u.ejecutivos) ? u.ejecutivos : (u.ejecutivos ? JSON.parse(u.ejecutivos) : []);
+    // v7.37 — esc() en nombre, email y el primer ejecutivo/vendedor mostrado:
+    // son datos que el propio gerente escribe al crear el usuario, o que
+    // vienen de un Excel cargado por otra persona.
     return '<div class="admin-user-item' + cls + '" onclick="seleccionarUser(' + i + ')" style="' + (u.bloqueado ? 'opacity:0.6' : '') + '">' +
-      '<div class="admin-user-avatar ' + avatarCls + '">' + avatarLetra(u) + '</div>' +
+      '<div class="admin-user-avatar ' + avatarCls + '">' + esc(avatarLetra(u)) + '</div>' +
       '<div class="admin-user-info">' +
-        '<div class="admin-user-email">' + nombreVisibleUsuario(u) + '<br><span style="font-weight:400;color:var(--texto-sec);font-size:10px">' + u.usuario + '</span></div>' +
-        '<div class="admin-user-meta"><span class="perfil-badge perfil-' + u.perfil + '">' + u.perfil + '</span>' + (u.bloqueado ? ' <span class="perfil-badge" style="background:var(--rojo-bg);color:var(--rojo)">BLOQUEADO</span>' : '') + ' · ' + (ejs[0] === 'todos' ? 'Todos' : (ejs[0] || '-')) + '</div>' +
+        '<div class="admin-user-email">' + esc(nombreVisibleUsuario(u)) + '<br><span style="font-weight:400;color:var(--texto-sec);font-size:10px">' + esc(u.usuario) + '</span></div>' +
+        '<div class="admin-user-meta"><span class="perfil-badge perfil-' + u.perfil + '">' + u.perfil + '</span>' + (u.bloqueado ? ' <span class="perfil-badge" style="background:var(--rojo-bg);color:var(--rojo)">BLOQUEADO</span>' : '') + ' · ' + (ejs[0] === 'todos' ? 'Todos' : esc(ejs[0]) || '-') + '</div>' +
         '<div class="admin-user-last">Último acceso: ' + last + '</div>' +
       '</div></div>';
   }).join('');
@@ -3329,14 +3292,16 @@ function mostrarVariantesSinAsignar() {
     return;
   }
 
+  // v7.37 — esc() en el valor de las <option> (atributo value) y en el texto
+  // visible: u.usuario y el nombre de usuario son datos que la gente escribe.
   const opcionesUsuarios = adminUsuarios.filter(u => u.perfil !== 'gerente')
-    .map(u => `<option value="${u.usuario}">${nombreVisibleUsuario(u)}</option>`).join('');
+    .map(u => `<option value="${esc(u.usuario)}">${esc(nombreVisibleUsuario(u))}</option>`).join('');
 
   const filas = variantesSinAsignarActuales.map((item, idx) => {
     const campoLabel = item.campo === 'ejecutivo' ? 'Ejecutivo' : 'Vendedor';
     return `<tr style="border-bottom:1px solid var(--gris-claro)" id="fila-variante-${idx}">
       <td style="padding:8px;font-size:11px"><span class="perfil-badge" style="background:#ede7f6;color:#8e44ad">${campoLabel}</span></td>
-      <td style="padding:8px;font-size:12px;max-width:280px">${item.valor}</td>
+      <td style="padding:8px;font-size:12px;max-width:280px">${esc(item.valor)}</td>
       <td style="padding:8px;font-size:12px;text-align:center">${item.count}</td>
       <td style="padding:8px">
         <select id="sel-variante-${idx}" style="font-size:12px;padding:4px;max-width:220px">
@@ -3384,7 +3349,7 @@ function mostrarVariantesSinAsignar() {
     const sel = document.getElementById('sel-variante-' + idx);
     if (sugerencia) {
       if (sel) sel.value = sugerencia.usuario.usuario;
-      if (div) div.innerHTML = `<span style="color:var(--verde)">💡 Sugerido: ${nombreVisibleUsuario(sugerencia.usuario)}</span>`;
+      if (div) div.innerHTML = `<span style="color:var(--verde)">💡 Sugerido: ${esc(nombreVisibleUsuario(sugerencia.usuario))}</span>`;
     } else if (div) {
       div.innerHTML = `<span style="color:var(--texto-sec)">Sin coincidencia sugerida</span>`;
     }
@@ -3442,13 +3407,14 @@ function mostrarResumenUsuarios() {
     const ejs = parseLista(u.ejecutivos).filter(e => e !== 'todos');
     const vds = parseLista(u.vendedores);
     const esTodos = Array.isArray(u.ejecutivos) ? u.ejecutivos[0] === 'todos' : String(u.ejecutivos).includes('todos');
-    const supervisorTxt = u.supervisor ? nombreVisibleUsuarioPorEmail(u.supervisor) : '—';
+    const supervisorTxt = u.supervisor ? esc(nombreVisibleUsuarioPorEmail(u.supervisor)) : '—';
     const bloqueadoTxt = u.bloqueado ? '<span style="color:var(--rojo);font-weight:700">BLOQUEADO</span>' : '';
+    // v7.37 — esc() en nombre, email y cada ejecutivo/vendedor listado.
     return `<tr style="border-bottom:1px solid var(--gris-claro)">
-      <td style="padding:8px;font-weight:600;white-space:nowrap">${nombreVisibleUsuario(u)}<br><span style="font-weight:400;color:var(--texto-sec);font-size:10px">${u.usuario}</span></td>
+      <td style="padding:8px;font-weight:600;white-space:nowrap">${esc(nombreVisibleUsuario(u))}<br><span style="font-weight:400;color:var(--texto-sec);font-size:10px">${esc(u.usuario)}</span></td>
       <td style="padding:8px;white-space:nowrap">${perfilLabel[u.perfil] || u.perfil} ${bloqueadoTxt}</td>
-      <td style="padding:8px;font-size:12px">${esTodos ? '<em>Todos</em>' : (ejs.join(', ') || '—')}</td>
-      <td style="padding:8px;font-size:12px">${vds.join(', ') || '—'}</td>
+      <td style="padding:8px;font-size:12px">${esTodos ? '<em>Todos</em>' : (esc(ejs.join(', ')) || '—')}</td>
+      <td style="padding:8px;font-size:12px">${esc(vds.join(', ')) || '—'}</td>
       <td style="padding:8px;white-space:nowrap;font-size:12px">${supervisorTxt}</td>
     </tr>`;
   }).join('');
@@ -3487,26 +3453,31 @@ function renderAdminFormEditar(u) {
   // cuenta pensando que estaba creando una nueva — sin darse cuenta de que
   // el campo Nombre ya tenía texto cargado — y guardó encima. Este aviso
   // deja inconfundible cuándo se está editando algo que ya existe.
+  // v7.37 — esc() en todo lo que se interpola dentro de un atributo HTML
+  // (value="...") o como texto: nombre, email y clave los escribe el propio
+  // gerente, así que unas comillas ahí ya rompían el formulario antes de
+  // esto (cerraban el atributo value y el resto del texto quedaba como
+  // markup suelto).
   const avisoEditando = adminModo === 'editar'
     ? '<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:7px;padding:8px 12px;margin-bottom:14px;font-size:12px;color:#856404">' +
-        '⚠️ Estás EDITANDO la cuenta existente de <strong>' + (u.usuario||'(sin email)') + '</strong>. Si tu intención era crear a otra persona distinta, ' +
+        '⚠️ Estás EDITANDO la cuenta existente de <strong>' + esc(u.usuario||'(sin email)') + '</strong>. Si tu intención era crear a otra persona distinta, ' +
         'cierra esto y usa el botón "+ Nuevo" en vez de escribir aquí.' +
       '</div>'
     : '';
 
   document.getElementById('admin-form-area').innerHTML =
     '<div class="admin-form">' +
-      '<div class="admin-form-title">' + (adminModo === 'nuevo' ? '➕ Nuevo Usuario' : '✏️ Editar Usuario: ' + (u.usuario||'')) + '</div>' +
+      '<div class="admin-form-title">' + (adminModo === 'nuevo' ? '➕ Nuevo Usuario' : '✏️ Editar Usuario: ' + esc(u.usuario||'')) + '</div>' +
       avisoEditando +
       '<div class="form-group"><label>Nombre <small style="text-transform:none;font-weight:400">(así se identifica a esta persona en Reportes y Seguimiento, en vez de deducirlo del email)</small></label>' +
-        '<input type="text" id="af-nombre" autocomplete="off" value="' + (u.nombre||'') + '" placeholder="Ej: Sebastián Millar">' +
+        '<input type="text" id="af-nombre" autocomplete="off" value="' + esc(u.nombre||'') + '" placeholder="Ej: Sebastián Millar">' +
       '</div>' +
       '<div class="form-group"><label>Email (usuario)</label>' +
-        '<input type="email" id="af-email" value="' + (u.usuario||'') + '" placeholder="nombre@autofacilchile.cl">' +
+        '<input type="email" id="af-email" value="' + esc(u.usuario||'') + '" placeholder="nombre@autofacilchile.cl">' +
       '</div>' +
       '<div class="form-row">' +
         '<div class="form-group"><label>Contraseña</label>' +
-          '<input type="text" id="af-clave" value="' + (u.clave||'') + '" placeholder="Ej: A1234"></div>' +
+          '<input type="text" id="af-clave" value="' + esc(u.clave||'') + '" placeholder="Ej: A1234"></div>' +
         '<div class="form-group"><label>Perfil</label>' +
           '<select id="af-perfil" onchange="onPerfilChange()">' +
             '<option value="usuario"' + (u.perfil==='usuario'?' selected':'') + '>Usuario</option>' +
@@ -3529,7 +3500,7 @@ function renderAdminFormEditar(u) {
         '<select id="af-supervisor">' +
           '<option value="">(Sin supervisor asignado)</option>' +
           adminUsuarios.filter(x => x.perfil === 'supervisor' || x.perfil === 'gerente').map(x =>
-            '<option value="' + x.usuario + '"' + (u.supervisor === x.usuario ? ' selected' : '') + '>' + nombreVisibleUsuario(x) + ' (' + (x.perfil === 'gerente' ? 'Gerente' : 'Supervisor') + ')</option>'
+            '<option value="' + esc(x.usuario) + '"' + (u.supervisor === x.usuario ? ' selected' : '') + '>' + esc(nombreVisibleUsuario(x)) + ' (' + (x.perfil === 'gerente' ? 'Gerente' : 'Supervisor') + ')</option>'
           ).join('') +
         '</select>' +
       '</div>' +
@@ -3563,7 +3534,7 @@ function renderAdminFormEditar(u) {
       '</div>' +
       '<div class="admin-log-section">' +
         '<div class="admin-log-title">Último acceso</div>' +
-        '<div class="admin-log-item"><span>' + (u.usuario||'') + '</span><strong>' + last + '</strong></div>' +
+        '<div class="admin-log-item"><span>' + esc(u.usuario||'') + '</span><strong>' + last + '</strong></div>' +
       '</div>' +
       '<div class="admin-form-actions">' +
         (adminModo==='editar' ? ('<button class="btn-eliminar-user" onclick="toggleBloqueoUser()" style="' + (u.bloqueado ? 'color:var(--verde);border-color:var(--verde)' : '') + '">' + (u.bloqueado ? '✅ Desbloquear' : '🚫 Bloquear') + '</button>') : '') +
@@ -3594,9 +3565,9 @@ function renderAfEquipoResumen(u) {
     const vds = parseLista(m.vendedores);
     const borde = i < equipo.length - 1 ? 'border-bottom:1px solid var(--gris-claro);' : '';
     return '<div style="padding:7px 0;' + borde + '">' +
-      '<div style="font-weight:700;font-size:12px;color:var(--gris)">' + nombreVisibleUsuario(m) + '</div>' +
-      '<div style="font-size:11px;color:var(--texto-sec)"><strong>Ejecutivos:</strong> ' + (ejs.join(', ') || '—') + '</div>' +
-      '<div style="font-size:11px;color:var(--texto-sec)"><strong>Vendedores:</strong> ' + (vds.join(', ') || '—') + '</div>' +
+      '<div style="font-weight:700;font-size:12px;color:var(--gris)">' + esc(nombreVisibleUsuario(m)) + '</div>' +
+      '<div style="font-size:11px;color:var(--texto-sec)"><strong>Ejecutivos:</strong> ' + (esc(ejs.join(', ')) || '—') + '</div>' +
+      '<div style="font-size:11px;color:var(--texto-sec)"><strong>Vendedores:</strong> ' + (esc(vds.join(', ')) || '—') + '</div>' +
     '</div>';
   }).join('');
 }
@@ -3617,10 +3588,13 @@ function renderAfEjecutivosDropdown(seleccionados) {
   const disponiblesSet = new Set([...operaciones.map(c => c.ejecutivo).filter(Boolean), ...seleccionados]);
   const disponibles = [...disponiblesSet].sort();
   const cont = document.getElementById('af-ej-items');
+  // v7.37 — esc() en el atributo value y en el texto visible (antes solo se
+  // escapaban las comillas del atributo "a mano"; un "<" en un nombre de
+  // Ejecutivo rompía el <span> y no quedaba protegido en ningún lado).
   cont.innerHTML = disponibles.map(e => `
     <label class="pivot-item">
-      <input type="checkbox" value="${e.replace(/"/g,'&quot;')}" ${seleccionados.includes(e) ? 'checked' : ''} onchange="actualizarAfEjResumen()">
-      <span>${e}</span>
+      <input type="checkbox" value="${esc(e)}" ${seleccionados.includes(e) ? 'checked' : ''} onchange="actualizarAfEjResumen()">
+      <span>${esc(e)}</span>
     </label>`).join('');
   actualizarAfEjResumen();
 }
@@ -3682,10 +3656,11 @@ function renderAfVendedoresDropdown(seleccionados) {
   const disponiblesSet = new Set([...operaciones.map(c => c.vendedor).filter(Boolean), ...seleccionados]);
   const disponibles = [...disponiblesSet].sort();
   const cont = document.getElementById('af-ve-items');
+  // v7.37 — esc() ver nota en renderAfEjecutivosDropdown.
   cont.innerHTML = disponibles.map(v => `
     <label class="pivot-item">
-      <input type="checkbox" value="${v.replace(/"/g,'&quot;')}" ${seleccionados.includes(v) ? 'checked' : ''} onchange="actualizarAfVeResumen()">
-      <span>${v}</span>
+      <input type="checkbox" value="${esc(v)}" ${seleccionados.includes(v) ? 'checked' : ''} onchange="actualizarAfVeResumen()">
+      <span>${esc(v)}</span>
     </label>`).join('');
   actualizarAfVeResumen();
 }
@@ -3788,12 +3763,24 @@ async function guardarUser() {
   const data = { usuario: email, nombre, clave, perfil, ejecutivos, vendedores, vista_default: vistaDefault, permite_cambio_vista: permiteCambio, supervisor: supervisorAsignado };
   try {
     if (adminModo === 'nuevo') {
-      await sbInsert('usuarios_seguimiento', data);
+      // v7.37 — sbInsert manda resolution=ignore-duplicates: si el email ya
+      // existía, Supabase no inserta nada y devuelve un arreglo vacío, pero
+      // ni el fetch ni este código fallaban, así que el gerente creía que sí
+      // se había creado. Ahora se revisa la respuesta y se avisa.
+      const insertado = await sbInsert('usuarios_seguimiento', data);
+      if (!insertado || insertado.length === 0) {
+        alert('No se creó el usuario: ya existe una cuenta con el email "' + email + '".\n\nSi querías editarla, selecciónala en la lista de la izquierda en vez de usar "+ Nuevo".');
+        return;
+      }
     } else {
       const u = adminUsuarios[adminSelIdx];
       await sbUpdate('usuarios_seguimiento', u.id, data);
     }
     await cargarAdminUsuarios();
+    // v7.37 — refresca el cache de consolidación con lo recién guardado, para
+    // que Reportes/Seguimiento agrupen con las asignaciones nuevas de inmediato
+    // (antes quedaban con la lista vieja hasta recargar la página).
+    USUARIOS_CACHE = construirUsuariosCache(adminUsuarios);
     if (currentUser && currentUser.usuario === email) {
       currentUser = { ...currentUser, ...data };
     }
@@ -3895,22 +3882,25 @@ function renderVistaLista() {
     const dias = diasDesde(c.fecha_ingreso || c.fecha_curse);
     const bg = idx % 2 === 0 ? '#fff' : '#F8F9FB';
     const td = 'padding:5px 10px;border-bottom:1px solid #ECEFF1;font-size:12px;white-space:nowrap';
-    const puntoEstado = `<i title="${getEstadoComercial(c)}" style="display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:${colorPuntoPorEstado(c)}"></i>`;
+    const puntoEstado = `<i title="${esc(getEstadoComercial(c))}" style="display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:${colorPuntoPorEstado(c)}"></i>`;
+    // v7.37 — esc() en nombre, RUT, ejecutivo, vendedor, producto,
+    // marca/modelo, último estado y comentario: esta tabla es la que más
+    // interpola datos libres por operación en toda la app.
     return `<tr style="background:${bg};cursor:pointer" onclick="abrirFichaLista(${idx})">
       <td style="${td};color:var(--azul);font-weight:700;text-decoration:underline">${puntoEstado}${c.id}</td>
-      <td style="${td};font-weight:600">${c.nombre||'-'}</td>
-      <td style="${td}">${c.rut_cliente||'-'}</td>
-      <td style="${td};max-width:150px;overflow:hidden;text-overflow:ellipsis">${c.ejecutivo||'-'}</td>
-      <td style="${td};max-width:150px;overflow:hidden;text-overflow:ellipsis">${c.vendedor||'-'}</td>
-      <td style="${td}">${c.producto||'-'}</td>
-      <td style="${td}">${(c.marca||'')+' '+(c.modelo||'')}</td>
+      <td style="${td};font-weight:600">${esc(c.nombre)||'-'}</td>
+      <td style="${td}">${esc(c.rut_cliente)||'-'}</td>
+      <td style="${td};max-width:150px;overflow:hidden;text-overflow:ellipsis">${esc(c.ejecutivo)||'-'}</td>
+      <td style="${td};max-width:150px;overflow:hidden;text-overflow:ellipsis">${esc(c.vendedor)||'-'}</td>
+      <td style="${td}">${esc(c.producto)||'-'}</td>
+      <td style="${td}">${esc((c.marca||'')+' '+(c.modelo||''))}</td>
       <td style="${td}">${fmtFecha(c.fecha_ingreso)||'-'}</td>
       <td style="${td};text-align:center">${dias}</td>
       <td style="${td};color:#2E7D32;font-weight:600">${fmt(c.monto_pagare)}</td>
       <td style="${td}"><span class="hist-estado-badge ${segClase[gs]||''}">${segLabel[gs]||gs}</span></td>
       <td style="${td};text-align:center" title="Número de gestiones registradas">${nGestiones}</td>
-      <td style="${td}">${ult.nuevo_estado||'-'}</td>
-      <td style="${td};max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${ult.comentario||''}">${ult.comentario||'-'}</td>
+      <td style="${td}">${esc(ult.nuevo_estado)||'-'}</td>
+      <td style="${td};max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${esc(ult.comentario)}">${esc(ult.comentario)||'-'}</td>
     </tr>`;
   }).join('');
   document.getElementById('panel-content').innerHTML = `
@@ -3953,13 +3943,13 @@ function renderVistaTablero() {
       const nGestiones = (c.gestiones||[]).length;
       const dias = diasDesde(c.fecha_ingreso || c.fecha_curse);
       const urgente = gs === 'VENCIDO';
-      return `<div onclick="abrirFichaDesdeTablero('${c.id}')" style="background:#fff;border:1px solid #ECEFF1;border-left:4px solid ${colorPuntoPorEstado(c)};border-radius:8px;padding:8px 10px;margin-bottom:8px;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.06)">
+      return `<div onclick="abrirFichaDesdeTablero('${c.id}','${c.origen}')" style="background:#fff;border:1px solid #ECEFF1;border-left:4px solid ${colorPuntoPorEstado(c)};border-radius:8px;padding:8px 10px;margin-bottom:8px;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.06)">
         <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--texto-sec)">
           <span>#${c.id}${urgente?' <b style="color:#C62828">· VENCIDO</b>':''}</span>
           <span title="Días desde el ingreso">${dias}d</span>
         </div>
-        <div style="font-weight:700;font-size:13px;margin:2px 0">${c.nombre||'-'}</div>
-        <div style="font-size:11px;color:var(--texto-sec)">${c.ejecutivo||'-'}</div>
+        <div style="font-weight:700;font-size:13px;margin:2px 0">${esc(c.nombre)||'-'}</div>
+        <div style="font-size:11px;color:var(--texto-sec)">${esc(c.ejecutivo)||'-'}</div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-size:11px">
           <span title="Número de gestiones">💬 ${nGestiones}</span>
           <span style="color:#2E7D32;font-weight:600">${c.monto_pagare?'$'+Number(c.monto_pagare).toLocaleString('es-CL'):''}</span>
@@ -3977,8 +3967,9 @@ function renderVistaTablero() {
 
 // Abre la ficha rápida de un crédito desde el tablero (un clic), buscándolo
 // en la colección combinada — no depende del filtro de estado activo.
-function abrirFichaDesdeTablero(id) {
-  const c = operaciones.find(x => String(x.id) === String(id));
+function abrirFichaDesdeTablero(id, origen) {
+  // v7.37 — por id Y origen; sin origen (compatibilidad) toma el primero que calce
+  const c = operaciones.find(x => String(x.id) === String(id) && (!origen || x.origen === origen));
   mostrarFichaRapida(c);
 }
 
@@ -4007,16 +3998,16 @@ function mostrarFichaRapida(c) {
       const fechaSegLabel = g.fecha_seguimiento ? (() => { const fs=new Date(g.fecha_seguimiento+'T00:00:00'); const cls=fs<hoy?'seg-vencido':'seg-al-dia'; return `<span class="hist-estado-badge ${cls}">${g.fecha_seguimiento} ${fs<hoy?'VENCIDO':'AL DÍA'}</span>`; })() : '-';
       return `<tr>
         <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px;white-space:nowrap">${fechaGestion}</td>
-        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px">${g.nuevo_estado||''}</td>
-        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px">${g.motivo_estado||''}</td>
-        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px">${g.seguimiento||''}</td>
-        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px">${g.contacto||''}</td>
+        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px">${esc(g.nuevo_estado)}</td>
+        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px">${esc(g.motivo_estado)}</td>
+        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px">${esc(g.seguimiento)}</td>
+        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px">${esc(g.contacto)}</td>
         <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px">${fechaSegLabel}</td>
-        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px">${g.concesionario||''}</td>
-        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px">${g.vendedor||''}</td>
-        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px">${g.tel_vendedor||''}</td>
-        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${g.comentario||''}">${g.comentario||''}</td>
-        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:11px;color:var(--texto-sec)">${g.usuario||''}</td>
+        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px">${esc(g.concesionario)}</td>
+        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px">${esc(g.vendedor)}</td>
+        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px">${esc(g.tel_vendedor)}</td>
+        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${esc(g.comentario)}">${esc(g.comentario)}</td>
+        <td style="padding:5px 8px;border-bottom:1px solid #ECEFF1;font-size:11px;color:var(--texto-sec)">${esc(g.usuario)}</td>
       </tr>`;
     }).join('');
   } else {
@@ -4026,10 +4017,10 @@ function mostrarFichaRapida(c) {
     <div style="padding:12px 16px">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
         <div style="background:#F8F9FB;border-radius:8px;border:1px solid var(--borde);overflow:hidden">
-          ${[['ID',`<strong>${c.id}</strong>`],['Estado',c.estado],['RUT',c.rut_cliente],['Categoría',c.categoria],['Nombre',`<strong>${c.nombre}</strong>`],['Riesgo',`<span class="${riesgoClass(c.riesgo_cliente)}">${c.riesgo_cliente}</span>`],['Producto',c.producto],['Canal',c.canal],['Marca/Modelo',`${c.marca||''} ${c.modelo||''}`],['F.Ingreso',fmtFecha(c.fecha_ingreso)]].map(([l,v])=>`<div style="display:flex;border-bottom:1px solid #ECEFF1"><span style="width:120px;min-width:120px;padding:5px 10px;background:#F0F2F5;font-size:11px;font-weight:600;color:var(--texto-sec);border-right:1px solid #ECEFF1">${l}</span><span style="padding:5px 10px;font-size:12px">${v||'-'}</span></div>`).join('')}
+          ${[['ID',`<strong>${c.id}</strong>`],['Estado',esc(c.estado)],['RUT',esc(c.rut_cliente)],['Categoría',esc(c.categoria)],['Nombre',`<strong>${esc(c.nombre)}</strong>`],['Riesgo',`<span class="${riesgoClass(c.riesgo_cliente)}">${esc(c.riesgo_cliente)}</span>`],['Producto',esc(c.producto)],['Canal',esc(c.canal)],['Marca/Modelo',`${esc(c.marca)||''} ${esc(c.modelo)||''}`],['F.Ingreso',fmtFecha(c.fecha_ingreso)]].map(([l,v])=>`<div style="display:flex;border-bottom:1px solid #ECEFF1"><span style="width:120px;min-width:120px;padding:5px 10px;background:#F0F2F5;font-size:11px;font-weight:600;color:var(--texto-sec);border-right:1px solid #ECEFF1">${l}</span><span style="padding:5px 10px;font-size:12px">${v||'-'}</span></div>`).join('')}
         </div>
         <div style="background:#F8F9FB;border-radius:8px;border:1px solid var(--borde);overflow:hidden">
-          ${[['Precio',`<span style="color:#2E7D32;font-weight:700">${fmt(c.precio)}</span>`],['Pie',`<span style="color:#2E7D32;font-weight:700">${fmt(c.pie)}</span>`],['Saldo Precio',`<span style="color:#2E7D32;font-weight:700">${fmt(c.saldo_precio)}</span>`],['Monto Pagaré',`<span style="color:#2E7D32;font-weight:700">${fmt(c.monto_pagare)}</span>`],['Ejecutivo',c.ejecutivo],['Evaluador',c.nom_evaluador||'-'],['Dealer',c.dealer],['Sucursal',c.sucursal],['Seguimiento',`<span class="hist-estado-badge ${segClase[gs]||''}">${segLabel[gs]||gs}</span>`]].map(([l,v])=>`<div style="display:flex;border-bottom:1px solid #ECEFF1"><span style="width:120px;min-width:120px;padding:5px 10px;background:#F0F2F5;font-size:11px;font-weight:600;color:var(--texto-sec);border-right:1px solid #ECEFF1">${l}</span><span style="padding:5px 10px;font-size:12px">${v||'-'}</span></div>`).join('')}
+          ${[['Precio',`<span style="color:#2E7D32;font-weight:700">${fmt(c.precio)}</span>`],['Pie',`<span style="color:#2E7D32;font-weight:700">${fmt(c.pie)}</span>`],['Saldo Precio',`<span style="color:#2E7D32;font-weight:700">${fmt(c.saldo_precio)}</span>`],['Monto Pagaré',`<span style="color:#2E7D32;font-weight:700">${fmt(c.monto_pagare)}</span>`],['Ejecutivo',esc(c.ejecutivo)],['Evaluador',esc(c.nom_evaluador)||'-'],['Dealer',esc(c.dealer)],['Sucursal',esc(c.sucursal)],['Seguimiento',`<span class="hist-estado-badge ${segClase[gs]||''}">${segLabel[gs]||gs}</span>`]].map(([l,v])=>`<div style="display:flex;border-bottom:1px solid #ECEFF1"><span style="width:120px;min-width:120px;padding:5px 10px;background:#F0F2F5;font-size:11px;font-weight:600;color:var(--texto-sec);border-right:1px solid #ECEFF1">${l}</span><span style="padding:5px 10px;font-size:12px">${v||'-'}</span></div>`).join('')}
         </div>
       </div>
       <div style="background:#fff;border-radius:8px;border:1px solid var(--borde);overflow:hidden">
@@ -4064,7 +4055,8 @@ function cerrarFichaLista() {
 
 function abrirGestionDesdeLista() {
   if (!creditoFichaLista) return;
-  const idx = registrosFiltrados.findIndex(r => r.id === creditoFichaLista.id);
+  // v7.37 — por id Y origen (ver grabarGestion)
+  const idx = registrosFiltrados.findIndex(r => r.id === creditoFichaLista.id && r.origen === creditoFichaLista.origen);
   if (idx >= 0) idxActual = idx;
   cerrarFichaLista();
   abrirModal();
