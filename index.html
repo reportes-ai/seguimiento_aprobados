@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gestión360 — AutoFácil v7.39</title>
+<title>Gestión360 — AutoFácil v7.43</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <!-- v7.37 — integrity + crossorigin: si el CDN se viera comprometido, el navegador
@@ -465,6 +465,7 @@
     <div class="user">
       <span class="avatar" id="home-avatar">–</span>
       <div><strong id="home-user-nombre">—</strong><small id="home-user-perfil">—</small></div>
+      <span class="alcance-sup-slot"></span>
       <button onclick="doLogout()">Salir</button>
     </div>
   </header>
@@ -518,6 +519,7 @@
   <header id="reportes-header" style="background:var(--azul);height:52px;display:flex;align-items:center;gap:10px;padding:0 20px;color:#fff">
     <button class="btn-sm" onclick="showHome()" style="background:rgba(255,255,255,0.18);font-weight:600">🏠 Inicio</button>
     <h1 style="font-size:16px;font-weight:700">📊 Reportes</h1>
+    <span class="alcance-sup-slot" style="margin-left:auto"></span>
   </header>
   <div class="module-content" style="height:calc(100vh - 52px);overflow-y:auto;display:block">
 
@@ -627,9 +629,10 @@
   <header id="app-header" style="background:var(--azul)">
     <div style="display:flex;align-items:center;gap:10px">
       <button class="btn-sm" onclick="showHome()" style="background:rgba(255,255,255,0.18);font-weight:600">🏠 Inicio</button>
-      <h1 id="header-titulo">📋 Seguimiento de Operaciones <small style="font-size:11px;opacity:0.7">v7.39</small></h1>
+      <h1 id="header-titulo">📋 Seguimiento de Operaciones <small style="font-size:11px;opacity:0.7">v7.43</small></h1>
     </div>
     <div class="header-right">
+      <span class="alcance-sup-slot"></span>
       <span id="header-ejecutivo"></span>
     </div>
   </header>
@@ -868,11 +871,22 @@
         </div>
       </label>
       <input type="file" id="file-input-rechazados" accept=".xlsx,.xls" onchange="loadExcel(event, 'rechazados')">
+      <!-- v7.41 — Otorgados NO inserta operaciones nuevas: cruza por ID contra
+           Aprobados/Rechazados ya cargados y marca la gestión como OTORGADO en
+           las que encuentra. -->
+      <label class="upload-area" for="file-input-otorgados" style="border-color:#1889D0;background:#E3F2FD;margin-top:4px">
+        <span class="icon">📂</span>
+        <div>
+          <p style="color:#0D47A1">Cargar Otorgados (TRISolicitud)</p>
+          <small>No crea operaciones: marca como OTORGADO las que ya existen (cruce por ID)</small>
+        </div>
+      </label>
+      <input type="file" id="file-input-otorgados" accept=".xlsx,.xls" onchange="loadExcelOtorgados(event)">
       <div class="estado-carga" id="estado-carga" style="margin:10px 16px 4px"></div>
 
       <!-- v7.20 — herramienta separada: SOLO completa el campo Vendedor en
            operaciones que ya existen, nunca crea operaciones nuevas. -->
-      <div style="margin:18px 16px 4px;padding-top:14px;border-top:1px dashed var(--borde)">
+      <div id="bloque-repoblar-vendedor" style="margin:18px 16px 4px;padding-top:14px;border-top:1px dashed var(--borde)">
         <p style="font-size:11px;color:var(--texto-sec);line-height:1.5;margin-bottom:10px">
           <strong style="color:#7B1FA2">🔧 Repoblar Vendedor</strong> — completa el campo <em>Vendedor</em> en operaciones que ya existen (cargadas antes de que se capturara esa columna), desde el 01-08-2026 en adelante. No crea operaciones nuevas ni cambia nada más, y nunca sobrescribe un Vendedor que ya tenga valor.
         </p>
@@ -904,7 +918,7 @@
     <div style="background:#1565C0;color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-radius:12px 12px 0 0;flex-shrink:0">
       <div>
         <h3 style="font-size:16px;font-weight:700;margin:0">❓ Manual de Usuario — Seguimiento de Créditos</h3>
-        <div style="font-size:12px;opacity:0.8;margin-top:2px">AutoFácil Chile · v7.39</div>
+        <div style="font-size:12px;opacity:0.8;margin-top:2px">AutoFácil Chile · v7.43</div>
       </div>
       <button onclick="cerrarAyuda()" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:0 4px">✕</button>
     </div>
@@ -951,13 +965,30 @@ function mensajeErrorGuardado(err) {
   if (detalle && detalle.code === '23503' && String(detalle.message || '').includes('gestiones_credito_id_fkey')) {
     return 'No se pudo guardar la gestión: esta operación pertenece a la base de "Rechazados" y la base de datos todavía tiene una restricción pendiente de ajuste para permitir gestiones sobre ese origen.\n\nNo perdiste tu información — vuelve a intentarlo más tarde, y si persiste, avisa al administrador del sistema (ya está identificado el ajuste que falta).';
   }
+  // v7.40 — igual, para la restricción unique del email en usuarios_seguimiento:
+  // si por algún motivo el on_conflict de sbInsert no absorbió el duplicado
+  // (por ejemplo, otro proceso insertó el mismo email entre medio), igual se
+  // muestra un mensaje entendible en vez del JSON crudo de Postgres.
+  if (detalle && detalle.code === '23505' && String(detalle.message || '').includes('usuarios_seguimiento_usuario_key')) {
+    return 'No se creó/guardó el usuario: ya existe una cuenta con ese email.\n\nSi querías editarla, selecciónala en la lista de la izquierda en vez de usar "+ Nuevo".';
+  }
   if (detalle && detalle.message) return 'Error al guardar: ' + detalle.message;
   return 'Error al guardar: ' + err.message;
 }
 
-async function sbInsert(table, data) {
+// v7.40 — "onConflict" (opcional): columna(s) a usar como objetivo del
+// ON CONFLICT para el Prefer "ignore-duplicates". SIN este parámetro,
+// PostgREST solo aplica "ignore-duplicates" contra la llave primaria (id) —
+// una violación de OTRA restricción unique (como "usuario" en
+// usuarios_seguimiento) NO se absorbe ahí y sube como error 409 crudo, aun
+// con "ignore-duplicates" puesto. Por eso guardarUser() seguía mostrando el
+// JSON crudo de Supabase al crear un usuario con email repetido, pese al
+// aviso agregado en v7.37 (ese aviso nunca se alcanzaba a mostrar porque
+// sbInsert ya había lanzado la excepción antes).
+async function sbInsert(table, data, onConflict = null) {
   const body = Array.isArray(data) ? data : [data];
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+  const qs = onConflict ? `?on_conflict=${encodeURIComponent(onConflict)}` : '';
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}${qs}`, {
     method: 'POST',
     headers: {
       'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`,
@@ -1204,6 +1235,7 @@ document.getElementById('login-user').addEventListener('keydown', e => { if(e.ke
 
 function doLogout() {
   currentUser = null;
+  supervisorAlcance = 'equipo'; // v7.43
   creditos = [];
   rechazados = [];
   operaciones = [];
@@ -1241,8 +1273,41 @@ function operacionesDelMesActual() {
   });
 }
 
+// v7.43 — ALCANCE DEL SUPERVISOR: por defecto ve solo su equipo (comportamiento
+// de siempre); con "Todos" ve todas las operaciones, igual que un Gerente
+// para efectos de lectura. Es una preferencia de pantalla (no un permiso): se
+// reinicia a "Mi equipo" en cada ingreso.
+let supervisorAlcance = 'equipo'; // 'equipo' | 'todos'
+
+function renderAlcanceSupervisor() {
+  const esSup = !!currentUser && currentUser.perfil === 'supervisor';
+  document.querySelectorAll('.alcance-sup-slot').forEach(slot => {
+    if (!esSup) { slot.innerHTML = ''; return; }
+    slot.innerHTML =
+      '<select class="alcance-sup-select" title="Qué operaciones quieres ver" onchange="cambiarAlcanceSupervisor(this.value)" ' +
+      'style="background:rgba(255,255,255,0.18);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:6px;padding:4px 8px;font-size:12px;font-weight:600;cursor:pointer">' +
+      '<option value="equipo" style="color:#000"' + (supervisorAlcance === 'equipo' ? ' selected' : '') + '>👥 Mi equipo</option>' +
+      '<option value="todos" style="color:#000"' + (supervisorAlcance === 'todos' ? ' selected' : '') + '>🌐 Todos</option>' +
+      '</select>';
+  });
+}
+
+async function cambiarAlcanceSupervisor(valor) {
+  if (!currentUser || currentUser.perfil !== 'supervisor') return;
+  supervisorAlcance = valor === 'todos' ? 'todos' : 'equipo';
+  renderAlcanceSupervisor();
+  await recargarDatos();
+  // recargarDatos() ya refresca Seguimiento; se actualizan las otras pantallas.
+  if (document.getElementById('home').style.display !== 'none') showHome();
+  if (document.getElementById('reportes').style.display !== 'none') {
+    poblarFiltrosReporte();
+    onFiltrosReporteChange();
+  }
+}
+
 function showHome() {
   mostrarPantalla('home');
+  renderAlcanceSupervisor();
 
   const nombre = currentUser.usuario || '';
   const label = currentUser.perfil === 'gerente' ? 'Gerente' : currentUser.perfil === 'supervisor' ? 'Supervisor' : 'Ejecutivo';
@@ -1251,7 +1316,8 @@ function showHome() {
   document.getElementById('home-user-perfil').textContent = label;
   document.getElementById('home-saludo').textContent = `Hola, ${nombre.split('@')[0]} 👋`;
   document.getElementById('home-fecha').textContent = new Date().toLocaleDateString('es-CL', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
-  document.getElementById('home-btn-carga').style.display = currentUser.perfil === 'gerente' ? 'flex' : 'none';
+  // v7.42 — Cargar Archivos también para Supervisor (antes solo Gerente).
+  document.getElementById('home-btn-carga').style.display = (currentUser.perfil === 'gerente' || currentUser.perfil === 'supervisor') ? 'flex' : 'none';
   document.getElementById('home-btn-admin').style.display = currentUser.perfil === 'gerente' ? 'flex' : 'none';
 
   // v7.2 — el recuadro de totales muestra solo el mes calendario actual, no el histórico completo.
@@ -1280,11 +1346,19 @@ function showHome() {
 
 function goToApp() {
   mostrarPantalla('app');
+  renderAlcanceSupervisor();
   poblarFiltrosSeguimiento();
   aplicarFiltro();
 }
 
 function abrirCargaModal() {
+  // v7.42 — defensa en profundidad: el botón ya se oculta a otros perfiles,
+  // pero la función también se valida por si se invoca de otra forma.
+  if (!currentUser || (currentUser.perfil !== 'gerente' && currentUser.perfil !== 'supervisor')) return;
+  // v7.42 — "Repoblar Vendedor" es una herramienta puntual de mantención:
+  // se mantiene solo para Gerente.
+  const bloqueRepoblar = document.getElementById('bloque-repoblar-vendedor');
+  if (bloqueRepoblar) bloqueRepoblar.style.display = currentUser.perfil === 'gerente' ? '' : 'none';
   document.getElementById('estado-carga').innerHTML = '';
   document.getElementById('modal-carga').classList.add('visible');
 }
@@ -1297,6 +1371,7 @@ document.getElementById('modal-carga').addEventListener('click', function(e) {
 
 function goToReportes() {
   mostrarPantalla('reportes');
+  renderAlcanceSupervisor();
   poblarFiltrosReporte();
   if (!_reportesFiltrosInit) {
     prefillFechasReporte();
@@ -1969,7 +2044,10 @@ async function recargarDatos() {
     // Ejecutivos como Vendedores asignados (un mismo usuario consolida ambos).
     let ejecutivosPermitidos = currentUser.ejecutivos;
     let vendedoresPermitidos = currentUser.vendedores || [];
-    if (currentUser.perfil === 'supervisor' && ejecutivosPermitidos[0] !== 'todos') {
+    if (currentUser.perfil === 'supervisor' && supervisorAlcance === 'todos') {
+      // v7.43 — el supervisor eligió ver todas las operaciones.
+      ejecutivosPermitidos = ['todos'];
+    } else if (currentUser.perfil === 'supervisor' && ejecutivosPermitidos[0] !== 'todos') {
       try {
         const equipoRaw = await sbGet('usuarios_seguimiento', 'supervisor=eq.' + encodeURIComponent(currentUser.usuario));
         const nombresEjecutivo = new Set((currentUser.ejecutivos || []).map(e => claveNormalizada(e)));
@@ -2305,9 +2383,147 @@ async function loadExcel(event, tipo = 'aprobados') {
       // memoria — si difieren, se informa aparte en vez de mezclarlos.
       const difiereDeLoEsperado = nuevos.length - idsRealmenteInsertados.size;
       const notaDiferencia = difiereDeLoEsperado > 0
-        ? ` | ${difiereDeLoEsperado} fila(s) ya existían en la base (fuera de los últimos 5.000 registros en memoria) y se omitieron`
+        ? ` | ${difiereDeLoEsperado} fila(s) ya existían en la base (fuera de lo visible para tu perfil o de los últimos 5.000 registros) y se omitieron`
         : '';
       mostrarCarga(`✅ Insertados: ${idsRealmenteInsertados.size} | Existentes omitidos: ${cuentaOmitidos}${notaDiferencia}${resumenObservados}`);
+      await recargarDatos();
+    } catch(err) {
+      loading(false);
+      mostrarCarga(`❌ Error: ${err.message}`, true);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  event.target.value = '';
+}
+
+// v7.41 — CARGAR OTORGADOS: a diferencia de loadExcel() (que inserta
+// operaciones nuevas en creditos/creditos_rechazados), esta función NUNCA
+// inserta una operación nueva. Su único trabajo es cruzar por ID contra las
+// operaciones de Aprobados/Rechazados que YA existen en la base, y a las que
+// encuentra les agrega una gestión con Nuevo Estado = OTORGADO (la misma
+// gestión que se crearía a mano desde Seguimiento) para que Reportes las
+// cuente como otorgadas automáticamente, sin que nadie tenga que entrar
+// operación por operación a registrarlo.
+//   - Si el ID del archivo no existe ni en Aprobados ni en Rechazados, queda
+//     "observado" (no se crea nada).
+//   - Si el ID existe pero con un RUT distinto, queda "observado" (posible
+//     colisión) — igual que en loadExcel().
+//   - Si el ID existe solo en RECHAZADOS: no se puede registrar una gestión
+//     ahí (limitación real y ya documentada de la base: la restricción
+//     "gestiones_credito_id_fkey" solo acepta credito_id de la tabla
+//     creditos/Aprobados). Queda "observado" con ese motivo explícito en vez
+//     de intentarlo y fallar.
+//   - Si la operación ya estaba OTORGADO (por una carga anterior de este
+//     mismo archivo, por ejemplo), se omite sin duplicar la gestión.
+async function loadExcelOtorgados(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      loading(true, 'Procesando archivo de Otorgados...');
+      const wb = XLSX.read(e.target.result, {type:'array', cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+      let headerRow = -1;
+      for (let i=0;i<raw.length;i++) {
+        if (String(raw[i][0]).trim()==='ID') { headerRow=i; break; }
+      }
+      if (headerRow<0) { loading(false); mostrarCarga('❌ No se encontró fila de encabezados (ID)', true); return; }
+
+      const headers = raw[headerRow].map(h => String(h).trim());
+      const rows = raw.slice(headerRow+1).filter(r => r.some(v => String(v).trim() !== ''));
+      const idxId = headers.indexOf('ID');
+      const idxRut = headers.indexOf('Rut Cliente');
+      const idxEstado = headers.indexOf('Estado');
+
+      // Chequeo de sanidad (equivalente al de loadExcel para aprobados/
+      // rechazados): evita cruzar por error un archivo que no es de
+      // Otorgados. El export de Otorgados trae Estado "Cursado" o
+      // "RevisionFirma" — nunca "Aprobado"/"Rechazado".
+      if (idxEstado >= 0) {
+        const hayIncompatible = rows.some(row => {
+          const v = String(row[idxEstado] ?? '').trim().toUpperCase();
+          return v && !v.includes('CURS') && !v.includes('FIRMA');
+        });
+        if (hayIncompatible) {
+          loading(false);
+          mostrarCarga('❌ Carga bloqueada: el archivo no parece ser de Otorgados (valores de "Estado" distintos a Cursado/RevisionFirma). No se marcó nada.', true);
+          return;
+        }
+      }
+
+      const porIdAprobados = new Map(creditos.map(c => [String(c.id), c]));
+      const porIdRechazados = new Map(rechazados.map(c => [String(c.id), c]));
+
+      const gestionesAInsertar = [];
+      const observados = []; // {id, motivo}
+      let yaOtorgadas = 0;
+
+      rows.forEach(row => {
+        const id = String(row[idxId]).trim();
+        if (!id || isNaN(id)) { observados.push({ id: id || '(vacío)', motivo: 'ID vacío o inválido' }); return; }
+
+        const enAprobados = porIdAprobados.get(id);
+        const enRechazados = porIdRechazados.get(id);
+        const existente = enAprobados || enRechazados;
+        if (!existente) {
+          observados.push({ id, motivo: 'No está cargado en Aprobados ni en Rechazados (o no pertenece a tu equipo)' });
+          return;
+        }
+
+        const rutArchivo = idxRut >= 0 ? String(row[idxRut]||'').trim().toUpperCase() : '';
+        const rutExistente = String(existente.rut_cliente||'').trim().toUpperCase();
+        if (rutArchivo && rutExistente && rutArchivo !== rutExistente) {
+          observados.push({ id, motivo: 'ID existente con RUT incompatible (posible colisión)' });
+          return;
+        }
+
+        if (!enAprobados && enRechazados) {
+          observados.push({ id, motivo: 'Está en Rechazados — la base de datos no permite registrar gestiones sobre operaciones rechazadas (limitación conocida, ver manual)' });
+          return;
+        }
+
+        if (getEstadoComercial(existente) === 'OTORGADO') { yaOtorgadas++; return; }
+
+        gestionesAInsertar.push({
+          credito_id: id,
+          nuevo_estado: 'OTORGADO',
+          motivo_estado: null,
+          seguimiento: 'SIN CONTACTO',
+          contacto: null,
+          fecha_seguimiento: fechaISOLocal(new Date(Date.now() + 365*24*60*60*1000)),
+          comentario: 'Carga automática — operación marcada OTORGADO por cruce de ID con el archivo de Otorgados (TRISolicitud).',
+          concesionario: null,
+          vendedor: null,
+          tel_vendedor: null,
+          usuario: currentUser ? currentUser.usuario : 'sistema',
+        });
+      });
+
+      let marcadas = 0, fallosGestion = 0;
+      if (gestionesAInsertar.length > 0) {
+        loading(true, `Marcando ${gestionesAInsertar.length} operación(es) como OTORGADO...`);
+        const loteSize = 100;
+        for (let i=0; i<gestionesAInsertar.length; i+=loteSize) {
+          const lote = gestionesAInsertar.slice(i, i+loteSize);
+          try {
+            const insertadas = await sbInsert('gestiones', lote);
+            marcadas += (insertadas || []).length;
+          } catch(e) {
+            fallosGestion += lote.length;
+            console.warn('loadExcelOtorgados: falló un lote de gestiones OTORGADO:', e);
+          }
+        }
+      }
+
+      loading(false);
+      const resumenObservados = observados.length > 0
+        ? ` | Observados: ${observados.length} (${observados.slice(0,5).map(o=>o.id+': '+o.motivo).join('; ')}${observados.length>5?'…':''})`
+        : ' | Observados: 0';
+      const notaFallos = fallosGestion > 0 ? ` | ⚠️ ${fallosGestion} no se pudieron marcar (error de base de datos, ver consola)` : '';
+      mostrarCarga(`✅ Marcadas como OTORGADO: ${marcadas} | Ya estaban OTORGADO: ${yaOtorgadas}${notaFallos}${resumenObservados}`);
       await recargarDatos();
     } catch(err) {
       loading(false);
@@ -3767,7 +3983,7 @@ async function guardarUser() {
       // existía, Supabase no inserta nada y devuelve un arreglo vacío, pero
       // ni el fetch ni este código fallaban, así que el gerente creía que sí
       // se había creado. Ahora se revisa la respuesta y se avisa.
-      const insertado = await sbInsert('usuarios_seguimiento', data);
+      const insertado = await sbInsert('usuarios_seguimiento', data, 'usuario');
       if (!insertado || insertado.length === 0) {
         alert('No se creó el usuario: ya existe una cuenta con el email "' + email + '".\n\nSi querías editarla, selecciónala en la lista de la izquierda en vez de usar "+ Nuevo".');
         return;
@@ -3785,7 +4001,7 @@ async function guardarUser() {
       currentUser = { ...currentUser, ...data };
     }
   } catch(e) {
-    alert('Error guardando: ' + e.message);
+    alert(mensajeErrorGuardado(e));
   }
 }
 
