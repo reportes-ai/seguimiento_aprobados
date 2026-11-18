@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gestión360 — AutoFácil v7.43</title>
+<title>Gestión360 — AutoFácil v7.44</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <!-- v7.37 — integrity + crossorigin: si el CDN se viera comprometido, el navegador
@@ -629,7 +629,7 @@
   <header id="app-header" style="background:var(--azul)">
     <div style="display:flex;align-items:center;gap:10px">
       <button class="btn-sm" onclick="showHome()" style="background:rgba(255,255,255,0.18);font-weight:600">🏠 Inicio</button>
-      <h1 id="header-titulo">📋 Seguimiento de Operaciones <small style="font-size:11px;opacity:0.7">v7.43</small></h1>
+      <h1 id="header-titulo">📋 Seguimiento de Operaciones <small style="font-size:11px;opacity:0.7">v7.44</small></h1>
     </div>
     <div class="header-right">
       <span class="alcance-sup-slot"></span>
@@ -918,7 +918,7 @@
     <div style="background:#1565C0;color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-radius:12px 12px 0 0;flex-shrink:0">
       <div>
         <h3 style="font-size:16px;font-weight:700;margin:0">❓ Manual de Usuario — Seguimiento de Créditos</h3>
-        <div style="font-size:12px;opacity:0.8;margin-top:2px">AutoFácil Chile · v7.43</div>
+        <div style="font-size:12px;opacity:0.8;margin-top:2px">AutoFácil Chile · v7.44</div>
       </div>
       <button onclick="cerrarAyuda()" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:0 4px">✕</button>
     </div>
@@ -1835,10 +1835,19 @@ function renderInformeInline() {
 // usuario" — ese caso se resuelve en Administración → Variantes sin
 // asignar). Por eso la única forma real de sacarlas de "Sin usuario" es
 // completarles el dato aquí mismo, a mano, operación por operación.
-function verDetalleSinUsuario() {
-  const datos = getOperacionesReporte().filter(c => nombreUsuarioDeEjecutivo(c) === 'Sin usuario');
+// v7.44 — "todas": desde Administración (aviso de Variantes sin asignar) se
+// listan TODAS las operaciones cargadas sin Ejecutivo ni Vendedor, sin importar
+// los filtros de fecha/producto de Reportes — así el conteo del aviso (que
+// tampoco filtra) coincide con lo que se ve en la lista.
+function operacionesSinNingunDato() {
+  return operaciones.filter(c => !(c.ejecutivo||'').trim() && !(c.vendedor||'').trim());
+}
+function verDetalleSinUsuario(todas = false) {
+  const datos = todas === true
+    ? operacionesSinNingunDato()
+    : getOperacionesReporte().filter(c => nombreUsuarioDeEjecutivo(c) === 'Sin usuario');
   const sub = document.getElementById('sin-usuario-subtitulo');
-  if (sub) sub.textContent = `${datos.length} operación(es) sin ningún dato de Ejecutivo ni Vendedor en el archivo de origen`;
+  if (sub) sub.textContent = `${datos.length} operación(es) sin ningún dato de Ejecutivo ni Vendedor en el archivo de origen` + (todas === true ? ' (todas las cargadas, sin filtros de Reportes)' : '');
 
   const cont = document.getElementById('sin-usuario-contenido');
   if (!cont) return;
@@ -1869,8 +1878,17 @@ function verDetalleSinUsuario() {
   document.getElementById('modal-sin-usuario').classList.add('visible');
 }
 
+function actualizarAvisoSinDato() {
+  const aviso = document.getElementById('aviso-sin-dato');
+  if (!aviso) return;
+  const n = operacionesSinNingunDato().length;
+  if (n === 0) { aviso.remove(); return; }
+  const el = document.getElementById('aviso-sin-dato-n');
+  if (el) el.textContent = n;
+}
 function cerrarDetalleSinUsuario() {
   document.getElementById('modal-sin-usuario').classList.remove('visible');
+  actualizarAvisoSinDato();
 }
 document.getElementById('modal-sin-usuario').addEventListener('click', function(e) { if (e.target === this) cerrarDetalleSinUsuario(); });
 
@@ -3490,11 +3508,12 @@ function mostrarVariantesSinAsignar() {
   // reportes, pero esta herramienta no puede ayudar con esas: no hay ningún
   // texto que sugerir ni asignar. Se muestran aparte, solo informativamente,
   // para no confundirlas con las que sí se pueden resolver aquí.
-  const sinNingunDato = operaciones.filter(c => !(c.ejecutivo||'').trim() && !(c.vendedor||'').trim()).length;
+  const sinNingunDato = operacionesSinNingunDato().length;
   const avisoSinDato = sinNingunDato > 0
-    ? `<p style="font-size:11px;color:var(--rojo);background:var(--rojo-bg);border-radius:6px;padding:8px;margin-bottom:12px">
-        ⚠️ Además, hay <strong>${sinNingunDato}</strong> operación(es) sin ningún dato de Ejecutivo ni Vendedor en el archivo de origen —
-        esas no aparecen en la tabla de abajo porque no hay ningún texto que asignar. Quedarán como "Sin usuario" hasta corregir el dato en el origen.
+    ? `<p id="aviso-sin-dato" style="font-size:11px;color:var(--rojo);background:var(--rojo-bg);border-radius:6px;padding:8px;margin-bottom:12px">
+        ⚠️ Además, hay <strong id="aviso-sin-dato-n">${sinNingunDato}</strong> operación(es) sin ningún dato de Ejecutivo ni Vendedor en el archivo de origen —
+        esas no aparecen en la tabla de abajo porque no hay ningún texto que asignar. Quedarán como "Sin usuario" hasta corregir el dato.
+        <button type="button" onclick="verDetalleSinUsuario(true)" style="margin-left:6px;height:24px;padding:0 10px;border:none;border-radius:6px;background:var(--rojo);color:#fff;font-size:11px;font-weight:600;cursor:pointer">🔍 Ver y corregir estas operaciones</button>
       </p>`
     : '';
 
